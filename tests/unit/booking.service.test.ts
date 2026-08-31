@@ -1,0 +1,168 @@
+import { Prisma } from '@prisma/client'
+import { BookingService } from '../../src/services/booking.service'
+import { prisma } from '../../src/config/database'
+import { ApiError } from '../../src/utils/errors'
+import { CreateBookingInput } from '../../src/types/booking'
+
+jest.mock('../../src/config/database', () => ({
+  prisma: {
+    trip: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    bookingGroup: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      findMany: jest.fn(),
+    },
+    participant: {
+      create: jest.fn(),
+      findMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  },
+}))
+
+describe('BookingService', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  describe('getOrCreateBookingGroup', () => {
+    it('should throw ApiError (404) if trip does not exist', async () => {
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(null)
+
+      await expect(BookingService.getOrCreateBookingGroup(999, 500000)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Trip not found',
+      })
+    })
+
+    it('should return existing open group if slots are available', async () => {
+      const mockOpenGroup = {
+        id: 1,
+        trip_id: 1,
+        group_number: 1,
+        status: 'open',
+        current_participants: 3,
+        max_participants: 6,
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        booking_groups: [mockOpenGroup],
+      })
+
+      const group = await BookingService.getOrCreateBookingGroup(1, 500000)
+      expect(group).toEqual(mockOpenGroup)
+      expect(prisma.bookingGroup.create).not.toHaveBeenCalled()
+    })
+
+    it('should create a new booking group if existing group is full', async () => {
+      const mockFullGroup = {
+        id: 1,
+        trip_id: 1,
+        group_number: 1,
+        status: 'open',
+        current_participants: 6,
+        max_participants: 6,
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        booking_groups: [mockFullGroup],
+      })
+      ;(prisma.bookingGroup.findFirst as jest.Mock).mockResolvedValue({ group_number: 1 })
+      ;(prisma.bookingGroup.create as jest.Mock).mockResolvedValue({
+        id: 2,
+        trip_id: 1,
+        group_number: 2,
+        status: 'open',
+        price_per_person: new Prisma.Decimal(500000),
+        total_price: new Prisma.Decimal(3000000),
+      })
+
+      const newGroup = await BookingService.getOrCreateBookingGroup(1, 500000)
+      expect(newGroup.id).toBe(2)
+      expect(newGroup.group_number).toBe(2)
+      expect(prisma.bookingGroup.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          trip_id: 1,
+          group_number: 2,
+          status: 'open',
+        }),
+      })
+    })
+  })
+
+  describe('createBooking', () => {
+    const sampleInput: CreateBookingInput = {
+      trip_id: 1,
+      full_name: 'Jane Doe',
+      phone_number: '08123456789',
+      country: 'Indonesia',
+      date_of_birth: '1995-05-15',
+      hotel_preference: 'Standard Double',
+      passport_number: 'A12345678',
+      identity_type: 'passport',
+      room_type: 'twin',
+      health_notes: 'None',
+      preferred_language: 'English',
+      travel_insurance: true,
+    }
+
+    it('should throw ApiError (404) if trip does not exist', async () => {
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(null)
+
+      await expect(BookingService.createBooking(1, sampleInput)).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Trip not found',
+      })
+    })
+
+    it('should assign participant to group and increment counters inside transaction', async () => {
+      const mockTrip = {
+        id: 1,
+        destination: { price_per_person: new Prisma.Decimal(750000) },
+        booking_groups: [
+          {
+            id: 10,
+            trip_id: 1,
+            group_number: 1,
+            status: 'open',
+            current_participants: 2,
+            max_participants: 6,
+          },
+        ],
+      }
+
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockTrip)
+
+      const mockParticipant = {
+        id: 100,
+        booking_group_id: 10,
+        user_id: 1,
+        full_name: sampleInput.full_name,
+      }
+
+      const mockUpdatedGroup = {
+        id: 10,
+        current_participants: 3,
+        max_participants: 6,
+        status: 'open',
+      }
+
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          participant: { create: jest.fn().mockResolvedValue(mockParticipant) },
+          bookingGroup: { update: jest.fn().mockResolvedValue(mockUpdatedGroup) },
+          trip: { update: jest.fn().mockResolvedValue({ id: 1, current_participants: 3 }) },
+        }
+        return callback(tx)
+      })
+
+      const result = await BookingService.createBooking(1, sampleInput)
+      expect(result.participant).toEqual(mockParticipant)
+      expect(result.bookingGroup.current_participants).toBe(3)
+    })
+  })
+})
