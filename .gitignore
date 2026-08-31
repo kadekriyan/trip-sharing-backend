@@ -1,0 +1,25 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Coverage & Testing
+coverage/
+.nyc_output/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
