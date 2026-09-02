@@ -21,18 +21,34 @@ export class EmailService {
   }
 
   static async sendBookingConfirmation(email: string, data: Record<string, unknown>) {
-    return this.send(email, 'Booking Confirmation - Trip Sharing', `<h1>Booking Confirmation</h1><pre>${JSON.stringify(data, null, 2)}</pre>`)
+    return this.send(
+      email,
+      'Booking Confirmation - Trip Sharing',
+      `<h1>Booking Confirmation</h1><pre>${JSON.stringify(data, null, 2)}</pre>`
+    )
   }
 
   static async sendPaymentReceipt(email: string, data: Record<string, unknown>) {
-    return this.send(email, 'Payment Receipt - Trip Sharing', `<h1>Payment Receipt</h1><pre>${JSON.stringify(data, null, 2)}</pre>`)
+    return this.send(
+      email,
+      'Payment Receipt - Trip Sharing',
+      `<h1>Payment Receipt</h1><pre>${JSON.stringify(data, null, 2)}</pre>`
+    )
   }
 
   static async sendParticipantCreated(email: string, data: Record<string, unknown>) {
-    return this.send(email, 'Participant Created - Trip Sharing', `<h1>Participant Created</h1><pre>${JSON.stringify(data, null, 2)}</pre>`)
+    return this.send(
+      email,
+      'Participant Created - Trip Sharing',
+      `<h1>Participant Created</h1><pre>${JSON.stringify(data, null, 2)}</pre>`
+    )
   }
 
   static async sendParticipantMoved(email: string, data: Record<string, unknown>) {
-    return this.send(email, 'Participant Moved - Trip Sharing', `<h1>Participant Moved</h1><pre>${JSON.stringify(data, null, 2)}</pre>`)
+    return this.send(
+      email,
+      'Participant Moved - Trip Sharing',
+      `<h1>Participant Moved</h1><pre>${JSON.stringify(data, null, 2)}</pre>`
+    )
   }
 }

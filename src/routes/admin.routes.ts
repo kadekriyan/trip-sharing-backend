@@ -13,34 +13,111 @@ const router = Router()
 
 router.use(authenticate, authorize(['admin']))
 
-router.post('/participants', validateRequest(participantValidator.adminCreate), asyncHandler(AdminController.createParticipant))
-router.get('/participants', asyncHandler(AdminController.getParticipants))
-router.patch('/participants/:id', validateRequest(participantValidator.update), asyncHandler(AdminController.updateParticipant))
-router.delete('/participants/:id', asyncHandler(AdminController.deleteParticipant))
-router.patch('/participants/:id/move', validateRequest(participantValidator.move), asyncHandler(AdminController.moveParticipant))
+// Dashboard & Metrics
+router.get('/metrics', asyncHandler(AdminController.getMetrics))
+router.get('/audit-logs', asyncHandler(AdminController.getAuditLogs))
 
-router.post('/destinations', validateRequest(destinationValidator.create), asyncHandler(AdminController.createDestination))
+// Participants
+router.post(
+  '/participants',
+  validateRequest(participantValidator.adminCreate),
+  asyncHandler(AdminController.createParticipant)
+)
+router.post(
+  '/participants/manual',
+  validateRequest(participantValidator.adminCreate),
+  asyncHandler(AdminController.createParticipant)
+)
+router.get('/participants', asyncHandler(AdminController.getParticipants))
+router.patch(
+  '/participants/:id',
+  validateRequest(participantValidator.update),
+  asyncHandler(AdminController.updateParticipant)
+)
+router.delete('/participants/:id', asyncHandler(AdminController.deleteParticipant))
+router.patch(
+  '/participants/:id/move',
+  validateRequest(participantValidator.move),
+  asyncHandler(AdminController.moveParticipant)
+)
+router.post(
+  '/participants/move-group',
+  validateRequest(participantValidator.move),
+  asyncHandler(AdminController.moveParticipant)
+)
+
+// Destinations
+router.post(
+  '/destinations',
+  validateRequest(destinationValidator.create),
+  asyncHandler(AdminController.createDestination)
+)
 router.get('/destinations', asyncHandler(AdminController.getDestinations))
 router.get('/destinations/:id', asyncHandler(AdminController.getDestination))
-router.patch('/destinations/:id', validateRequest(destinationValidator.update), asyncHandler(AdminController.updateDestination))
+router.patch(
+  '/destinations/:id',
+  validateRequest(destinationValidator.update),
+  asyncHandler(AdminController.updateDestination)
+)
 router.delete('/destinations/:id', asyncHandler(AdminController.deleteDestination))
 
-router.post('/trips', validateRequest(tripValidator.create), asyncHandler(AdminController.createTrip))
+// Trips
+router.post(
+  '/trips',
+  validateRequest(tripValidator.create),
+  asyncHandler(AdminController.createTrip)
+)
 router.get('/trips', asyncHandler(AdminController.getTrips))
 router.get('/trips/:id', asyncHandler(AdminController.getTrip))
-router.patch('/trips/:id', validateRequest(tripValidator.update), asyncHandler(AdminController.updateTrip))
+router.patch(
+  '/trips/:id',
+  validateRequest(tripValidator.update),
+  asyncHandler(AdminController.updateTrip)
+)
 router.delete('/trips/:id', asyncHandler(AdminController.deleteTrip))
 
-router.post('/articles', validateRequest(articleValidator.create), asyncHandler(AdminController.createArticle))
+// Articles & Blogs
+router.post(
+  '/articles',
+  validateRequest(articleValidator.create),
+  asyncHandler(AdminController.createArticle)
+)
 router.get('/articles', asyncHandler(AdminController.getArticles))
 router.get('/articles/:id', asyncHandler(AdminController.getArticle))
-router.patch('/articles/:id', validateRequest(articleValidator.update), asyncHandler(AdminController.updateArticle))
+router.patch(
+  '/articles/:id',
+  validateRequest(articleValidator.update),
+  asyncHandler(AdminController.updateArticle)
+)
 router.delete('/articles/:id', asyncHandler(AdminController.deleteArticle))
 
-router.post('/drivers', validateRequest(driverValidator.create), asyncHandler(AdminController.createDriver))
+router.post(
+  '/blogs',
+  validateRequest(articleValidator.create),
+  asyncHandler(AdminController.createArticle)
+)
+router.get('/blogs', asyncHandler(AdminController.getArticles))
+router.get('/blogs/:id', asyncHandler(AdminController.getArticle))
+router.patch(
+  '/blogs/:id',
+  validateRequest(articleValidator.update),
+  asyncHandler(AdminController.updateArticle)
+)
+router.delete('/blogs/:id', asyncHandler(AdminController.deleteArticle))
+
+// Drivers
+router.post(
+  '/drivers',
+  validateRequest(driverValidator.create),
+  asyncHandler(AdminController.createDriver)
+)
 router.get('/drivers', asyncHandler(AdminController.getDrivers))
 router.get('/drivers/:id', asyncHandler(AdminController.getDriver))
-router.patch('/drivers/:id', validateRequest(driverValidator.update), asyncHandler(AdminController.updateDriver))
+router.patch(
+  '/drivers/:id',
+  validateRequest(driverValidator.update),
+  asyncHandler(AdminController.updateDriver)
+)
 router.delete('/drivers/:id', asyncHandler(AdminController.deleteDriver))
 
 export default router

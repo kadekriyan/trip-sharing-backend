@@ -2,7 +2,10 @@ import { NextFunction, Request, Response } from 'express'
 import Joi from 'joi'
 import { ValidationError } from '../utils/errors'
 
-export const validateRequest = (schema: Joi.ObjectSchema, source: 'body' | 'query' | 'params' = 'body') => {
+export const validateRequest = (
+  schema: Joi.ObjectSchema,
+  source: 'body' | 'query' | 'params' = 'body'
+) => {
   return (req: Request, _res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req[source], {
       abortEarly: false,

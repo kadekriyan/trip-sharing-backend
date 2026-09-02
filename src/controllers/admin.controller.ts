@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { AdminService } from '../services/admin.service'
 import { ArticleService } from '../services/article.service'
 import { DestinationService } from '../services/destination.service'
 import { DriverService } from '../services/driver.service'
@@ -7,19 +8,35 @@ import { TripService } from '../services/trip.service'
 import { sendResponse } from '../utils/response'
 
 export class AdminController {
+  static async getMetrics(_req: Request, res: Response) {
+    const metrics = await AdminService.getMetrics()
+    sendResponse(res, 200, 'Metrics retrieved successfully', metrics)
+  }
+
+  static async getAuditLogs(req: Request, res: Response) {
+    const page = req.query.page ? Number(req.query.page) : 1
+    const limit = req.query.limit ? Number(req.query.limit) : 20
+    const result = await AdminService.getAuditLogs(page, limit)
+    sendResponse(res, 200, 'Audit logs retrieved', result.data, result.meta)
+  }
+
   static async createParticipant(req: Request, res: Response) {
     const result = await ParticipantService.createParticipantAsAdmin({
       ...req.body,
-      date_of_birth: new Date(req.body.date_of_birth),
       admin_id: req.user?.id,
     })
-    sendResponse(res, 201, 'Participant created successfully', result)
+    sendResponse(res, 201, 'Peserta manual berhasil ditambahkan ke armada.', result)
   }
 
   static async getParticipants(req: Request, res: Response) {
     const participants = await ParticipantService.getParticipants({
-      trip_id: req.query.trip_id ? Number(req.query.trip_id) : undefined,
+      trip_id: req.query.trip_id
+        ? Number(req.query.trip_id)
+        : req.query.tripId
+          ? Number(req.query.tripId)
+          : undefined,
       status: req.query.status as string | undefined,
+      search: req.query.search as string | undefined,
     })
     sendResponse(res, 200, 'Participants retrieved', participants)
   }
@@ -35,8 +52,32 @@ export class AdminController {
   }
 
   static async moveParticipant(req: Request, res: Response) {
-    const result = await ParticipantService.moveParticipant(Number(req.params.id), req.body.new_group_id)
-    sendResponse(res, 200, 'Participant moved successfully', result)
+    const parseId = (val: unknown) => {
+      if (typeof val === 'number') return val
+      if (typeof val === 'string') {
+        const num = parseInt(val.replace(/^\D+/g, ''), 10)
+        return isNaN(num) ? 0 : num
+      }
+      return 0
+    }
+
+    const participantId = req.params.id ? Number(req.params.id) : parseId(req.body.participantId)
+    const targetGroupId = req.body.new_group_id
+      ? Number(req.body.new_group_id)
+      : parseId(req.body.targetGroupId)
+
+    const result = await ParticipantService.moveParticipant(
+      participantId,
+      targetGroupId,
+      req.body.reason,
+      req.user?.id
+    )
+    sendResponse(
+      res,
+      200,
+      `Peserta berhasil dipindahkan ke Grup ${result.newGroup.group_number}.`,
+      result
+    )
   }
 
   static async createDestination(req: Request, res: Response) {
@@ -106,7 +147,10 @@ export class AdminController {
   }
 
   static async createArticle(req: Request, res: Response) {
-    const article = await ArticleService.create({ ...req.body, author_id: req.body.author_id || req.user?.id })
+    const article = await ArticleService.create({
+      ...req.body,
+      author_id: req.body.author_id || req.user?.id,
+    })
     sendResponse(res, 201, 'Article created successfully', article)
   }
 

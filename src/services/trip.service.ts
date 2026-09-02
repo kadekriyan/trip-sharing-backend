@@ -36,10 +36,42 @@ export class TripService {
   static async get(id: number) {
     const trip = await prisma.trip.findUnique({
       where: { id },
-      include: { destination: true, guide: true, booking_groups: { include: { participants: true } } },
+      include: {
+        destination: true,
+        guide: true,
+        booking_groups: { include: { participants: true } },
+      },
     })
     if (!trip) throw new ApiError('Trip not found', 404)
     return trip
+  }
+
+  static async getAvailability(tripId: number) {
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        booking_groups: {
+          orderBy: { group_number: 'asc' },
+        },
+      },
+    })
+    if (!trip) throw new ApiError('Trip not found', 404)
+
+    const groups = trip.booking_groups.map((g) => ({
+      id: `grp-${g.id}`,
+      groupNumber: g.group_number,
+      capacity: g.max_participants,
+      currentParticipants: g.current_participants,
+      availableSlots: Math.max(0, g.max_participants - g.current_participants),
+      status: g.status,
+      vehicleModel: 'Toyota HiAce (6-Seater VIP)',
+    }))
+
+    return {
+      tripId: `trip-${trip.id}`,
+      departureDate: trip.departure_date,
+      groups,
+    }
   }
 
   static async update(id: number, data: Record<string, unknown>) {

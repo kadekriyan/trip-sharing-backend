@@ -24,10 +24,12 @@ describe('AuthService', () => {
         email: 'exists@example.com',
       })
 
-      await expect(AuthService.register('exists@example.com', 'password123', 'John Doe')).rejects.toThrow(
-        ApiError
-      )
-      await expect(AuthService.register('exists@example.com', 'password123', 'John Doe')).rejects.toMatchObject({
+      await expect(
+        AuthService.register('exists@example.com', 'password123', 'John Doe')
+      ).rejects.toThrow(ApiError)
+      await expect(
+        AuthService.register('exists@example.com', 'password123', 'John Doe')
+      ).rejects.toMatchObject({
         statusCode: 400,
         message: 'Email already registered',
       })
@@ -44,7 +46,9 @@ describe('AuthService', () => {
 
       const result = await AuthService.register('newuser@example.com', 'secret123', 'Alice')
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: 'newuser@example.com' } })
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'newuser@example.com' },
+      })
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           email: 'newuser@example.com',
@@ -67,7 +71,9 @@ describe('AuthService', () => {
     it('should throw ApiError (401) if user not found', async () => {
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
 
-      await expect(AuthService.login('notfound@example.com', 'password123')).rejects.toThrow(ApiError)
+      await expect(AuthService.login('notfound@example.com', 'password123')).rejects.toThrow(
+        ApiError
+      )
       await expect(AuthService.login('notfound@example.com', 'password123')).rejects.toMatchObject({
         statusCode: 401,
         message: 'Invalid credentials',
@@ -148,4 +154,3 @@ describe('AuthService', () => {
     })
   })
 })
-

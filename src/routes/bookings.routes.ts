@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import Joi from 'joi'
 import { BookingController } from '../controllers/booking.controller'
-import { authenticate } from '../middleware/auth.middleware'
+import { optionalAuth } from '../middleware/auth.middleware'
 import { verifyCaptcha } from '../middleware/captcha.middleware'
 import { validateRequest } from '../middleware/validation'
 import { asyncHandler } from '../utils/asyncHandler'
@@ -12,13 +12,27 @@ const router = Router()
 router.get(
   '/groups',
   validateRequest(
-    Joi.object({ destination_id: Joi.number().integer().positive().required(), departure_date: Joi.date().iso().required() }),
+    Joi.object({
+      destination_id: Joi.number().integer().positive().optional(),
+      destinationId: Joi.number().integer().positive().optional(),
+      departure_date: Joi.date().iso().optional(),
+      departureDate: Joi.date().iso().optional(),
+    })
+      .or('destination_id', 'destinationId')
+      .or('departure_date', 'departureDate'),
     'query'
   ),
   asyncHandler(BookingController.getAvailableGroups)
 )
 
-router.post('/', authenticate, verifyCaptcha, validateRequest(bookingValidator.create), asyncHandler(BookingController.createBooking))
-router.get('/my-bookings', authenticate, asyncHandler(BookingController.getUserBookings))
+router.post(
+  '/',
+  optionalAuth,
+  verifyCaptcha,
+  validateRequest(bookingValidator.create),
+  asyncHandler(BookingController.createBooking)
+)
+
+router.get('/my-bookings', optionalAuth, asyncHandler(BookingController.getUserBookings))
 
 export default router

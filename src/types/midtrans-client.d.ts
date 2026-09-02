@@ -26,4 +26,3 @@ declare module 'midtrans-client' {
 
   export default midtransClient
 }
-

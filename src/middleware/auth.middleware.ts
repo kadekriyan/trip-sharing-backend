@@ -20,6 +20,20 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
   next()
 }
 
+export const optionalAuth = (req: Request, _res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization
+
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    const payload = JwtService.verifyToken(token)
+    if (payload) {
+      req.user = payload
+    }
+  }
+
+  next()
+}
+
 export const authorize = (allowedRoles: string[]) => {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {

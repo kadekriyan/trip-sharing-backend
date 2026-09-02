@@ -18,7 +18,9 @@ export const tripValidator = {
     return_date: Joi.date().iso().allow(null).optional(),
     guide_id: Joi.number().integer().positive().allow(null).optional(),
     max_participants: Joi.number().integer().positive().optional(),
-    status: Joi.string().valid('planning', 'published', 'departed', 'completed', 'cancelled').optional(),
+    status: Joi.string()
+      .valid('planning', 'published', 'departed', 'completed', 'cancelled')
+      .optional(),
     notes: Joi.string().allow('', null).optional(),
   }).min(1),
 }

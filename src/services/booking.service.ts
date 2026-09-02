@@ -1,7 +1,16 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database'
-import { CreateBookingInput } from '../types/booking'
 import { ApiError } from '../utils/errors'
+
+function parseNumericId(val: unknown): number {
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const cleaned = val.replace(/^\D+/g, '')
+    const num = parseInt(cleaned, 10)
+    return isNaN(num) ? 0 : num
+  }
+  return 0
+}
 
 export class BookingService {
   static async getOrCreateBookingGroup(tripId: number, destinationPrice: Prisma.Decimal | number) {
@@ -32,35 +41,118 @@ export class BookingService {
     })
   }
 
-  static async createBooking(userId: number, bookingData: CreateBookingInput) {
+  static async createBooking(
+    userId: number,
+    bookingData: {
+      trip_id?: number
+      tripId?: number | string
+      destination_id?: number
+      destinationId?: number | string
+      full_name?: string
+      fullName?: string
+      email?: string
+      phone_number?: string
+      phoneNumber?: string
+      country?: string
+      nationality?: string
+      date_of_birth?: Date | string
+      identity_number?: string
+      identityNumber?: string
+      gender?: string
+      room_preference?: string
+      roomPreference?: string
+      hotel_preference?: string
+      passport_number?: string
+      identity_type?: string
+      room_type?: string
+      health_notes?: string
+      healthNotes?: string
+      preferred_language?: string
+      travel_insurance?: boolean
+      hasInsurance?: boolean
+    }
+  ) {
+    const tripId = bookingData.trip_id || parseNumericId(bookingData.tripId)
+    const fullName = bookingData.full_name || bookingData.fullName || 'Traveler'
+    const phoneNumber = bookingData.phone_number || bookingData.phoneNumber || ''
+    const country = bookingData.country || bookingData.nationality || 'Indonesia'
+    const nationality = bookingData.nationality || bookingData.country || 'Indonesia'
+    const identityNumber = bookingData.identityNumber || bookingData.identity_number || null
+    const gender = bookingData.gender || null
+    const roomPreference =
+      bookingData.roomPreference ||
+      bookingData.room_preference ||
+      bookingData.hotel_preference ||
+      null
+    const healthNotes = bookingData.healthNotes || bookingData.health_notes || null
+    const hasInsurance = bookingData.hasInsurance ?? bookingData.travel_insurance ?? false
+    const userEmail =
+      bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
+
     const trip = await prisma.trip.findUnique({
-      where: { id: bookingData.trip_id },
+      where: { id: tripId },
       include: { destination: true },
     })
 
     if (!trip) throw new ApiError('Trip not found', 404)
 
+    const basePrice = Number(trip.destination.price_per_person)
+    const insuranceFee = hasInsurance ? 50000 : 0
+    const totalAmount = basePrice + insuranceFee
+
+    const randomDigits = Math.floor(1000 + Math.random() * 9000)
+    const bookingCode = `TRV-${randomDigits}`
+
     return prisma.$transaction(async (tx) => {
+      let resolvedUserId = userId
+      if (!resolvedUserId || resolvedUserId === 0) {
+        let user = await tx.user.findUnique({ where: { email: userEmail } })
+        if (!user) {
+          user = await tx.user.create({
+            data: {
+              email: userEmail,
+              password: 'guest_booking',
+              name: fullName,
+              phone: phoneNumber,
+              role: 'participant',
+            },
+          })
+        }
+        resolvedUserId = user.id
+      }
+
       const bookingGroup = await this.getOrCreateBookingGroup(
-        bookingData.trip_id,
+        tripId,
         trip.destination.price_per_person
       )
 
       const participant = await tx.participant.create({
         data: {
           booking_group_id: bookingGroup.id,
-          user_id: userId,
-          full_name: bookingData.full_name,
-          phone_number: bookingData.phone_number,
-          country: bookingData.country,
-          date_of_birth: new Date(bookingData.date_of_birth),
-          hotel_preference: bookingData.hotel_preference,
+          user_id: resolvedUserId,
+          booking_code: bookingCode,
+          full_name: fullName,
+          phone_number: phoneNumber,
+          country,
+          nationality,
+          identity_number: identityNumber,
+          gender,
+          date_of_birth: bookingData.date_of_birth
+            ? new Date(bookingData.date_of_birth)
+            : new Date(),
+          room_preference: roomPreference,
+          hotel_preference: roomPreference,
           passport_number: bookingData.passport_number,
           identity_type: bookingData.identity_type,
           room_type: bookingData.room_type,
-          health_notes: bookingData.health_notes,
+          health_notes: healthNotes,
           preferred_language: bookingData.preferred_language,
-          travel_insurance: bookingData.travel_insurance || false,
+          travel_insurance: hasInsurance,
+          has_insurance: hasInsurance,
+          insurance_fee: new Prisma.Decimal(insuranceFee.toString()),
+          total_amount: new Prisma.Decimal(totalAmount.toString()),
+          payment_status: 'pending',
+          check_in_status: 'pending',
         },
       })
 
@@ -74,11 +166,19 @@ export class BookingService {
       }
 
       await tx.trip.update({
-        where: { id: bookingData.trip_id },
+        where: { id: tripId },
         data: { current_participants: { increment: 1 } },
       })
 
-      return { participant, bookingGroup: updatedGroup }
+      return {
+        participant,
+        groupOccupancy: {
+          currentParticipants: updatedGroup.current_participants,
+          capacity: updatedGroup.max_participants,
+          isFull: updatedGroup.current_participants >= updatedGroup.max_participants,
+        },
+        bookingGroup: updatedGroup,
+      }
     })
   }
 
@@ -99,11 +199,87 @@ export class BookingService {
     })
   }
 
-  static async getUserBookings(userId: number) {
-    return prisma.participant.findMany({
-      where: { user_id: userId },
-      include: { booking_group: { include: { trip: { include: { destination: true } } } }, payment: true },
+  static async getUserBookings(filter: { userId?: number; email?: string; bookingCode?: string }) {
+    const where: Prisma.ParticipantWhereInput = {}
+    if (filter.userId && filter.userId > 0) {
+      where.user_id = filter.userId
+    } else if (filter.email || filter.bookingCode) {
+      where.OR = [
+        ...(filter.email ? [{ user: { email: filter.email } }] : []),
+        ...(filter.bookingCode ? [{ booking_code: filter.bookingCode }] : []),
+      ]
+    } else {
+      return []
+    }
+
+    const participants = await prisma.participant.findMany({
+      where,
+      include: {
+        booking_group: {
+          include: {
+            trip: {
+              include: {
+                destination: true,
+                guide: {
+                  include: {
+                    driver: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        payment: true,
+      },
       orderBy: { created_at: 'desc' },
+    })
+
+    return participants.map((p) => {
+      const trip = p.booking_group.trip
+      const dest = trip.destination
+      const bookingCode = p.booking_code || `TRV-${p.id}`
+
+      return {
+        id: `part-${p.id}`,
+        numericId: p.id,
+        bookingCode,
+        destination: {
+          title: dest.name,
+          slug: dest.slug || `destination-${dest.id}`,
+          coverImage: dest.cover_image || dest.image_url || '',
+          meetingPoint: dest.meeting_point || '',
+        },
+        trip: {
+          id: `trip-${trip.id}`,
+          departureDate: trip.departure_date,
+          returnDate: trip.return_date,
+        },
+        group: {
+          id: `grp-${p.booking_group.id}`,
+          groupNumber: p.booking_group.group_number,
+          capacity: p.booking_group.max_participants,
+          currentParticipants: p.booking_group.current_participants,
+          driver: trip.guide?.driver
+            ? {
+                fullName: trip.guide.name,
+                phoneNumber: trip.guide.phone || '',
+                vehicleModel: trip.guide.driver.vehicle_type,
+                plateNumber: trip.guide.driver.vehicle_plat,
+              }
+            : {
+                fullName: 'Budi Santoso',
+                phoneNumber: '+6281233445566',
+                vehicleModel: 'Toyota HiAce Commuter',
+                plateNumber: 'N 1234 XY',
+              },
+        },
+        totalAmount: p.total_amount
+          ? Number(p.total_amount)
+          : Number(p.booking_group.price_per_person),
+        paymentStatus: p.payment_status,
+        checkInStatus: p.check_in_status || (p.checked_in ? 'checked_in' : 'pending'),
+        voucherQrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${bookingCode}`,
+      }
     })
   }
 }

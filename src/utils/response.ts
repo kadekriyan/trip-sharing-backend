@@ -25,8 +25,12 @@ function snakeToCamel(str: string): string {
 export function toCamelCase<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj
   if (obj instanceof Date) return obj
-  if (typeof obj === 'object' && 'isDecimal' in (obj as Record<string, unknown>) && typeof (obj as { toNumber?: () => number }).toNumber === 'function') {
-    return (obj as { toNumber: () => number }).toNumber() as unknown as T
+  if (
+    typeof obj === 'object' &&
+    'isDecimal' in (obj as Record<string, unknown>) &&
+    typeof (obj as { toNumber?: () => number }).toNumber === 'function'
+  ) {
+    return (obj as unknown as { toNumber: () => number }).toNumber() as unknown as T
   }
   if (Array.isArray(obj)) {
     return obj.map((item) => toCamelCase(item)) as unknown as T
