@@ -13,8 +13,8 @@ router.get(
   '/groups',
   validateRequest(
     Joi.object({
-      destination_id: Joi.number().integer().positive().optional(),
-      destinationId: Joi.number().integer().positive().optional(),
+      destination_id: Joi.string().optional(),
+      destinationId: Joi.string().optional(),
       departure_date: Joi.date().iso().optional(),
       departureDate: Joi.date().iso().optional(),
     })
