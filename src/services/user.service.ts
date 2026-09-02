@@ -1,7 +1,7 @@
 import { prisma } from '../config/database'
 
 export class UserService {
-  static async getById(id: number) {
+  static async getById(id: string) {
     return prisma.user.findUnique({
       where: { id },
       select: {

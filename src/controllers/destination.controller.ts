@@ -18,12 +18,6 @@ export class DestinationController {
 
   static async get(req: Request, res: Response) {
     const param = req.params.idOrSlug || req.params.id || req.params.slug
-    const num = Number(param)
-    if (!isNaN(num)) {
-      const destination = await DestinationService.get(num)
-      return sendResponse(res, 200, 'Destination retrieved', destination)
-    }
-
     const destination = await DestinationService.getBySlug(param)
     return sendResponse(res, 200, 'Destination retrieved', destination)
   }

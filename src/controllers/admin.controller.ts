@@ -29,12 +29,9 @@ export class AdminController {
   }
 
   static async getParticipants(req: Request, res: Response) {
+    const tripId = (req.query.trip_id || req.query.tripId) as string | undefined
     const participants = await ParticipantService.getParticipants({
-      trip_id: req.query.trip_id
-        ? Number(req.query.trip_id)
-        : req.query.tripId
-          ? Number(req.query.tripId)
-          : undefined,
+      trip_id: tripId,
       status: req.query.status as string | undefined,
       search: req.query.search as string | undefined,
     })
@@ -42,29 +39,18 @@ export class AdminController {
   }
 
   static async updateParticipant(req: Request, res: Response) {
-    const updated = await ParticipantService.updateParticipant(Number(req.params.id), req.body)
+    const updated = await ParticipantService.updateParticipant(req.params.id, req.body)
     sendResponse(res, 200, 'Participant updated', updated)
   }
 
   static async deleteParticipant(req: Request, res: Response) {
-    await ParticipantService.deleteParticipant(Number(req.params.id))
+    await ParticipantService.deleteParticipant(req.params.id)
     sendResponse(res, 200, 'Participant deleted')
   }
 
   static async moveParticipant(req: Request, res: Response) {
-    const parseId = (val: unknown) => {
-      if (typeof val === 'number') return val
-      if (typeof val === 'string') {
-        const num = parseInt(val.replace(/^\D+/g, ''), 10)
-        return isNaN(num) ? 0 : num
-      }
-      return 0
-    }
-
-    const participantId = req.params.id ? Number(req.params.id) : parseId(req.body.participantId)
-    const targetGroupId = req.body.new_group_id
-      ? Number(req.body.new_group_id)
-      : parseId(req.body.targetGroupId)
+    const participantId = req.params.id || req.body.participantId || req.body.participant_id
+    const targetGroupId = req.body.new_group_id || req.body.targetGroupId || req.body.newGroupId
 
     const result = await ParticipantService.moveParticipant(
       participantId,
@@ -93,39 +79,44 @@ export class AdminController {
   }
 
   static async getDestination(req: Request, res: Response) {
-    const destination = await DestinationService.get(Number(req.params.id))
+    const destination = await DestinationService.get(req.params.id)
     sendResponse(res, 200, 'Destination retrieved', destination)
   }
 
   static async updateDestination(req: Request, res: Response) {
-    const destination = await DestinationService.update(Number(req.params.id), req.body)
+    const destination = await DestinationService.update(req.params.id, req.body)
     sendResponse(res, 200, 'Destination updated', destination)
   }
 
   static async deleteDestination(req: Request, res: Response) {
-    await DestinationService.delete(Number(req.params.id))
+    await DestinationService.delete(req.params.id)
     sendResponse(res, 200, 'Destination deleted')
   }
 
   static async createTrip(req: Request, res: Response) {
     const trip = await TripService.create({
       ...req.body,
-      departure_date: new Date(req.body.departure_date),
-      return_date: req.body.return_date ? new Date(req.body.return_date) : undefined,
+      departure_date: new Date(req.body.departure_date || req.body.departureDate),
+      return_date:
+        req.body.return_date || req.body.returnDate
+          ? new Date(req.body.return_date || req.body.returnDate)
+          : undefined,
     })
     sendResponse(res, 201, 'Trip created successfully', trip)
   }
 
   static async getTrips(req: Request, res: Response) {
+    const destinationId = (req.query.destination_id || req.query.destinationId) as
+      string | undefined
     const trips = await TripService.list({
-      destination_id: req.query.destination_id ? Number(req.query.destination_id) : undefined,
+      destination_id: destinationId,
       status: req.query.status as string | undefined,
     })
     sendResponse(res, 200, 'Trips retrieved', trips)
   }
 
   static async getTrip(req: Request, res: Response) {
-    const trip = await TripService.get(Number(req.params.id))
+    const trip = await TripService.get(req.params.id)
     sendResponse(res, 200, 'Trip retrieved', trip)
   }
 
@@ -137,19 +128,19 @@ export class AdminController {
         ? { return_date: req.body.return_date === null ? null : new Date(req.body.return_date) }
         : {}),
     }
-    const trip = await TripService.update(Number(req.params.id), data)
+    const trip = await TripService.update(req.params.id, data)
     sendResponse(res, 200, 'Trip updated', trip)
   }
 
   static async deleteTrip(req: Request, res: Response) {
-    await TripService.delete(Number(req.params.id))
+    await TripService.delete(req.params.id)
     sendResponse(res, 200, 'Trip deleted')
   }
 
   static async createArticle(req: Request, res: Response) {
     const article = await ArticleService.create({
       ...req.body,
-      author_id: req.body.author_id || req.user?.id,
+      author_id: req.body.author_id || req.body.authorId || req.user?.id,
     })
     sendResponse(res, 201, 'Article created successfully', article)
   }
@@ -164,17 +155,17 @@ export class AdminController {
   }
 
   static async getArticle(req: Request, res: Response) {
-    const article = await ArticleService.get(Number(req.params.id))
+    const article = await ArticleService.get(req.params.id)
     sendResponse(res, 200, 'Article retrieved', article)
   }
 
   static async updateArticle(req: Request, res: Response) {
-    const article = await ArticleService.update(Number(req.params.id), req.body)
+    const article = await ArticleService.update(req.params.id, req.body)
     sendResponse(res, 200, 'Article updated', article)
   }
 
   static async deleteArticle(req: Request, res: Response) {
-    await ArticleService.delete(Number(req.params.id))
+    await ArticleService.delete(req.params.id)
     sendResponse(res, 200, 'Article deleted')
   }
 
@@ -192,17 +183,17 @@ export class AdminController {
   }
 
   static async getDriver(req: Request, res: Response) {
-    const driver = await DriverService.get(Number(req.params.id))
+    const driver = await DriverService.get(req.params.id)
     sendResponse(res, 200, 'Driver retrieved', driver)
   }
 
   static async updateDriver(req: Request, res: Response) {
-    const driver = await DriverService.update(Number(req.params.id), req.body)
+    const driver = await DriverService.update(req.params.id, req.body)
     sendResponse(res, 200, 'Driver updated', driver)
   }
 
   static async deleteDriver(req: Request, res: Response) {
-    await DriverService.delete(Number(req.params.id))
+    await DriverService.delete(req.params.id)
     sendResponse(res, 200, 'Driver deleted')
   }
 }

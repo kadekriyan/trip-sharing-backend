@@ -20,8 +20,7 @@ function formatArticle(art: Record<string, unknown>) {
     (art.author_role as string) || (authorObj.role as string) || 'Lead Travel Writer'
 
   return {
-    id: `art-${art.id}`,
-    numericId: art.id,
+    id: art.id as string,
     title: art.title,
     slug: art.slug,
     excerpt: art.excerpt || '',
@@ -52,8 +51,8 @@ export class ArticleService {
     featured_image_url?: string
     coverImage?: string
     cover_image?: string
-    author_id?: number
-    authorId?: number
+    author_id?: string
+    authorId?: string
     author?: { name?: string; avatar?: string; role?: string }
     authorName?: string
     author_name?: string
@@ -78,7 +77,25 @@ export class ArticleService {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '')
     const coverImage = data.cover_image || data.coverImage || data.featured_image_url || null
-    const authorId = data.author_id || data.authorId || 1
+    let authorId = data.author_id || data.authorId
+
+    if (!authorId) {
+      const defaultAuthor = await prisma.user.findFirst({ where: { role: 'admin' } })
+      if (defaultAuthor) {
+        authorId = defaultAuthor.id
+      } else {
+        const newAuthor = await prisma.user.create({
+          data: {
+            email: 'admin-blog@tripsharing.local',
+            password: 'blog-author-default',
+            name: 'Admin Editorial',
+            role: 'admin',
+          },
+        })
+        authorId = newAuthor.id
+      }
+    }
+
     const authorName = data.author_name || data.authorName || data.author?.name || null
     const authorAvatar = data.author_avatar || data.authorAvatar || data.author?.avatar || null
     const authorRole = data.author_role || data.authorRole || data.author?.role || null
@@ -162,9 +179,13 @@ export class ArticleService {
     let article = await prisma.article.findUnique({ where: { slug }, include: { author: true } })
 
     if (!article) {
-      const num = parseInt(slug.replace(/^\D+/g, ''), 10)
-      if (!isNaN(num)) {
-        article = await prisma.article.findUnique({ where: { id: num }, include: { author: true } })
+      try {
+        article = await prisma.article.findUnique({
+          where: { id: slug },
+          include: { author: true },
+        })
+      } catch {
+        article = null
       }
     }
 
@@ -179,13 +200,13 @@ export class ArticleService {
     return formatArticle(article as unknown as Record<string, unknown>)
   }
 
-  static async get(id: number) {
+  static async get(id: string) {
     const article = await prisma.article.findUnique({ where: { id }, include: { author: true } })
     if (!article) throw new ApiError('Article not found', 404)
     return formatArticle(article as unknown as Record<string, unknown>)
   }
 
-  static async update(id: number, data: Record<string, unknown>) {
+  static async update(id: string, data: Record<string, unknown>) {
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing) throw new ApiError('Article not found', 404)
 
@@ -198,7 +219,7 @@ export class ArticleService {
     return prisma.article.update({ where: { id }, data: nextData as never })
   }
 
-  static async delete(id: number) {
+  static async delete(id: string) {
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing) throw new ApiError('Article not found', 404)
 

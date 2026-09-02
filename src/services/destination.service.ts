@@ -13,8 +13,7 @@ export interface DestinationQueryFilters {
 
 function formatDestination(dest: Record<string, unknown>) {
   return {
-    id: `dest-${dest.id}`,
-    numericId: dest.id,
+    id: dest.id as string,
     title: dest.name,
     name: dest.name,
     slug: dest.slug || `destination-${dest.id}`,
@@ -176,7 +175,7 @@ export class DestinationService {
     })
   }
 
-  static async get(id: number) {
+  static async get(id: string) {
     const dest = await prisma.destination.findUnique({
       where: { id },
       include: {
@@ -196,7 +195,7 @@ export class DestinationService {
   }
 
   static async getBySlug(slug: string) {
-    // Try finding by slug first, then fallback to numeric id
+    // Try finding by slug first, then fallback to id
     let dest = await prisma.destination.findUnique({
       where: { slug },
       include: {
@@ -219,10 +218,9 @@ export class DestinationService {
     })
 
     if (!dest) {
-      const numericId = parseInt(slug.replace(/^\D+/g, ''), 10)
-      if (!isNaN(numericId)) {
+      try {
         dest = await prisma.destination.findUnique({
-          where: { id: numericId },
+          where: { id: slug },
           include: {
             trips: {
               where: { status: { in: ['active', 'scheduled', 'planning'] } },
@@ -241,6 +239,8 @@ export class DestinationService {
             },
           },
         })
+      } catch {
+        dest = null
       }
     }
 
@@ -248,20 +248,20 @@ export class DestinationService {
 
     const formatted = formatDestination(dest as unknown as Record<string, unknown>)
     const activeTrips = (dest.trips || []).map((t) => ({
-      id: `trip-${t.id}`,
+      id: t.id,
       departureDate: t.departure_date,
       returnDate: t.return_date,
       pricePerPax: Number(dest!.price_per_person),
       status: t.status,
       groups: (t.booking_groups || []).map((g) => ({
-        id: `grp-${g.id}`,
+        id: g.id,
         groupNumber: g.group_number,
         capacity: g.max_participants,
         currentParticipants: g.current_participants,
         status: g.status,
         driver: t.guide?.driver
           ? {
-              id: `drv-${t.guide.driver.id}`,
+              id: t.guide.driver.id,
               fullName: t.guide.name,
               vehicleModel: t.guide.driver.vehicle_type,
               plateNumber: t.guide.driver.vehicle_plat,
@@ -281,14 +281,14 @@ export class DestinationService {
     }
   }
 
-  static async update(id: number, data: Record<string, unknown>) {
+  static async update(id: string, data: Record<string, unknown>) {
     const destination = await prisma.destination.findUnique({ where: { id } })
     if (!destination) throw new ApiError('Destination not found', 404)
 
     return prisma.destination.update({ where: { id }, data: data as never })
   }
 
-  static async delete(id: number) {
+  static async delete(id: string) {
     const destination = await prisma.destination.findUnique({
       where: { id },
       include: { trips: true },

@@ -28,7 +28,7 @@ describe('DestinationService', () => {
 
     it('should return destination details by slug with activeTrips formatted', async () => {
       const mockDest = {
-        id: 1,
+        id: 'dest-1',
         name: 'Bromo Sunrise',
         slug: 'bromo-sunrise',
         description: 'Trip sharing Bromo',
@@ -36,13 +36,13 @@ describe('DestinationService', () => {
         is_active: true,
         trips: [
           {
-            id: 10,
+            id: 'trip-10',
             departure_date: new Date('2026-09-05'),
             return_date: new Date('2026-09-06'),
             status: 'scheduled',
             booking_groups: [
               {
-                id: 100,
+                id: 'grp-100',
                 group_number: 1,
                 max_participants: 6,
                 current_participants: 4,
@@ -52,7 +52,7 @@ describe('DestinationService', () => {
             guide: {
               name: 'Budi Santoso',
               driver: {
-                id: 5,
+                id: 'drv-5',
                 vehicle_type: 'Toyota HiAce',
                 vehicle_plat: 'N 1234 XY',
               },
@@ -76,7 +76,7 @@ describe('DestinationService', () => {
       ;(prisma.destination.count as jest.Mock).mockResolvedValue(1)
       ;(prisma.destination.findMany as jest.Mock).mockResolvedValue([
         {
-          id: 1,
+          id: 'dest-1',
           name: 'Bromo Sunrise',
           slug: 'bromo-sunrise',
           price_per_person: 850000,

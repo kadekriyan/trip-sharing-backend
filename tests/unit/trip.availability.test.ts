@@ -17,23 +17,23 @@ describe('TripService.getAvailability', () => {
 
   it('should throw ApiError (404) when trip is not found', async () => {
     ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(null)
-    await expect(TripService.getAvailability(999)).rejects.toThrow(ApiError)
+    await expect(TripService.getAvailability('trip-999')).rejects.toThrow(ApiError)
   })
 
   it('should return trip availability with slots and groups calculation', async () => {
     const mockTrip = {
-      id: 1,
+      id: 'trip-1',
       departure_date: new Date('2026-09-05T00:00:00.000Z'),
       booking_groups: [
         {
-          id: 1,
+          id: 'grp-1',
           group_number: 1,
           max_participants: 6,
           current_participants: 4,
           status: 'open',
         },
         {
-          id: 2,
+          id: 'grp-2',
           group_number: 2,
           max_participants: 6,
           current_participants: 2,
@@ -43,7 +43,7 @@ describe('TripService.getAvailability', () => {
     }
     ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockTrip)
 
-    const result = await TripService.getAvailability(1)
+    const result = await TripService.getAvailability('trip-1')
 
     expect(result.tripId).toBe('trip-1')
     expect(result.groups).toHaveLength(2)

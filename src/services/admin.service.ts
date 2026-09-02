@@ -84,11 +84,11 @@ export class AdminService {
     ])
 
     const formattedLogs = logs.map((log) => ({
-      id: `log-${log.id}`,
+      id: log.id,
       adminEmail: log.user?.email || 'system@tripsharing.id',
       action: log.action,
       targetResource: log.entity_type,
-      targetId: log.entity_id ? `res-${log.entity_id}` : undefined,
+      targetId: log.entity_id || undefined,
       details:
         typeof log.new_values === 'string'
           ? log.new_values

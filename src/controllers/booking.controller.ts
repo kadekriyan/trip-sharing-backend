@@ -5,14 +5,14 @@ import { sendResponse } from '../utils/response'
 export class BookingController {
   static async getAvailableGroups(req: Request, res: Response) {
     const { destination_id, destinationId, departure_date, departureDate } = req.query
-    const destId = Number(destination_id || destinationId)
+    const destId = (destination_id || destinationId) as string
     const dateStr = (departure_date || departureDate) as string
     const groups = await BookingService.getAvailableGroups(destId, dateStr)
     sendResponse(res, 200, 'Available groups retrieved', groups)
   }
 
   static async createBooking(req: Request, res: Response) {
-    const result = await BookingService.createBooking(req.user?.id || 0, req.body)
+    const result = await BookingService.createBooking(req.user?.id, req.body)
     const p = result.participant
     const g = result.bookingGroup
     const userEmail =
@@ -21,11 +21,10 @@ export class BookingController {
 
     const formattedData = {
       participant: {
-        id: `part-${p.id}`,
-        numericId: p.id,
+        id: p.id,
         bookingCode: p.booking_code,
-        tripId: `trip-${g.trip_id}`,
-        bookingGroupId: `grp-${g.id}`,
+        tripId: g.trip_id,
+        bookingGroupId: g.id,
         groupNumber: g.group_number,
         fullName: p.full_name,
         email: userEmail,

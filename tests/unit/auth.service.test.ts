@@ -20,7 +20,7 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should throw ApiError (400) if email is already registered', async () => {
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 1,
+        id: 'usr-1',
         email: 'exists@example.com',
       })
 
@@ -38,7 +38,7 @@ describe('AuthService', () => {
     it('should hash password and create participant user successfully', async () => {
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
       ;(prisma.user.create as jest.Mock).mockImplementation(async ({ data }) => ({
-        id: 10,
+        id: 'usr-10',
         email: data.email,
         name: data.name,
         role: data.role,
@@ -60,7 +60,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('token')
       expect(result).toHaveProperty('refresh_token')
       expect(result.user).toEqual({
-        id: 10,
+        id: 'usr-10',
         email: 'newuser@example.com',
         role: 'participant',
       })
@@ -82,7 +82,7 @@ describe('AuthService', () => {
 
     it('should throw ApiError (401) if user is inactive', async () => {
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 2,
+        id: 'usr-2',
         email: 'inactive@example.com',
         is_active: false,
         password: await bcrypt.hash('password123', 10),
@@ -97,7 +97,7 @@ describe('AuthService', () => {
     it('should throw ApiError (401) if password does not match', async () => {
       const hashedPassword = await bcrypt.hash('correctPassword', 10)
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 3,
+        id: 'usr-3',
         email: 'user@example.com',
         password: hashedPassword,
         is_active: true,
@@ -114,7 +114,7 @@ describe('AuthService', () => {
     it('should return auth tokens when credentials are valid', async () => {
       const hashedPassword = await bcrypt.hash('correctPassword', 10)
       ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
-        id: 3,
+        id: 'usr-3',
         email: 'user@example.com',
         password: hashedPassword,
         is_active: true,
@@ -126,7 +126,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('token')
       expect(result).toHaveProperty('refresh_token')
       expect(result.user).toEqual({
-        id: 3,
+        id: 'usr-3',
         email: 'user@example.com',
         role: 'participant',
       })

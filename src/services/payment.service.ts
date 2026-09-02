@@ -6,9 +6,10 @@ import { ApiError } from '../utils/errors'
 import { EmailService } from './email.service'
 
 export class PaymentService {
-  static async createTransaction(participantId: number) {
+  static async createTransaction(participantId: string) {
+    const cleanPartId = participantId.replace(/^part-/, '')
     const participant = await prisma.participant.findUnique({
-      where: { id: participantId },
+      where: { id: cleanPartId },
       include: {
         booking_group: { include: { trip: { include: { destination: true } } } },
         user: true,
@@ -17,19 +18,19 @@ export class PaymentService {
     if (!participant) throw new ApiError('Participant not found', 404)
 
     const existingPayment = await prisma.payment.findUnique({
-      where: { participant_id: participantId },
+      where: { participant_id: cleanPartId },
     })
     if (existingPayment?.status === 'completed')
       throw new ApiError('Payment already completed', 400)
 
     const amount = participant.booking_group.price_per_person
-    const orderId = `TRIP-${participantId}-${Date.now()}`
+    const orderId = `TRIP-${cleanPartId}-${Date.now()}`
 
     const payment = await prisma.payment.upsert({
-      where: { participant_id: participantId },
+      where: { participant_id: cleanPartId },
       update: { amount, midtrans_order_id: orderId, status: 'pending' },
       create: {
-        participant_id: participantId,
+        participant_id: cleanPartId,
         booking_group_id: participant.booking_group.id,
         amount,
         midtrans_order_id: orderId,
@@ -45,7 +46,7 @@ export class PaymentService {
       },
       item_details: [
         {
-          id: participant.booking_group.trip.destination.id.toString(),
+          id: participant.booking_group.trip.destination.id,
           price: Math.ceil(Number(amount)),
           quantity: 1,
           name: participant.booking_group.trip.destination.name,
@@ -54,7 +55,7 @@ export class PaymentService {
     })
 
     return {
-      paymentId: `pay-${payment.id}`,
+      paymentId: payment.id,
       snapToken: transaction.token,
       redirectUrl: transaction.redirect_url,
       orderId,

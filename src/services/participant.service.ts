@@ -3,22 +3,19 @@ import { prisma } from '../config/database'
 import { ApiError } from '../utils/errors'
 import { EmailService } from './email.service'
 
-function parseNumericId(val: unknown): number {
-  if (typeof val === 'number') return val
+function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    const cleaned = val.replace(/^\D+/g, '')
-    const num = parseInt(cleaned, 10)
-    return isNaN(num) ? 0 : num
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-)/, '')
   }
-  return 0
+  return String(val || '')
 }
 
 export class ParticipantService {
   static async createParticipantAsAdmin(data: {
-    trip_id?: number
-    tripId?: number | string
-    group_id?: number
-    bookingGroupId?: number | string
+    trip_id?: string
+    tripId?: string
+    group_id?: string
+    bookingGroupId?: string
     full_name?: string
     fullName?: string
     email?: string
@@ -43,10 +40,12 @@ export class ParticipantService {
     paymentStatus?: string
     healthNotes?: string
     health_notes?: string
-    admin_id?: number
+    admin_id?: string
   }) {
-    const tripId = data.trip_id || parseNumericId(data.tripId)
-    const groupId = data.group_id || parseNumericId(data.bookingGroupId)
+    const rawTripId = data.trip_id || data.tripId
+    const tripId = rawTripId ? cleanId(rawTripId) : undefined
+    const rawGroupId = data.group_id || data.bookingGroupId
+    const groupId = cleanId(rawGroupId)
     const fullName = data.full_name || data.fullName || 'Participant'
     const phoneNumber = data.phone_number || data.phoneNumber || ''
     const country = data.country || data.nationality || 'Indonesia'
@@ -145,22 +144,23 @@ export class ParticipantService {
       })
 
       return {
-        id: `part-${participant.id}`,
+        id: participant.id,
         bookingCode: participant.booking_code,
         fullName: participant.full_name,
-        bookingGroupId: `grp-${groupId}`,
+        bookingGroupId: groupId,
         paymentStatus: participant.payment_status,
       }
     })
   }
 
   static async getParticipants(filters: {
-    trip_id?: number
-    tripId?: number
+    trip_id?: string
+    tripId?: string
     status?: string
     search?: string
   }) {
-    const tripId = filters.trip_id || filters.tripId
+    const rawTripId = filters.trip_id || filters.tripId
+    const tripId = rawTripId ? cleanId(rawTripId) : undefined
     const status = filters.status
     const search = filters.search
 
@@ -185,19 +185,24 @@ export class ParticipantService {
     })
   }
 
-  static async updateParticipant(id: number, data: Record<string, unknown>) {
-    return prisma.participant.update({ where: { id }, data: data as never })
+  static async updateParticipant(id: string, data: Record<string, unknown>) {
+    const cleanPartId = cleanId(id)
+    return prisma.participant.update({ where: { id: cleanPartId }, data: data as never })
   }
 
-  static async deleteParticipant(id: number) {
+  static async deleteParticipant(id: string) {
+    const cleanPartId = cleanId(id)
     const participant = await prisma.participant.findUnique({
       include: { booking_group: true },
-      where: { id },
+      where: { id: cleanPartId },
     })
     if (!participant) throw new ApiError('Participant not found', 404)
 
     await prisma.$transaction([
-      prisma.participant.update({ where: { id }, data: { payment_status: 'cancelled' } }),
+      prisma.participant.update({
+        where: { id: cleanPartId },
+        data: { payment_status: 'cancelled' },
+      }),
       prisma.bookingGroup.update({
         where: { id: participant.booking_group.id },
         data: { current_participants: { decrement: 1 }, status: 'open' },
@@ -210,18 +215,21 @@ export class ParticipantService {
   }
 
   static async moveParticipant(
-    participantId: number,
-    newGroupId: number,
+    participantId: string,
+    newGroupId: string,
     reason?: string,
-    adminId?: number
+    adminId?: string
   ) {
+    const cleanPartId = cleanId(participantId)
+    const cleanNewGroupId = cleanId(newGroupId)
+
     const participant = await prisma.participant.findUnique({
-      where: { id: participantId },
+      where: { id: cleanPartId },
       include: { booking_group: true, user: true },
     })
     if (!participant) throw new ApiError('Participant not found', 404)
 
-    const newGroup = await prisma.bookingGroup.findUnique({ where: { id: newGroupId } })
+    const newGroup = await prisma.bookingGroup.findUnique({ where: { id: cleanNewGroupId } })
     if (!newGroup) throw new ApiError('Target group not found', 404)
     if (newGroup.current_participants >= newGroup.max_participants) {
       throw new ApiError(
@@ -234,19 +242,19 @@ export class ParticipantService {
 
     const moved = await prisma.$transaction(async (tx) => {
       const updated = await tx.participant.update({
-        where: { id: participantId },
-        data: { booking_group_id: newGroupId },
+        where: { id: cleanPartId },
+        data: { booking_group_id: cleanNewGroupId },
       })
       await tx.bookingGroup.update({
         where: { id: oldGroupId },
         data: { current_participants: { decrement: 1 }, status: 'open' },
       })
       const updatedNewGroup = await tx.bookingGroup.update({
-        where: { id: newGroupId },
+        where: { id: cleanNewGroupId },
         data: { current_participants: { increment: 1 } },
       })
       if (updatedNewGroup.current_participants >= updatedNewGroup.max_participants) {
-        await tx.bookingGroup.update({ where: { id: newGroupId }, data: { status: 'full' } })
+        await tx.bookingGroup.update({ where: { id: cleanNewGroupId }, data: { status: 'full' } })
       }
 
       await tx.auditLog.create({
@@ -254,7 +262,7 @@ export class ParticipantService {
           user_id: adminId,
           action: 'MOVE_PARTICIPANT',
           entity_type: 'BookingGroup',
-          entity_id: newGroupId,
+          entity_id: cleanNewGroupId,
           new_values: {
             details: `Memindahkan peserta ${participant.full_name} (${participant.booking_code || participant.id}) dari Grup ${participant.booking_group.group_number} ke Grup ${newGroup.group_number}. ${reason || ''}`,
             reason,
@@ -268,7 +276,7 @@ export class ParticipantService {
     await EmailService.sendParticipantMoved(participant.user.email, {
       participant_name: participant.full_name,
       old_group: oldGroupId,
-      new_group: newGroupId,
+      new_group: cleanNewGroupId,
     })
 
     return { participant: moved, newGroup }

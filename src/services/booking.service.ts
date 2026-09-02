@@ -2,20 +2,18 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database'
 import { ApiError } from '../utils/errors'
 
-function parseNumericId(val: unknown): number {
-  if (typeof val === 'number') return val
+function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    const cleaned = val.replace(/^\D+/g, '')
-    const num = parseInt(cleaned, 10)
-    return isNaN(num) ? 0 : num
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-)/, '')
   }
-  return 0
+  return String(val || '')
 }
 
 export class BookingService {
-  static async getOrCreateBookingGroup(tripId: number, destinationPrice: Prisma.Decimal | number) {
+  static async getOrCreateBookingGroup(tripId: string, destinationPrice: Prisma.Decimal | number) {
+    const cleanTripId = cleanId(tripId)
     const trip = await prisma.trip.findUnique({
-      where: { id: tripId },
+      where: { id: cleanTripId },
       include: { booking_groups: { where: { status: 'open' }, orderBy: { group_number: 'asc' } } },
     })
 
@@ -25,14 +23,14 @@ export class BookingService {
     if (openGroup && openGroup.current_participants < openGroup.max_participants) return openGroup
 
     const lastGroup = await prisma.bookingGroup.findFirst({
-      where: { trip_id: tripId },
+      where: { trip_id: cleanTripId },
       orderBy: { group_number: 'desc' },
       select: { group_number: true },
     })
 
     return prisma.bookingGroup.create({
       data: {
-        trip_id: tripId,
+        trip_id: cleanTripId,
         group_number: (lastGroup?.group_number || 0) + 1,
         status: 'open',
         price_per_person: destinationPrice,
@@ -42,12 +40,12 @@ export class BookingService {
   }
 
   static async createBooking(
-    userId: number,
+    userId: string | number | undefined,
     bookingData: {
-      trip_id?: number
-      tripId?: number | string
-      destination_id?: number
-      destinationId?: number | string
+      trip_id?: string
+      tripId?: string
+      destination_id?: string
+      destinationId?: string
       full_name?: string
       fullName?: string
       email?: string
@@ -72,7 +70,10 @@ export class BookingService {
       hasInsurance?: boolean
     }
   ) {
-    const tripId = bookingData.trip_id || parseNumericId(bookingData.tripId)
+    const rawTripId = bookingData.trip_id || bookingData.tripId
+    if (!rawTripId) throw new ApiError('Trip ID is required', 400)
+    const tripId = cleanId(rawTripId)
+
     const fullName = bookingData.full_name || bookingData.fullName || 'Traveler'
     const phoneNumber = bookingData.phone_number || bookingData.phoneNumber || ''
     const country = bookingData.country || bookingData.nationality || 'Indonesia'
@@ -104,8 +105,8 @@ export class BookingService {
     const bookingCode = `TRV-${randomDigits}`
 
     return prisma.$transaction(async (tx) => {
-      let resolvedUserId = userId
-      if (!resolvedUserId || resolvedUserId === 0) {
+      let resolvedUserId = typeof userId === 'string' && userId ? cleanId(userId) : undefined
+      if (!resolvedUserId || resolvedUserId === '0') {
         let user = await tx.user.findUnique({ where: { email: userEmail } })
         if (!user) {
           user = await tx.user.create({
@@ -182,14 +183,15 @@ export class BookingService {
     })
   }
 
-  static async getAvailableGroups(destinationId: number, departureDate: string) {
+  static async getAvailableGroups(destinationId: string, departureDate: string) {
+    const cleanDestId = cleanId(destinationId)
     const date = new Date(departureDate)
     date.setHours(0, 0, 0, 0)
 
     return prisma.bookingGroup.findMany({
       where: {
         trip: {
-          destination_id: destinationId,
+          destination_id: cleanDestId,
           departure_date: { gte: date, lt: new Date(date.getTime() + 24 * 60 * 60 * 1000) },
         },
         status: { in: ['open', 'waiting'] },
@@ -199,10 +201,10 @@ export class BookingService {
     })
   }
 
-  static async getUserBookings(filter: { userId?: number; email?: string; bookingCode?: string }) {
+  static async getUserBookings(filter: { userId?: string; email?: string; bookingCode?: string }) {
     const where: Prisma.ParticipantWhereInput = {}
-    if (filter.userId && filter.userId > 0) {
-      where.user_id = filter.userId
+    if (filter.userId && filter.userId !== '0') {
+      where.user_id = cleanId(filter.userId)
     } else if (filter.email || filter.bookingCode) {
       where.OR = [
         ...(filter.email ? [{ user: { email: filter.email } }] : []),
@@ -240,8 +242,7 @@ export class BookingService {
       const bookingCode = p.booking_code || `TRV-${p.id}`
 
       return {
-        id: `part-${p.id}`,
-        numericId: p.id,
+        id: p.id,
         bookingCode,
         destination: {
           title: dest.name,
@@ -250,12 +251,12 @@ export class BookingService {
           meetingPoint: dest.meeting_point || '',
         },
         trip: {
-          id: `trip-${trip.id}`,
+          id: trip.id,
           departureDate: trip.departure_date,
           returnDate: trip.return_date,
         },
         group: {
-          id: `grp-${p.booking_group.id}`,
+          id: p.booking_group.id,
           groupNumber: p.booking_group.group_number,
           capacity: p.booking_group.max_participants,
           currentParticipants: p.booking_group.current_participants,

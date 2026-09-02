@@ -2,12 +2,10 @@ import Joi from 'joi'
 
 export const participantValidator = {
   adminCreate: Joi.object({
-    tripId: Joi.alternatives().try(Joi.number().integer().positive(), Joi.string()).optional(),
-    trip_id: Joi.number().integer().positive().optional(),
-    bookingGroupId: Joi.alternatives()
-      .try(Joi.number().integer().positive(), Joi.string())
-      .optional(),
-    group_id: Joi.number().integer().positive().optional(),
+    tripId: Joi.string().optional(),
+    trip_id: Joi.string().optional(),
+    bookingGroupId: Joi.string().optional(),
+    group_id: Joi.string().optional(),
     fullName: Joi.string().min(2).max(255).optional(),
     full_name: Joi.string().min(2).max(255).optional(),
     email: Joi.string().email().optional(),
@@ -37,16 +35,11 @@ export const participantValidator = {
     .or('phoneNumber', 'phone_number'),
 
   move: Joi.object({
-    new_group_id: Joi.number().integer().positive().optional(),
-    targetGroupId: Joi.alternatives()
-      .try(Joi.number().integer().positive(), Joi.string())
-      .optional(),
-    participantId: Joi.alternatives()
-      .try(Joi.number().integer().positive(), Joi.string())
-      .optional(),
-    currentGroupId: Joi.alternatives()
-      .try(Joi.number().integer().positive(), Joi.string())
-      .optional(),
+    new_group_id: Joi.string().optional(),
+    newGroupId: Joi.string().optional(),
+    targetGroupId: Joi.string().optional(),
+    participantId: Joi.string().optional(),
+    currentGroupId: Joi.string().optional(),
     reason: Joi.string().allow('', null).optional(),
   }),
 

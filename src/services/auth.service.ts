@@ -63,7 +63,7 @@ export class AuthService {
     return this.generateAuthTokens(user)
   }
 
-  static async getMe(userId: number) {
+  static async getMe(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -78,8 +78,7 @@ export class AuthService {
     const latestParticipant = user.participants[0]
 
     return {
-      id: `usr-${user.id}`,
-      numericId: user.id,
+      id: user.id,
       fullName: user.name,
       name: user.name,
       email: user.email,
@@ -92,7 +91,7 @@ export class AuthService {
   }
 
   private static generateAuthTokens(user: {
-    id: number
+    id: string
     email: string
     name: string
     role: string

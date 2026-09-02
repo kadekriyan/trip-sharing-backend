@@ -2,7 +2,7 @@ import { JwtService, TokenPayload } from '../../src/utils/jwt'
 
 describe('JwtService', () => {
   const samplePayload: TokenPayload = {
-    id: 1,
+    id: 'usr-1',
     email: 'test@example.com',
     role: 'participant',
   }

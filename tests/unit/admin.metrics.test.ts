@@ -58,14 +58,14 @@ describe('AdminService', () => {
       ;(prisma.auditLog.count as jest.Mock).mockResolvedValue(1)
       ;(prisma.auditLog.findMany as jest.Mock).mockResolvedValue([
         {
-          id: 1,
+          id: 'log-1',
           action: 'MOVE_PARTICIPANT',
           entity_type: 'BookingGroup',
-          entity_id: 2,
+          entity_id: 'grp-2',
           new_values: { details: 'Moved participant from group 1 to group 2' },
           ip_address: '180.252.164.12',
           created_at: new Date('2026-08-31T12:30:00.000Z'),
-          user: { id: 1, email: 'admin@tripsharing.id', name: 'Admin', role: 'admin' },
+          user: { id: 'usr-1', email: 'admin@tripsharing.id', name: 'Admin', role: 'admin' },
         },
       ])
 

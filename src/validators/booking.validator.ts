@@ -2,16 +2,14 @@ import Joi from 'joi'
 
 export const bookingValidator = {
   create: Joi.object({
-    tripId: Joi.alternatives().try(Joi.number().integer().positive(), Joi.string()).optional(),
-    trip_id: Joi.number().integer().positive().optional(),
-    destinationId: Joi.alternatives()
-      .try(Joi.number().integer().positive(), Joi.string())
-      .optional(),
-    destination_id: Joi.number().integer().positive().optional(),
+    tripId: Joi.string().optional(),
+    trip_id: Joi.string().optional(),
+    destinationId: Joi.string().optional(),
+    destination_id: Joi.string().optional(),
     fullName: Joi.string().min(2).max(255).optional(),
     full_name: Joi.string().min(2).max(255).optional(),
     email: Joi.string().email().optional(),
-    phoneNumber: Joi.string().required(),
+    phoneNumber: Joi.string().optional(),
     phone_number: Joi.string().optional(),
     country: Joi.string().optional(),
     nationality: Joi.string().optional(),
@@ -34,5 +32,6 @@ export const bookingValidator = {
     captcha_token: Joi.string().optional(),
   })
     .or('tripId', 'trip_id')
-    .or('fullName', 'full_name'),
+    .or('fullName', 'full_name')
+    .or('phoneNumber', 'phone_number'),
 }

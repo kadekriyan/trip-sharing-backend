@@ -28,7 +28,7 @@ describe('ArticleService / BlogService', () => {
 
     it('should return article by slug and increment view count', async () => {
       const mockArticle = {
-        id: 1,
+        id: 'art-1',
         title: '5 Alasan Trip Sharing Lebih Hemat',
         slug: '5-alasan-trip-sharing-lebih-hemat',
         content: 'Article content',
@@ -47,7 +47,7 @@ describe('ArticleService / BlogService', () => {
       expect(result.slug).toBe('5-alasan-trip-sharing-lebih-hemat')
       expect(result.author.name).toBe('Admin Editorial')
       expect(prisma.article.update).toHaveBeenCalledWith({
-        where: { id: 1 },
+        where: { id: 'art-1' },
         data: { view_count: { increment: 1 } },
       })
     })
@@ -58,7 +58,7 @@ describe('ArticleService / BlogService', () => {
       ;(prisma.article.count as jest.Mock).mockResolvedValue(1)
       ;(prisma.article.findMany as jest.Mock).mockResolvedValue([
         {
-          id: 1,
+          id: 'art-1',
           title: '5 Alasan Trip Sharing Lebih Hemat',
           slug: '5-alasan-trip-sharing-lebih-hemat',
           category: 'Travel Tips',
