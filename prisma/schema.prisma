@@ -30,20 +30,35 @@ model User {
 }
 
 model Destination {
-  id               Int      @id @default(autoincrement())
-  name             String
-  description      String?
-  image_url        String?
-  price_per_person Decimal  @db.Decimal(10, 2)
-  duration_days    Int?
-  itinerary        Json?
-  is_active        Boolean  @default(true)
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  id                 Int      @id @default(autoincrement())
+  name               String
+  slug               String?  @unique
+  tagline            String?
+  description        String?
+  image_url          String?
+  cover_image        String?
+  location           String?
+  price_per_person   Decimal  @db.Decimal(10, 2)
+  duration_days      Int?
+  duration_nights    Int?
+  gallery_images     Json?
+  inclusions         Json?
+  exclusions         Json?
+  highlights         Json?
+  rating             Decimal  @default(0) @db.Decimal(3, 2)
+  total_reviews      Int      @default(0)
+  is_popular         Boolean  @default(false)
+  meeting_point      String?
+  max_group_capacity Int      @default(6)
+  itinerary          Json?
+  is_active          Boolean  @default(true)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
   trips Trip[]
 
   @@index([is_active])
+  @@index([slug])
 }
 
 model Trip {
@@ -93,18 +108,27 @@ model Participant {
   id                 Int      @id @default(autoincrement())
   booking_group_id   Int
   user_id            Int
+  booking_code       String?  @unique
   full_name          String
   phone_number       String
-  country            String
-  date_of_birth      DateTime
-  hotel_preference   String?
-  passport_number    String?
+  country            String?
+  nationality        String?
+  date_of_birth      DateTime?
+  identity_number    String?
   identity_type      String?
+  gender             String?
+  hotel_preference   String?
+  room_preference    String?
+  passport_number    String?
   room_type          String?
   health_notes       String?
   preferred_language String?
   travel_insurance   Boolean  @default(false)
+  has_insurance      Boolean  @default(false)
+  insurance_fee      Decimal? @db.Decimal(10, 2)
+  total_amount       Decimal? @db.Decimal(12, 2)
   payment_status     String   @default("pending")
+  check_in_status    String   @default("pending")
   checked_in         Boolean  @default(false)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
@@ -116,6 +140,7 @@ model Participant {
   @@index([booking_group_id])
   @@index([user_id])
   @@index([payment_status])
+  @@index([booking_code])
 }
 
 model Payment {
@@ -149,7 +174,13 @@ model Article {
   excerpt            String?
   content            Json
   featured_image_url String?
+  cover_image        String?
   author_id          Int
+  author_name        String?
+  author_avatar      String?
+  author_role        String?
+  read_time_minutes  Int       @default(5)
+  tags               Json?
   category           String?
   seo_title          String?
   seo_description    String?
@@ -164,6 +195,7 @@ model Article {
 
   @@index([is_published])
   @@index([category])
+  @@index([slug])
 }
 
 model Driver {
