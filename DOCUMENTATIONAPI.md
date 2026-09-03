@@ -889,11 +889,205 @@ Memindahkan peserta ke kendaraan/grup lain. Otomatis menolak dengan `409 Conflic
 ---
 
 ### 10.5 Manajemen Master Destinasi Admin (`CRUD`)
-- `POST /api/admin/destinations` — Buat destinasi baru
-- `GET /api/admin/destinations` — List semua destinasi admin
-- `GET /api/admin/destinations/:id` — Detail destinasi
-- `PATCH /api/admin/destinations/:id` — Update destinasi
-- `DELETE /api/admin/destinations/:id` — Hapus destinasi
+
+#### 10.5.1 Daftar Seluruh Destinasi Admin (`GET /api/admin/destinations`)
+Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `camelCase` yang siap di-filter di halaman admin (`d.title`, `d.location`, `d.pricePerPax`, dll).
+
+- **Method**: `GET`
+- **Path**: `/api/admin/destinations`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Destinations retrieved",
+  "data": [
+    {
+      "id": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+      "title": "Bromo Sunrise & Midnight Safari",
+      "name": "Bromo Sunrise & Midnight Safari",
+      "slug": "bromo-sunrise-midnight-safari",
+      "tagline": "Jelajahi keajaiban kawah Bromo dan lautan pasir bersama grup seru.",
+      "description": "Paket trip sharing midnight menuju Bromo dengan armada Toyota HiAce VIP.",
+      "location": "Probolinggo, Jawa Timur",
+      "durationDays": 2,
+      "durationNights": 1,
+      "pricePerPax": 850000,
+      "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
+      "galleryImages": [
+        "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800"
+      ],
+      "inclusions": ["Tiket Masuk Bromo", "Jeep 4x4", "Driver as Guide"],
+      "exclusions": ["Sewa Kuda"],
+      "highlights": ["Sunrise Penanjakan", "Kawah Bromo"],
+      "rating": 4.9,
+      "totalReviews": 128,
+      "isPopular": true,
+      "meetingPoint": "Stasiun Malang Kota Baru (Pintu Timur)",
+      "maxGroupCapacity": 6,
+      "isActive": true,
+      "createdAt": "2026-09-01T10:00:00.000Z"
+    }
+  ],
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.5.2 Buat Destinasi Baru (`POST /api/admin/destinations`)
+- **Method**: `POST`
+- **Path**: `/api/admin/destinations`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "title": "Kawah Ijen Blue Fire Experience",
+  "tagline": "Saksikan fenomena api biru langka di dunia.",
+  "description": "Pendakian midnight menyaksikan api biru abadi dan danau kawah toska Ijen.",
+  "location": "Banyuwangi, Jawa Timur",
+  "durationDays": 2,
+  "durationNights": 1,
+  "pricePerPax": 750000,
+  "coverImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200",
+  "galleryImages": [
+    "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800"
+  ],
+  "inclusions": ["Tiket Masuk Ijen", "Masker Gas & Senter", "Local Guide"],
+  "exclusions": ["Troli Ijen", "Tips"],
+  "highlights": ["Blue Fire", "Sunrise Kawah Ijen"],
+  "meetingPoint": "Stasiun Banyuwangi Kota",
+  "maxGroupCapacity": 6,
+  "isActive": true
+}
+```
+
+##### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Destination created successfully",
+  "data": {
+    "id": "8bc12a91-4412-4ee1-9901-ccddeeff0002",
+    "title": "Kawah Ijen Blue Fire Experience",
+    "slug": "kawah-ijen-blue-fire-experience",
+    "location": "Banyuwangi, Jawa Timur",
+    "pricePerPax": 750000,
+    "durationDays": 2,
+    "isActive": true
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.5.3 Detail Destinasi Admin (`GET /api/admin/destinations/:id`)
+- **Method**: `GET`
+- **Path**: `/api/admin/destinations/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Destination retrieved",
+  "data": {
+    "id": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+    "title": "Bromo Sunrise & Midnight Safari",
+    "slug": "bromo-sunrise-midnight-safari",
+    "tagline": "Jelajahi keajaiban kawah Bromo dan lautan pasir bersama grup seru.",
+    "description": "Paket trip sharing midnight menuju Bromo dengan armada Toyota HiAce VIP.",
+    "location": "Probolinggo, Jawa Timur",
+    "durationDays": 2,
+    "durationNights": 1,
+    "pricePerPax": 850000,
+    "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
+    "galleryImages": [],
+    "inclusions": ["Tiket Masuk Bromo", "Jeep 4x4"],
+    "exclusions": ["Sewa Kuda"],
+    "highlights": ["Sunrise Penanjakan"],
+    "meetingPoint": "Stasiun Malang Kota Baru (Pintu Timur)",
+    "maxGroupCapacity": 6,
+    "isActive": true,
+    "createdAt": "2026-09-01T10:00:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.5.4 Edit / Update Destinasi (`PATCH` atau `PUT /api/admin/destinations/:id`)
+Dapat mengirimkan sebagian (parsial) atau seluruh field destinasi.
+
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/admin/destinations/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Contoh Update Harga, Gambar, & Status Aktif)
+```json
+{
+  "title": "Bromo Sunrise & Midnight Safari (VIP Edition)",
+  "pricePerPax": 900000,
+  "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
+  "location": "Probolinggo & Pasuruan, Jawa Timur",
+  "isPopular": true,
+  "isActive": true
+}
+```
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Destination updated",
+  "data": {
+    "id": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+    "title": "Bromo Sunrise & Midnight Safari (VIP Edition)",
+    "slug": "bromo-sunrise-midnight-safari-vip-edition",
+    "location": "Probolinggo & Pasuruan, Jawa Timur",
+    "durationDays": 2,
+    "durationNights": 1,
+    "pricePerPax": 900000,
+    "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
+    "isPopular": true,
+    "isActive": true,
+    "updatedAt": "2026-09-03T04:30:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.5.5 Hapus Destinasi (`DELETE /api/admin/destinations/:id`)
+Menghapus destinasi dari database. Otomatis menolak jika sudah terdapat partisipan/booking yang terdaftar demi integritas data.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/destinations/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Destination deleted",
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+##### Response Error Jika Memiliki Peserta Booking Aktif (`400 Bad Request`)
+```json
+{
+  "success": false,
+  "message": "Destinasi tidak dapat dihapus karena sudah memiliki peserta booking yang terdaftar.",
+  "details": {},
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
 
 ---
 

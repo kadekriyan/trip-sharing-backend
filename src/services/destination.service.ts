@@ -12,31 +12,32 @@ export interface DestinationQueryFilters {
 }
 
 function formatDestination(dest: Record<string, unknown>) {
+  const name = (dest.name as string) || (dest.title as string) || ''
   return {
     id: dest.id as string,
-    title: dest.name,
-    name: dest.name,
-    slug: dest.slug || `destination-${dest.id}`,
-    tagline: dest.tagline || dest.description || '',
-    description: dest.description || '',
-    location: dest.location || '',
-    durationDays: dest.duration_days || 1,
-    durationNights: dest.duration_nights || 0,
+    title: name,
+    name,
+    slug: (dest.slug as string) || `destination-${dest.id}`,
+    tagline: (dest.tagline as string) || (dest.description as string) || '',
+    description: (dest.description as string) || '',
+    location: (dest.location as string) || '',
+    durationDays: (dest.duration_days as number) || 1,
+    durationNights: (dest.duration_nights as number) || 0,
     pricePerPax: dest.price_per_person ? Number(dest.price_per_person) : 0,
     price_per_person: dest.price_per_person,
-    coverImage: dest.cover_image || dest.image_url || '',
-    imageUrl: dest.image_url || dest.cover_image || '',
-    galleryImages: dest.gallery_images || [],
-    inclusions: dest.inclusions || [],
-    exclusions: dest.exclusions || [],
-    highlights: dest.highlights || [],
+    coverImage: (dest.cover_image as string) || (dest.image_url as string) || '',
+    imageUrl: (dest.image_url as string) || (dest.cover_image as string) || '',
+    galleryImages: (dest.gallery_images as string[]) || [],
+    inclusions: (dest.inclusions as string[]) || [],
+    exclusions: (dest.exclusions as string[]) || [],
+    highlights: (dest.highlights as string[]) || [],
     rating: dest.rating ? Number(dest.rating) : 4.9,
-    totalReviews: dest.total_reviews || 0,
-    isPopular: dest.is_popular || false,
-    meetingPoint: dest.meeting_point || '',
-    maxGroupCapacity: dest.max_group_capacity || 6,
-    itinerary: dest.itinerary || [],
-    isActive: dest.is_active,
+    totalReviews: (dest.total_reviews as number) || 0,
+    isPopular: (dest.is_popular as boolean) || false,
+    meetingPoint: (dest.meeting_point as string) || '',
+    maxGroupCapacity: (dest.max_group_capacity as number) || 6,
+    itinerary: (dest.itinerary as unknown[]) || [],
+    isActive: dest.is_active !== undefined ? (dest.is_active as boolean) : true,
     createdAt: dest.created_at,
     updatedAt: dest.updated_at,
   }
@@ -85,7 +86,7 @@ export class DestinationService {
     const price = data.price_per_person ?? data.pricePerPax ?? 0
     const coverImage = data.cover_image || data.coverImage || data.image_url || null
 
-    return prisma.destination.create({
+    const created = await prisma.destination.create({
       data: {
         name,
         slug,
@@ -112,6 +113,8 @@ export class DestinationService {
         is_active: data.is_active ?? true,
       },
     })
+
+    return formatDestination(created as unknown as Record<string, unknown>)
   }
 
   static async list(filters: DestinationQueryFilters = {}) {
@@ -168,11 +171,12 @@ export class DestinationService {
     }
   }
 
-  static adminList(filters: { is_active?: boolean }) {
-    return prisma.destination.findMany({
+  static async adminList(filters: { is_active?: boolean } = {}) {
+    const destinations = await prisma.destination.findMany({
       where: { ...(filters.is_active !== undefined && { is_active: filters.is_active }) },
       orderBy: { created_at: 'desc' },
     })
+    return destinations.map((d) => formatDestination(d as unknown as Record<string, unknown>))
   }
 
   static async get(id: string) {
@@ -282,21 +286,128 @@ export class DestinationService {
   }
 
   static async update(id: string, data: Record<string, unknown>) {
-    const destination = await prisma.destination.findUnique({ where: { id } })
-    if (!destination) throw new ApiError('Destination not found', 404)
+    const existing = await prisma.destination.findUnique({ where: { id } })
+    if (!existing) throw new ApiError('Destination not found', 404)
 
-    return prisma.destination.update({ where: { id }, data: data as never })
+    const updateData: Prisma.DestinationUpdateInput = {}
+
+    if (data.name !== undefined || data.title !== undefined) {
+      const name = (data.name || data.title) as string
+      updateData.name = name
+      if (!existing.slug || data.slug) {
+        updateData.slug =
+          (data.slug as string) ||
+          name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '')
+      }
+    }
+    if (data.slug !== undefined) updateData.slug = data.slug as string
+    if (data.tagline !== undefined) updateData.tagline = data.tagline as string
+    if (data.description !== undefined) updateData.description = data.description as string
+    if (data.location !== undefined) updateData.location = data.location as string
+    if (
+      data.coverImage !== undefined ||
+      data.cover_image !== undefined ||
+      data.image_url !== undefined
+    ) {
+      const img = (data.coverImage || data.cover_image || data.image_url) as string
+      updateData.cover_image = img
+      updateData.image_url = img
+    }
+    if (data.pricePerPax !== undefined || data.price_per_person !== undefined) {
+      const price = Number(data.pricePerPax ?? data.price_per_person)
+      updateData.price_per_person = new Prisma.Decimal(price.toString())
+    }
+    if (data.durationDays !== undefined || data.duration_days !== undefined) {
+      updateData.duration_days = Number(data.durationDays ?? data.duration_days)
+    }
+    if (data.durationNights !== undefined || data.duration_nights !== undefined) {
+      updateData.duration_nights = Number(data.durationNights ?? data.duration_nights)
+    }
+    if (data.galleryImages !== undefined || data.gallery_images !== undefined) {
+      updateData.gallery_images = (data.galleryImages ??
+        data.gallery_images) as Prisma.InputJsonValue
+    }
+    if (data.inclusions !== undefined)
+      updateData.inclusions = data.inclusions as Prisma.InputJsonValue
+    if (data.exclusions !== undefined)
+      updateData.exclusions = data.exclusions as Prisma.InputJsonValue
+    if (data.highlights !== undefined)
+      updateData.highlights = data.highlights as Prisma.InputJsonValue
+    if (data.rating !== undefined && data.rating !== null) {
+      updateData.rating = new Prisma.Decimal(data.rating.toString())
+    }
+    if (data.totalReviews !== undefined || data.total_reviews !== undefined) {
+      updateData.total_reviews = Number(data.totalReviews ?? data.total_reviews)
+    }
+    if (data.isPopular !== undefined || data.is_popular !== undefined) {
+      updateData.is_popular = Boolean(data.isPopular ?? data.is_popular)
+    }
+    if (data.meetingPoint !== undefined || data.meeting_point !== undefined) {
+      updateData.meeting_point = (data.meetingPoint ?? data.meeting_point) as string
+    }
+    if (data.maxGroupCapacity !== undefined || data.max_group_capacity !== undefined) {
+      updateData.max_group_capacity = Number(data.maxGroupCapacity ?? data.max_group_capacity)
+    }
+    if (data.itinerary !== undefined) updateData.itinerary = data.itinerary as Prisma.InputJsonValue
+    if (data.isActive !== undefined || data.is_active !== undefined) {
+      updateData.is_active = Boolean(data.isActive ?? data.is_active)
+    }
+
+    const updated = await prisma.destination.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return formatDestination(updated as unknown as Record<string, unknown>)
   }
 
   static async delete(id: string) {
     const destination = await prisma.destination.findUnique({
       where: { id },
-      include: { trips: true },
+      include: {
+        trips: {
+          include: {
+            booking_groups: {
+              include: {
+                participants: true,
+              },
+            },
+          },
+        },
+      },
     })
     if (!destination) throw new ApiError('Destination not found', 404)
-    if (destination.trips.length > 0)
-      throw new ApiError('Destination has trips and cannot be deleted', 400)
 
-    await prisma.destination.delete({ where: { id } })
+    const hasParticipants = destination.trips.some((trip) =>
+      trip.booking_groups.some((group) => group.participants.length > 0)
+    )
+
+    if (hasParticipants) {
+      throw new ApiError(
+        'Destinasi tidak dapat dihapus karena sudah memiliki peserta booking yang terdaftar.',
+        400
+      )
+    }
+
+    // Cascade delete empty booking groups and trips before deleting destination
+    await prisma.$transaction(async (tx) => {
+      for (const trip of destination.trips) {
+        await tx.payment.deleteMany({
+          where: { booking_group: { trip_id: trip.id } },
+        })
+        await tx.bookingGroup.deleteMany({
+          where: { trip_id: trip.id },
+        })
+      }
+      await tx.trip.deleteMany({
+        where: { destination_id: id },
+      })
+      await tx.destination.delete({
+        where: { id },
+      })
+    })
   }
 }

@@ -12,6 +12,23 @@ jest.mock('../../src/config/database', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    trip: {
+      deleteMany: jest.fn(),
+    },
+    bookingGroup: {
+      deleteMany: jest.fn(),
+    },
+    payment: {
+      deleteMany: jest.fn(),
+    },
+    $transaction: jest.fn((cb) =>
+      cb({
+        payment: { deleteMany: jest.fn() },
+        bookingGroup: { deleteMany: jest.fn() },
+        trip: { deleteMany: jest.fn() },
+        destination: { delete: jest.fn() },
+      })
+    ),
   },
 }))
 
@@ -90,6 +107,105 @@ describe('DestinationService', () => {
       expect(result.meta.page).toBe(1)
       expect(result.meta.total).toBe(1)
       expect(result.meta.totalPages).toBe(1)
+    })
+  })
+
+  describe('adminList', () => {
+    it('should return formatted destinations with title and location', async () => {
+      ;(prisma.destination.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'dest-1',
+          name: 'Kawah Ijen Blue Fire',
+          slug: 'kawah-ijen-blue-fire',
+          location: 'Banyuwangi',
+          price_per_person: 750000,
+          is_active: true,
+        },
+      ])
+
+      const result = await DestinationService.adminList()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('Kawah Ijen Blue Fire')
+      expect(result[0].location).toBe('Banyuwangi')
+      expect(result[0].pricePerPax).toBe(750000)
+    })
+  })
+
+  describe('update', () => {
+    it('should throw 404 if destination not found', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(null)
+      await expect(DestinationService.update('dest-not-found', { title: 'New' })).rejects.toThrow(
+        ApiError
+      )
+    })
+
+    it('should update destination and return formatted object', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue({
+        id: 'dest-1',
+        name: 'Old Name',
+        slug: 'old-name',
+      })
+      ;(prisma.destination.update as jest.Mock).mockResolvedValue({
+        id: 'dest-1',
+        name: 'Updated Name',
+        slug: 'updated-name',
+        price_per_person: 900000,
+        is_active: true,
+      })
+
+      const result = await DestinationService.update('dest-1', {
+        title: 'Updated Name',
+        pricePerPax: 900000,
+      })
+
+      expect(result.title).toBe('Updated Name')
+      expect(result.pricePerPax).toBe(900000)
+    })
+  })
+
+  describe('delete', () => {
+    it('should throw 404 if destination not found', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(null)
+      await expect(DestinationService.delete('dest-not-found')).rejects.toThrow(ApiError)
+    })
+
+    it('should throw 400 if destination has active participants', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue({
+        id: 'dest-1',
+        trips: [
+          {
+            id: 'trip-1',
+            booking_groups: [
+              {
+                participants: [{ id: 'p1' }],
+              },
+            ],
+          },
+        ],
+      })
+
+      await expect(DestinationService.delete('dest-1')).rejects.toThrow(
+        'Destinasi tidak dapat dihapus karena sudah memiliki peserta booking yang terdaftar.'
+      )
+    })
+
+    it('should delete destination if no participants exist', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue({
+        id: 'dest-1',
+        trips: [
+          {
+            id: 'trip-1',
+            booking_groups: [
+              {
+                participants: [],
+              },
+            ],
+          },
+        ],
+      })
+
+      await expect(DestinationService.delete('dest-1')).resolves.not.toThrow()
     })
   })
 })

@@ -59,6 +59,11 @@ router.patch(
   validateRequest(destinationValidator.update),
   asyncHandler(AdminController.updateDestination)
 )
+router.put(
+  '/destinations/:id',
+  validateRequest(destinationValidator.update),
+  asyncHandler(AdminController.updateDestination)
+)
 router.delete('/destinations/:id', asyncHandler(AdminController.deleteDestination))
 
 // Trips
