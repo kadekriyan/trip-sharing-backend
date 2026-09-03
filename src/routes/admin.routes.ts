@@ -123,6 +123,11 @@ router.patch(
   validateRequest(driverValidator.update),
   asyncHandler(AdminController.updateDriver)
 )
+router.put(
+  '/drivers/:id',
+  validateRequest(driverValidator.update),
+  asyncHandler(AdminController.updateDriver)
+)
 router.delete('/drivers/:id', asyncHandler(AdminController.deleteDriver))
 
 export default router

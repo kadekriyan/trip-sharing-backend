@@ -1109,12 +1109,197 @@ Menghapus destinasi dari database. Otomatis menolak jika sudah terdapat partisip
 
 ---
 
-### 10.8 Manajemen Driver & Kendaraan Admin (`CRUD`)
-- `POST /api/admin/drivers` — Daftarkan driver & kendaraan
-- `GET /api/admin/drivers` — List semua driver
-- `GET /api/admin/drivers/:id` — Detail driver
-- `PATCH /api/admin/drivers/:id` — Update ketersediaan/data driver
-- `DELETE /api/admin/drivers/:id` — Hapus driver
+### 10.8 Manajemen Driver & Armada Admin (`CRUD`)
+
+#### 10.8.1 Daftar Seluruh Driver & Armada (`GET /api/admin/drivers`)
+Mengambil semua data driver dan armada kendaraan dalam format standar `camelCase`.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/drivers`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Drivers retrieved",
+  "data": [
+    {
+      "id": "d0912384-1234-4bc1-9022-771199aabb01",
+      "userId": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+      "fullName": "Pak Joko Santoso",
+      "name": "Pak Joko Santoso",
+      "phoneNumber": "+6281233445566",
+      "phone": "+6281233445566",
+      "email": "joko@driver.local",
+      "licenseNumber": "SIM-A-99218201",
+      "vehicleType": "Toyota HiAce Premio",
+      "vehicleModel": "Toyota HiAce Premio",
+      "vehiclePlat": "N 1234 XY",
+      "plateNumber": "N 1234 XY",
+      "experienceYears": 6,
+      "rating": 5.0,
+      "isAvailable": true,
+      "user": {
+        "id": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+        "name": "Pak Joko Santoso",
+        "phone": "+6281233445566",
+        "email": "joko@driver.local",
+        "profileImageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200"
+      },
+      "createdAt": "2026-09-01T08:00:00.000Z"
+    }
+  ],
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.8.2 Daftarkan Driver & Armada Baru (`POST /api/admin/drivers`)
+Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem akan otomatis membuat akun driver.
+
+- **Method**: `POST`
+- **Path**: `/api/admin/drivers`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "fullName": "Pak Budi Hartono",
+  "phoneNumber": "+6281355667788",
+  "email": "budi.driver@example.com",
+  "licenseNumber": "SIM-A-77889900",
+  "vehicleModel": "Toyota HiAce Commuter",
+  "plateNumber": "N 5678 AB",
+  "experienceYears": 5,
+  "photoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
+  "isAvailable": true
+}
+```
+
+##### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Driver created successfully",
+  "data": {
+    "id": "d1283a01-5512-4ee1-9901-778899aabb02",
+    "userId": "u1283a01-5512-4ee1-9901-778899aabb02",
+    "fullName": "Pak Budi Hartono",
+    "phoneNumber": "+6281355667788",
+    "email": "budi.driver@example.com",
+    "licenseNumber": "SIM-A-77889900",
+    "vehicleModel": "Toyota HiAce Commuter",
+    "plateNumber": "N 5678 AB",
+    "experienceYears": 5,
+    "rating": 5.0,
+    "isAvailable": true
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.8.3 Detail Driver & Armada (`GET /api/admin/drivers/:id`)
+- **Method**: `GET`
+- **Path**: `/api/admin/drivers/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Driver retrieved",
+  "data": {
+    "id": "d0912384-1234-4bc1-9022-771199aabb01",
+    "userId": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+    "fullName": "Pak Joko Santoso",
+    "phoneNumber": "+6281233445566",
+    "email": "joko@driver.local",
+    "licenseNumber": "SIM-A-99218201",
+    "vehicleModel": "Toyota HiAce Premio",
+    "plateNumber": "N 1234 XY",
+    "experienceYears": 6,
+    "rating": 5.0,
+    "isAvailable": true,
+    "user": {
+      "name": "Pak Joko Santoso",
+      "phone": "+6281233445566"
+    }
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.8.4 Edit / Update Driver & Armada (`PATCH` atau `PUT /api/admin/drivers/:id`)
+Dapat memperbarui data pengemudi, armada kendaraan, nomor plat, serta status ketersediaan.
+
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/admin/drivers/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Contoh Update Kendaraan, Plat, & Ketersediaan)
+```json
+{
+  "fullName": "Pak Joko Santoso, S.Pd",
+  "phoneNumber": "+6281233445577",
+  "vehicleModel": "Toyota HiAce Premio VIP (6-Seater)",
+  "plateNumber": "N 1234 VIP",
+  "experienceYears": 7,
+  "isAvailable": true
+}
+```
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Driver updated",
+  "data": {
+    "id": "d0912384-1234-4bc1-9022-771199aabb01",
+    "fullName": "Pak Joko Santoso, S.Pd",
+    "phoneNumber": "+6281233445577",
+    "vehicleModel": "Toyota HiAce Premio VIP (6-Seater)",
+    "plateNumber": "N 1234 VIP",
+    "experienceYears": 7,
+    "isAvailable": true,
+    "updatedAt": "2026-09-03T05:00:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.8.5 Hapus Driver & Armada (`DELETE /api/admin/drivers/:id`)
+Menghapus data driver. Otomatis dilindungi jika driver sedang ditugaskan pada jadwal trip aktif.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/drivers/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Driver deleted",
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+##### Response Error Jika Driver Sedang Ditugaskan pada Trip Aktif (`400 Bad Request`)
+```json
+{
+  "success": false,
+  "message": "Driver tidak dapat dihapus karena sedang ditugaskan pada jadwal trip aktif.",
+  "details": {},
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
 
 ---
 
