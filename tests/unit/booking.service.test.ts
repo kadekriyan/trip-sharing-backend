@@ -7,7 +7,12 @@ jest.mock('../../src/config/database', () => ({
   prisma: {
     trip: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
+    },
+    destination: {
+      findUnique: jest.fn(),
     },
     bookingGroup: {
       findFirst: jest.fn(),
@@ -18,6 +23,10 @@ jest.mock('../../src/config/database', () => ({
     participant: {
       create: jest.fn(),
       findMany: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -111,13 +120,78 @@ describe('BookingService', () => {
       travel_insurance: true,
     }
 
-    it('should throw ApiError (404) if trip does not exist', async () => {
+    it('should throw ApiError (404) if trip and destination do not exist', async () => {
       ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(null)
 
       await expect(BookingService.createBooking('usr-1', sampleInput)).rejects.toMatchObject({
         statusCode: 404,
-        message: 'Trip not found',
+        message: 'Trip or destination not found',
       })
+    })
+
+    it('should fallback to destination and auto-provision trip if tripId matches destination', async () => {
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(null)
+      const mockDestination = {
+        id: 'dest-1',
+        name: 'Bromo Sunrise',
+        price_per_person: new Prisma.Decimal(850000),
+        duration_days: 2,
+      }
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(mockDestination)
+      ;(prisma.trip.findFirst as jest.Mock).mockResolvedValue(null)
+
+      const mockCreatedTrip = {
+        id: 'trip-auto-1',
+        destination_id: 'dest-1',
+        destination: mockDestination,
+        booking_groups: [],
+      }
+      ;(prisma.trip.create as jest.Mock).mockResolvedValue(mockCreatedTrip)
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockCreatedTrip)
+
+      const mockParticipant = {
+        id: 'part-101',
+        booking_group_id: 'grp-auto-1',
+        user_id: 'usr-1',
+        full_name: 'Jane Doe',
+      }
+
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
+          participant: { create: jest.fn().mockResolvedValue(mockParticipant) },
+          bookingGroup: {
+            update: jest
+              .fn()
+              .mockResolvedValue({
+                id: 'grp-auto-1',
+                current_participants: 1,
+                max_participants: 6,
+              }),
+          },
+          trip: {
+            update: jest.fn().mockResolvedValue({ id: 'trip-auto-1', current_participants: 1 }),
+          },
+        }
+        return callback(tx)
+      })
+
+      ;(prisma.bookingGroup.create as jest.Mock).mockResolvedValue({
+        id: 'grp-auto-1',
+        trip_id: 'trip-auto-1',
+        current_participants: 0,
+        max_participants: 6,
+      })
+
+      const result = await BookingService.createBooking('usr-1', {
+        destinationId: 'dest-1',
+        fullName: 'Jane Doe',
+        phoneNumber: '08123456789',
+      })
+
+      expect(result.participant).toBeDefined()
+      expect(prisma.trip.create).toHaveBeenCalled()
     })
 
     it('should assign participant to group and increment counters inside transaction', async () => {
@@ -154,6 +228,7 @@ describe('BookingService', () => {
 
       ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
         const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
           participant: { create: jest.fn().mockResolvedValue(mockParticipant) },
           bookingGroup: { update: jest.fn().mockResolvedValue(mockUpdatedGroup) },
           trip: { update: jest.fn().mockResolvedValue({ id: 'trip-1', current_participants: 3 }) },

@@ -48,12 +48,15 @@ export class BookingService {
       destinationId?: string
       full_name?: string
       fullName?: string
+      name?: string
       email?: string
       phone_number?: string
       phoneNumber?: string
+      phone?: string
       country?: string
       nationality?: string
       date_of_birth?: Date | string
+      dateOfBirth?: Date | string
       identity_number?: string
       identityNumber?: string
       gender?: string
@@ -61,21 +64,83 @@ export class BookingService {
       roomPreference?: string
       hotel_preference?: string
       passport_number?: string
+      passportNumber?: string
       identity_type?: string
+      identityType?: string
       room_type?: string
+      roomType?: string
       health_notes?: string
       healthNotes?: string
       preferred_language?: string
+      preferredLanguage?: string
       travel_insurance?: boolean
       hasInsurance?: boolean
     }
   ) {
     const rawTripId = bookingData.trip_id || bookingData.tripId
-    if (!rawTripId) throw new ApiError('Trip ID is required', 400)
-    const tripId = cleanId(rawTripId)
+    const rawDestId = bookingData.destination_id || bookingData.destinationId
 
-    const fullName = bookingData.full_name || bookingData.fullName || 'Traveler'
-    const phoneNumber = bookingData.phone_number || bookingData.phoneNumber || ''
+    if (!rawTripId && !rawDestId) {
+      throw new ApiError('Trip ID or Destination ID is required', 400)
+    }
+
+    let trip = null
+
+    // 1. Try finding by trip ID if provided
+    if (rawTripId) {
+      trip = await prisma.trip.findUnique({
+        where: { id: cleanId(rawTripId) },
+        include: { destination: true },
+      })
+    }
+
+    // 2. Fallback: Check if rawTripId or rawDestId is a Destination ID
+    if (!trip) {
+      const destIdToSearch = rawDestId || rawTripId
+      if (destIdToSearch) {
+        const destination = await prisma.destination.findUnique({
+          where: { id: cleanId(destIdToSearch) },
+        })
+
+        if (destination) {
+          trip = await prisma.trip.findFirst({
+            where: {
+              destination_id: destination.id,
+              status: { in: ['active', 'scheduled', 'planning'] },
+            },
+            include: { destination: true },
+            orderBy: { departure_date: 'asc' },
+          })
+
+          // If no active trip exists for this destination, auto-provision an initial active trip
+          if (!trip) {
+            const departureDate = new Date()
+            departureDate.setDate(departureDate.getDate() + 7)
+            const returnDate = new Date(departureDate)
+            returnDate.setDate(returnDate.getDate() + (destination.duration_days || 1))
+
+            trip = await prisma.trip.create({
+              data: {
+                destination_id: destination.id,
+                departure_date: departureDate,
+                return_date: returnDate,
+                status: 'scheduled',
+                max_participants: destination.max_group_capacity || 6,
+                current_participants: 0,
+              },
+              include: { destination: true },
+            })
+          }
+        }
+      }
+    }
+
+    if (!trip) throw new ApiError('Trip or destination not found', 404)
+
+    const tripId = trip.id
+    const fullName = bookingData.full_name || bookingData.fullName || bookingData.name || 'Traveler'
+    const phoneNumber =
+      bookingData.phone_number || bookingData.phoneNumber || bookingData.phone || ''
     const country = bookingData.country || bookingData.nationality || 'Indonesia'
     const nationality = bookingData.nationality || bookingData.country || 'Indonesia'
     const identityNumber = bookingData.identityNumber || bookingData.identity_number || null
@@ -89,13 +154,6 @@ export class BookingService {
     const hasInsurance = bookingData.hasInsurance ?? bookingData.travel_insurance ?? false
     const userEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
-
-    const trip = await prisma.trip.findUnique({
-      where: { id: tripId },
-      include: { destination: true },
-    })
-
-    if (!trip) throw new ApiError('Trip not found', 404)
 
     const basePrice = Number(trip.destination.price_per_person)
     const insuranceFee = hasInsurance ? 50000 : 0
@@ -138,16 +196,17 @@ export class BookingService {
           nationality,
           identity_number: identityNumber,
           gender,
-          date_of_birth: bookingData.date_of_birth
-            ? new Date(bookingData.date_of_birth)
-            : new Date(),
+          date_of_birth:
+            bookingData.date_of_birth || bookingData.dateOfBirth
+              ? new Date(bookingData.date_of_birth || bookingData.dateOfBirth!)
+              : new Date(),
           room_preference: roomPreference,
           hotel_preference: roomPreference,
-          passport_number: bookingData.passport_number,
-          identity_type: bookingData.identity_type,
-          room_type: bookingData.room_type,
+          passport_number: bookingData.passport_number || bookingData.passportNumber,
+          identity_type: bookingData.identity_type || bookingData.identityType,
+          room_type: bookingData.room_type || bookingData.roomType,
           health_notes: healthNotes,
-          preferred_language: bookingData.preferred_language,
+          preferred_language: bookingData.preferred_language || bookingData.preferredLanguage,
           travel_insurance: hasInsurance,
           has_insurance: hasInsurance,
           insurance_fee: new Prisma.Decimal(insuranceFee.toString()),
