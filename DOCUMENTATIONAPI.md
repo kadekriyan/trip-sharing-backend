@@ -1100,12 +1100,192 @@ Menghapus destinasi dari database. Otomatis menolak jika sudah terdapat partisip
 
 ---
 
-### 10.7 Manajemen Blog CMS Admin (`CRUD`)
-- `POST /api/admin/blogs` — Buat artikel blog baru
-- `GET /api/admin/blogs` — List seluruh artikel draft & published
-- `GET /api/admin/blogs/:id` — Detail artikel blog
-- `PATCH /api/admin/blogs/:id` — Update isi / publish artikel
-- `DELETE /api/admin/blogs/:id` — Hapus artikel
+### 10.7 Manajemen Blog & Artikel Admin (`CRUD`)
+
+#### 10.7.1 Daftar Seluruh Artikel Admin (`GET /api/admin/blogs` atau `GET /api/admin/articles`)
+Mengambil semua data artikel (baik yang sudah publish maupun draft / non-aktif) dalam format standar `camelCase`.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/blogs` *(atau `/api/admin/articles`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Articles retrieved",
+  "data": [
+    {
+      "id": "5128ca01-8891-4da2-b101-771122334455",
+      "title": "5 Alasan Mengapa Trip Sharing Lebih Hemat & Seru",
+      "slug": "5-alasan-mengapa-trip-sharing-lebih-hemat-seru",
+      "excerpt": "Temukan bagaimana konsep berbagi armada 6-seater dapat menghemat biaya perjalanan Anda hingga 60%.",
+      "content": "Isi lengkap artikel...",
+      "coverImage": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200",
+      "category": "Travel Tips",
+      "author": {
+        "name": "Admin Editorial",
+        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+        "role": "Lead Travel Writer"
+      },
+      "readTimeMinutes": 4,
+      "tags": ["Tips", "Hemat", "Trip Sharing"],
+      "publishedAt": "2026-08-30T10:00:00.000Z",
+      "views": 1420,
+      "viewCount": 1420,
+      "isPublished": true,
+      "isActive": true,
+      "seoTitle": "5 Alasan Trip Sharing Lebih Hemat",
+      "seoDescription": "Tips hemat liburan bersama trip sharing.",
+      "createdAt": "2026-08-30T09:00:00.000Z"
+    }
+  ],
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.7.2 Buat Artikel Blog Baru (`POST /api/admin/blogs` atau `POST /api/admin/articles`)
+Membuat artikel blog baru. Mendukung pengaturan status publikasi aktif/non-aktif melalui `isActive` atau `isPublished`.
+
+- **Method**: `POST`
+- **Path**: `/api/admin/blogs` *(atau `/api/admin/articles`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "title": "Panduan Lengkap Mendaki Kawah Ijen untuk Pemula",
+  "category": "Destinasi",
+  "excerpt": "Semua yang perlu Anda persiapkan sebelum menyaksikan keindahan Blue Fire Ijen.",
+  "content": "Isi lengkap artikel panduan mendaki...",
+  "coverImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200",
+  "readTimeMinutes": 6,
+  "tags": ["Ijen", "Blue Fire", "Panduan", "Hiking"],
+  "authorName": "Admin Editorial",
+  "authorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+  "authorRole": "Senior Travel Guide",
+  "seoTitle": "Panduan Mendaki Kawah Ijen Blue Fire",
+  "seoDescription": "Tips dan panduan mendaki kawah Ijen Banyuwangi.",
+  "isActive": true
+}
+```
+
+##### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Article created successfully",
+  "data": {
+    "id": "a9120384-5512-4ee1-9901-778899aabb01",
+    "title": "Panduan Lengkap Mendaki Kawah Ijen untuk Pemula",
+    "slug": "panduan-lengkap-mendaki-kawah-ijen-untuk-pemula",
+    "category": "Destinasi",
+    "excerpt": "Semua yang perlu Anda persiapkan sebelum menyaksikan keindahan Blue Fire Ijen.",
+    "coverImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200",
+    "readTimeMinutes": 6,
+    "tags": ["Ijen", "Blue Fire", "Panduan", "Hiking"],
+    "isPublished": true,
+    "isActive": true,
+    "publishedAt": "2026-09-04T12:00:00.000Z",
+    "createdAt": "2026-09-04T12:00:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.7.3 Detail Artikel Blog Admin (`GET /api/admin/blogs/:id` atau `GET /api/admin/articles/:id`)
+- **Method**: `GET`
+- **Path**: `/api/admin/blogs/:id` *(atau `/api/admin/articles/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Article retrieved",
+  "data": {
+    "id": "5128ca01-8891-4da2-b101-771122334455",
+    "title": "5 Alasan Mengapa Trip Sharing Lebih Hemat & Seru",
+    "slug": "5-alasan-mengapa-trip-sharing-lebih-hemat-seru",
+    "excerpt": "Temukan bagaimana konsep berbagi armada 6-seater dapat menghemat biaya perjalanan Anda hingga 60%.",
+    "content": "Isi lengkap artikel...",
+    "coverImage": "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1200",
+    "category": "Travel Tips",
+    "author": {
+      "name": "Admin Editorial",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200",
+      "role": "Lead Travel Writer"
+    },
+    "readTimeMinutes": 4,
+    "tags": ["Tips", "Hemat", "Trip Sharing"],
+    "views": 1420,
+    "isPublished": true,
+    "isActive": true,
+    "publishedAt": "2026-08-30T10:00:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.7.4 Edit / Update Artikel Blog (`PATCH` atau `PUT /api/admin/blogs/:id` atau `/api/admin/articles/:id`)
+Dapat memperbarui konten, judul, gambar cover, tag, serta mengaktifkan/menonaktifkan publikasi artikel (`isActive: true/false` atau `isPublished: true/false`).
+
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/admin/blogs/:id` *(atau `/api/admin/articles/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Contoh Update Judul & Toggle Status Aktif/Nonaktif)
+```json
+{
+  "title": "5 Alasan Mengapa Trip Sharing Lebih Hemat & Seru (Update 2026)",
+  "category": "Travel Tips",
+  "readTimeMinutes": 5,
+  "isActive": true
+}
+```
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Article updated",
+  "data": {
+    "id": "5128ca01-8891-4da2-b101-771122334455",
+    "title": "5 Alasan Mengapa Trip Sharing Lebih Hemat & Seru (Update 2026)",
+    "slug": "5-alasan-mengapa-trip-sharing-lebih-hemat-seru-update-2026",
+    "category": "Travel Tips",
+    "readTimeMinutes": 5,
+    "isPublished": true,
+    "isActive": true,
+    "updatedAt": "2026-09-04T12:30:00.000Z"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 10.7.5 Hapus Artikel Blog (`DELETE /api/admin/blogs/:id` atau `/api/admin/articles/:id`)
+Menghapus artikel secara permanen dari database.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/blogs/:id` *(atau `/api/admin/articles/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Article deleted",
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
 
 ---
 

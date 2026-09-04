@@ -18,25 +18,39 @@ function formatArticle(art: Record<string, unknown>) {
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200'
   const authorRole =
     (art.author_role as string) || (authorObj.role as string) || 'Lead Travel Writer'
+  const isPublished = art.is_published !== undefined ? (art.is_published as boolean) : true
+  const coverImage = (art.cover_image as string) || (art.featured_image_url as string) || ''
 
   return {
     id: art.id as string,
-    title: art.title,
-    slug: art.slug,
-    excerpt: art.excerpt || '',
+    title: art.title as string,
+    slug: art.slug as string,
+    excerpt: (art.excerpt as string) || '',
     content: art.content,
-    coverImage: art.cover_image || art.featured_image_url || '',
-    category: art.category || 'Travel Tips',
+    coverImage,
+    cover_image: coverImage,
+    featuredImageUrl: coverImage,
+    category: (art.category as string) || 'Travel Tips',
     author: {
       name: authorName,
       avatar: authorAvatar,
       role: authorRole,
     },
-    readTimeMinutes: art.read_time_minutes || 5,
-    tags: art.tags || [],
+    authorName,
+    authorAvatar,
+    authorRole,
+    readTimeMinutes: (art.read_time_minutes as number) || 5,
+    tags: (art.tags as string[]) || [],
     publishedAt: art.published_at || art.created_at,
     views: (art.view_count as number) || 0,
-    isPublished: art.is_published,
+    viewCount: (art.view_count as number) || 0,
+    isPublished,
+    is_published: isPublished,
+    isActive: isPublished,
+    is_active: isPublished,
+    seoTitle: (art.seo_title as string) || '',
+    seoDescription: (art.seo_description as string) || '',
+    seoKeywords: (art.seo_keywords as string) || '',
     createdAt: art.created_at,
     updatedAt: art.updated_at,
   }
@@ -65,10 +79,15 @@ export class ArticleService {
     tags?: Prisma.InputJsonValue
     category?: string
     seo_title?: string
+    seoTitle?: string
     seo_description?: string
+    seoDescription?: string
     seo_keywords?: string
+    seoKeywords?: string
     is_published?: boolean
     isPublished?: boolean
+    isActive?: boolean
+    is_active?: boolean
   }) {
     const slug =
       data.slug ||
@@ -100,9 +119,10 @@ export class ArticleService {
     const authorAvatar = data.author_avatar || data.authorAvatar || data.author?.avatar || null
     const authorRole = data.author_role || data.authorRole || data.author?.role || null
     const readTimeMinutes = data.read_time_minutes ?? data.readTimeMinutes ?? 5
-    const isPublished = data.is_published ?? data.isPublished ?? true
+    const isPublished =
+      data.is_published ?? data.isPublished ?? data.isActive ?? data.is_active ?? true
 
-    return prisma.article.create({
+    const created = await prisma.article.create({
       data: {
         title: data.title,
         slug,
@@ -117,13 +137,15 @@ export class ArticleService {
         read_time_minutes: readTimeMinutes,
         tags: (data.tags ?? []) as Prisma.InputJsonValue,
         category: data.category || 'Travel Tips',
-        seo_title: data.seo_title,
-        seo_description: data.seo_description,
-        seo_keywords: data.seo_keywords,
+        seo_title: data.seo_title || data.seoTitle,
+        seo_description: data.seo_description || data.seoDescription,
+        seo_keywords: data.seo_keywords || data.seoKeywords,
         is_published: isPublished,
         published_at: isPublished ? new Date() : null,
       },
     })
+
+    return formatArticle(created as unknown as Record<string, unknown>)
   }
 
   static async list(filters: ArticleQueryFilters = {}) {
@@ -164,8 +186,8 @@ export class ArticleService {
     }
   }
 
-  static async adminList(filters: { is_published?: boolean; category?: string }) {
-    return prisma.article.findMany({
+  static async adminList(filters: { is_published?: boolean; category?: string } = {}) {
+    const articles = await prisma.article.findMany({
       where: {
         ...(filters.is_published !== undefined && { is_published: filters.is_published }),
         ...(filters.category && { category: filters.category }),
@@ -173,6 +195,8 @@ export class ArticleService {
       include: { author: true },
       orderBy: { created_at: 'desc' },
     })
+
+    return articles.map((a) => formatArticle(a as unknown as Record<string, unknown>))
   }
 
   static async getBySlug(slug: string) {
@@ -210,13 +234,80 @@ export class ArticleService {
     const existing = await prisma.article.findUnique({ where: { id } })
     if (!existing) throw new ApiError('Article not found', 404)
 
-    const nextData = {
-      ...data,
-      ...(data.is_published === true && !existing.published_at ? { published_at: new Date() } : {}),
-      ...(data.is_published === false ? { published_at: null } : {}),
+    const updateData: Prisma.ArticleUpdateInput = {}
+
+    if (data.title !== undefined) {
+      updateData.title = data.title as string
+      if (!existing.slug || data.slug) {
+        updateData.slug =
+          (data.slug as string) ||
+          (data.title as string)
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)/g, '')
+      }
+    }
+    if (data.slug !== undefined) updateData.slug = data.slug as string
+    if (data.excerpt !== undefined) updateData.excerpt = data.excerpt as string
+    if (data.content !== undefined) updateData.content = data.content as Prisma.InputJsonValue
+    if (
+      data.coverImage !== undefined ||
+      data.cover_image !== undefined ||
+      data.featured_image_url !== undefined
+    ) {
+      const img = (data.coverImage || data.cover_image || data.featured_image_url) as string
+      updateData.cover_image = img
+      updateData.featured_image_url = img
+    }
+    if (data.category !== undefined) updateData.category = data.category as string
+    if (data.tags !== undefined) updateData.tags = data.tags as Prisma.InputJsonValue
+    if (data.readTimeMinutes !== undefined || data.read_time_minutes !== undefined) {
+      updateData.read_time_minutes = Number(data.readTimeMinutes ?? data.read_time_minutes)
+    }
+    if (data.authorName !== undefined || data.author_name !== undefined) {
+      updateData.author_name = (data.authorName ?? data.author_name) as string
+    }
+    if (data.authorAvatar !== undefined || data.author_avatar !== undefined) {
+      updateData.author_avatar = (data.authorAvatar ?? data.author_avatar) as string
+    }
+    if (data.authorRole !== undefined || data.author_role !== undefined) {
+      updateData.author_role = (data.authorRole ?? data.author_role) as string
+    }
+    if (data.seoTitle !== undefined || data.seo_title !== undefined) {
+      updateData.seo_title = (data.seoTitle ?? data.seo_title) as string
+    }
+    if (data.seoDescription !== undefined || data.seo_description !== undefined) {
+      updateData.seo_description = (data.seoDescription ?? data.seo_description) as string
+    }
+    if (data.seoKeywords !== undefined || data.seo_keywords !== undefined) {
+      updateData.seo_keywords = (data.seoKeywords ?? data.seo_keywords) as string
     }
 
-    return prisma.article.update({ where: { id }, data: nextData as never })
+    // Handle is_published / isActive flag and published_at timestamp
+    const hasPublishFlag =
+      data.isPublished !== undefined ||
+      data.is_published !== undefined ||
+      data.isActive !== undefined ||
+      data.is_active !== undefined
+
+    if (hasPublishFlag) {
+      const isPublished = Boolean(
+        data.isPublished ?? data.is_published ?? data.isActive ?? data.is_active
+      )
+      updateData.is_published = isPublished
+      if (isPublished && !existing.published_at) {
+        updateData.published_at = new Date()
+      } else if (!isPublished) {
+        updateData.published_at = null
+      }
+    }
+
+    const updated = await prisma.article.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return formatArticle(updated as unknown as Record<string, unknown>)
   }
 
   static async delete(id: string) {

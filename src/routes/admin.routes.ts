@@ -94,6 +94,11 @@ router.patch(
   validateRequest(articleValidator.update),
   asyncHandler(AdminController.updateArticle)
 )
+router.put(
+  '/articles/:id',
+  validateRequest(articleValidator.update),
+  asyncHandler(AdminController.updateArticle)
+)
 router.delete('/articles/:id', asyncHandler(AdminController.deleteArticle))
 
 router.post(
@@ -104,6 +109,11 @@ router.post(
 router.get('/blogs', asyncHandler(AdminController.getArticles))
 router.get('/blogs/:id', asyncHandler(AdminController.getArticle))
 router.patch(
+  '/blogs/:id',
+  validateRequest(articleValidator.update),
+  asyncHandler(AdminController.updateArticle)
+)
+router.put(
   '/blogs/:id',
   validateRequest(articleValidator.update),
   asyncHandler(AdminController.updateArticle)

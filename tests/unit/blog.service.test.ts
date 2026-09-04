@@ -12,6 +12,10 @@ jest.mock('../../src/config/database', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    user: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
   },
 }))
 
@@ -73,6 +77,78 @@ describe('ArticleService / BlogService', () => {
       expect(result.meta.page).toBe(1)
       expect(result.meta.limit).toBe(6)
       expect(result.meta.total).toBe(1)
+    })
+  })
+
+  describe('adminList', () => {
+    it('should return all articles formatted with author and isPublished/isActive', async () => {
+      ;(prisma.article.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'art-1',
+          title: 'Tips Liburan Hemat',
+          slug: 'tips-liburan-hemat',
+          category: 'Travel Tips',
+          is_published: false,
+          author: { name: 'Admin' },
+        },
+      ])
+
+      const result = await ArticleService.adminList()
+
+      expect(result).toHaveLength(1)
+      expect(result[0].title).toBe('Tips Liburan Hemat')
+      expect(result[0].isPublished).toBe(false)
+      expect(result[0].isActive).toBe(false)
+    })
+  })
+
+  describe('update', () => {
+    it('should throw 404 if article not found', async () => {
+      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue(null)
+      await expect(ArticleService.update('art-not-found', { title: 'New' })).rejects.toThrow(
+        ApiError
+      )
+    })
+
+    it('should update article and toggle isActive/isPublished properly', async () => {
+      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue({
+        id: 'art-1',
+        title: 'Old Title',
+        slug: 'old-title',
+        is_published: false,
+        published_at: null,
+      })
+      ;(prisma.article.update as jest.Mock).mockResolvedValue({
+        id: 'art-1',
+        title: 'New Updated Title',
+        slug: 'new-updated-title',
+        is_published: true,
+        published_at: new Date(),
+      })
+
+      const result = await ArticleService.update('art-1', {
+        title: 'New Updated Title',
+        isActive: true,
+      })
+
+      expect(result.title).toBe('New Updated Title')
+      expect(result.isActive).toBe(true)
+      expect(result.isPublished).toBe(true)
+    })
+  })
+
+  describe('delete', () => {
+    it('should throw 404 if article not found', async () => {
+      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue(null)
+      await expect(ArticleService.delete('art-not-found')).rejects.toThrow(ApiError)
+    })
+
+    it('should delete article successfully', async () => {
+      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue({ id: 'art-1' })
+      ;(prisma.article.delete as jest.Mock).mockResolvedValue({ id: 'art-1' })
+
+      await expect(ArticleService.delete('art-1')).resolves.not.toThrow()
+      expect(prisma.article.delete).toHaveBeenCalledWith({ where: { id: 'art-1' } })
     })
   })
 })
