@@ -23,6 +23,15 @@ export interface CreateBookingInput {
   health_notes?: string
   healthNotes?: string
   preferred_language?: string
+  preferredLanguage?: string
   travel_insurance?: boolean
   hasInsurance?: boolean
+  departure_date?: string | Date
+  departureDate?: string | Date
+  return_date?: string | Date
+  returnDate?: string | Date
+  price_per_pax?: number
+  pricePerPax?: number
+  duration_days?: number
+  durationDays?: number
 }

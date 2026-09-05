@@ -46,6 +46,14 @@ export class BookingService {
       tripId?: string
       destination_id?: string
       destinationId?: string
+      departure_date?: Date | string
+      departureDate?: Date | string
+      return_date?: Date | string
+      returnDate?: Date | string
+      price_per_pax?: number
+      pricePerPax?: number
+      duration_days?: number
+      durationDays?: number
       full_name?: string
       fullName?: string
       name?: string
@@ -79,6 +87,9 @@ export class BookingService {
   ) {
     const rawTripId = bookingData.trip_id || bookingData.tripId
     const rawDestId = bookingData.destination_id || bookingData.destinationId
+    const customDepartureDate = bookingData.departure_date || bookingData.departureDate
+    const customReturnDate = bookingData.return_date || bookingData.returnDate
+    const customPrice = bookingData.price_per_pax ?? bookingData.pricePerPax
 
     if (!rawTripId && !rawDestId) {
       throw new ApiError('Trip ID or Destination ID is required', 400)
@@ -86,51 +97,92 @@ export class BookingService {
 
     let trip = null
 
-    // 1. Try finding by trip ID if provided
-    if (rawTripId) {
+    // 1. Try finding by trip ID if provided and not a synthetic custom prefix
+    if (rawTripId && !rawTripId.startsWith('custom-') && !rawTripId.startsWith('trip-custom-')) {
       trip = await prisma.trip.findUnique({
         where: { id: cleanId(rawTripId) },
         include: { destination: true },
       })
     }
 
-    // 2. Fallback: Check if rawTripId or rawDestId is a Destination ID
+    // 2. If trip not found by ID or if custom schedule/trip is requested:
     if (!trip) {
-      const destIdToSearch = rawDestId || rawTripId
+      const destIdToSearch =
+        rawDestId ||
+        (rawTripId && !rawTripId.startsWith('custom-') && !rawTripId.startsWith('trip-custom-')
+          ? rawTripId
+          : undefined)
+
+      let destination = null
+
       if (destIdToSearch) {
-        const destination = await prisma.destination.findUnique({
+        destination = await prisma.destination.findUnique({
           where: { id: cleanId(destIdToSearch) },
         })
+      }
 
-        if (destination) {
+      // If still not found and rawTripId exists, attempt resolution via slug/name search
+      if (!destination && rawTripId) {
+        const cleanedSlug = rawTripId
+          .replace(/^(custom-|trip-custom-|trip-)/, '')
+          .replace(/-\d{8,}$/, '')
+        destination = await prisma.destination.findFirst({
+          where: {
+            OR: [
+              { id: cleanId(rawTripId) },
+              { slug: cleanedSlug },
+              { name: { contains: cleanedSlug, mode: 'insensitive' } },
+            ],
+          },
+        })
+      }
+
+      if (destination) {
+        // If specific custom departure date is provided, check if a trip already exists on that date for this destination
+        if (customDepartureDate) {
+          const depDate = new Date(customDepartureDate)
+          const startOfDay = new Date(depDate)
+          startOfDay.setHours(0, 0, 0, 0)
+          const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
+
           trip = await prisma.trip.findFirst({
             where: {
               destination_id: destination.id,
+              departure_date: { gte: startOfDay, lt: endOfDay },
               status: { in: ['active', 'scheduled', 'planning'] },
             },
             include: { destination: true },
-            orderBy: { departure_date: 'asc' },
           })
+        }
 
-          // If no active trip exists for this destination, auto-provision an initial active trip
-          if (!trip) {
-            const departureDate = new Date()
+        // If trip does not exist for this destination/custom date, auto-provision a new scheduled trip
+        if (!trip) {
+          const departureDate = customDepartureDate ? new Date(customDepartureDate) : new Date()
+          if (!customDepartureDate) {
             departureDate.setDate(departureDate.getDate() + 7)
-            const returnDate = new Date(departureDate)
-            returnDate.setDate(returnDate.getDate() + (destination.duration_days || 1))
-
-            trip = await prisma.trip.create({
-              data: {
-                destination_id: destination.id,
-                departure_date: departureDate,
-                return_date: returnDate,
-                status: 'scheduled',
-                max_participants: destination.max_group_capacity || 6,
-                current_participants: 0,
-              },
-              include: { destination: true },
-            })
           }
+
+          const returnDate = customReturnDate ? new Date(customReturnDate) : new Date(departureDate)
+          if (!customReturnDate) {
+            const durationDays =
+              bookingData.duration_days ||
+              bookingData.durationDays ||
+              destination.duration_days ||
+              1
+            returnDate.setDate(returnDate.getDate() + durationDays)
+          }
+
+          trip = await prisma.trip.create({
+            data: {
+              destination_id: destination.id,
+              departure_date: departureDate,
+              return_date: returnDate,
+              status: 'scheduled',
+              max_participants: destination.max_group_capacity || 6,
+              current_participants: 0,
+            },
+            include: { destination: true },
+          })
         }
       }
     }
@@ -155,7 +207,12 @@ export class BookingService {
     const userEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
 
-    const basePrice = Number(trip.destination.price_per_person)
+    const pricePerPerson =
+      customPrice !== undefined && customPrice !== null
+        ? Number(customPrice)
+        : Number(trip.destination.price_per_person)
+
+    const basePrice = pricePerPerson
     const insuranceFee = hasInsurance ? 50000 : 0
     const totalAmount = basePrice + insuranceFee
 
@@ -180,10 +237,7 @@ export class BookingService {
         resolvedUserId = user.id
       }
 
-      const bookingGroup = await this.getOrCreateBookingGroup(
-        tripId,
-        trip.destination.price_per_person
-      )
+      const bookingGroup = await this.getOrCreateBookingGroup(tripId, pricePerPerson)
 
       const participant = await tx.participant.create({
         data: {

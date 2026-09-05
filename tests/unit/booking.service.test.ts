@@ -13,6 +13,8 @@ jest.mock('../../src/config/database', () => ({
     },
     destination: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     bookingGroup: {
       findFirst: jest.fn(),
@@ -239,6 +241,93 @@ describe('BookingService', () => {
       const result = await BookingService.createBooking('usr-1', sampleInput)
       expect(result.participant).toEqual(mockParticipant)
       expect(result.bookingGroup.current_participants).toBe(3)
+    })
+
+    it('should auto-provision new trip with status scheduled and custom departure date when custom tripId / departureDate is requested', async () => {
+      const mockDestination = {
+        id: 'dest-bromo',
+        slug: 'bromo-sunrise',
+        name: 'Bromo Sunrise Tour',
+        price_per_person: new Prisma.Decimal(800000),
+        duration_days: 2,
+        max_group_capacity: 6,
+      }
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(mockDestination)
+      ;(prisma.trip.findFirst as jest.Mock).mockResolvedValue(null)
+
+      const mockCreatedTrip = {
+        id: 'trip-custom-1',
+        destination_id: 'dest-bromo',
+        destination: mockDestination,
+        departure_date: new Date('2026-10-15T00:00:00.000Z'),
+        return_date: new Date('2026-10-17T00:00:00.000Z'),
+        status: 'scheduled',
+        current_participants: 0,
+        max_participants: 6,
+        booking_groups: [],
+      }
+      ;(prisma.trip.create as jest.Mock).mockResolvedValue(mockCreatedTrip)
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockCreatedTrip)
+
+      const mockParticipant = {
+        id: 'part-custom-1',
+        booking_group_id: 'grp-custom-1',
+        user_id: 'usr-1',
+        full_name: 'Custom Traveler',
+      }
+
+      const mockGroup1 = {
+        id: 'grp-custom-1',
+        trip_id: 'trip-custom-1',
+        group_number: 1,
+        status: 'open',
+        current_participants: 1,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal(950000),
+        total_price: new Prisma.Decimal(5700000),
+      }
+
+      ;(prisma.bookingGroup.findFirst as jest.Mock).mockResolvedValue(null)
+      ;(prisma.bookingGroup.create as jest.Mock).mockResolvedValue({
+        ...mockGroup1,
+        current_participants: 0,
+      })
+
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
+          participant: { create: jest.fn().mockResolvedValue(mockParticipant) },
+          bookingGroup: { update: jest.fn().mockResolvedValue(mockGroup1) },
+          trip: {
+            update: jest.fn().mockResolvedValue({ ...mockCreatedTrip, current_participants: 1 }),
+          },
+        }
+        return callback(tx)
+      })
+
+      const result = await BookingService.createBooking('usr-1', {
+        tripId: 'custom-bromo-20261015',
+        destinationId: 'dest-bromo',
+        departureDate: '2026-10-15T00:00:00.000Z',
+        pricePerPax: 950000,
+        fullName: 'Custom Traveler',
+        phoneNumber: '081234567890',
+      })
+
+      expect(prisma.trip.create).toHaveBeenCalledWith({
+        data: {
+          destination_id: 'dest-bromo',
+          departure_date: new Date('2026-10-15T00:00:00.000Z'),
+          return_date: expect.any(Date),
+          status: 'scheduled',
+          max_participants: 6,
+          current_participants: 0,
+        },
+        include: { destination: true },
+      })
+      expect(result.participant).toEqual(mockParticipant)
+      expect(result.bookingGroup.group_number).toBe(1)
+      expect(result.bookingGroup.current_participants).toBe(1)
     })
   })
 })
