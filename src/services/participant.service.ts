@@ -187,7 +187,78 @@ export class ParticipantService {
 
   static async updateParticipant(id: string, data: Record<string, unknown>) {
     const cleanPartId = cleanId(id)
-    return prisma.participant.update({ where: { id: cleanPartId }, data: data as never })
+    const updateData: Record<string, unknown> = {}
+
+    if (data.full_name !== undefined || data.fullName !== undefined) {
+      updateData.full_name = data.full_name ?? data.fullName
+    }
+    if (data.phone_number !== undefined || data.phoneNumber !== undefined) {
+      updateData.phone_number = data.phone_number ?? data.phoneNumber
+    }
+    if (data.country !== undefined) {
+      updateData.country = data.country
+    }
+    if (data.nationality !== undefined) {
+      updateData.nationality = data.nationality
+    }
+    if (data.identity_number !== undefined || data.identityNumber !== undefined) {
+      updateData.identity_number = data.identity_number ?? data.identityNumber
+    }
+    if (data.identity_type !== undefined || data.identityType !== undefined) {
+      updateData.identity_type = data.identity_type ?? data.identityType
+    }
+    if (data.gender !== undefined) {
+      updateData.gender = data.gender
+    }
+    if (data.date_of_birth !== undefined || data.dateOfBirth !== undefined) {
+      const dob = data.date_of_birth ?? data.dateOfBirth
+      updateData.date_of_birth = dob ? new Date(dob as string | number | Date) : null
+    }
+    if (data.room_preference !== undefined || data.roomPreference !== undefined) {
+      updateData.room_preference = data.room_preference ?? data.roomPreference
+    }
+    if (data.hotel_preference !== undefined || data.hotelPreference !== undefined) {
+      updateData.hotel_preference = data.hotel_preference ?? data.hotelPreference
+    }
+    if (data.payment_status !== undefined || data.paymentStatus !== undefined) {
+      updateData.payment_status = data.payment_status ?? data.paymentStatus
+    }
+    if (data.checked_in !== undefined || data.checkedIn !== undefined) {
+      updateData.checked_in = data.checked_in ?? data.checkedIn
+    }
+    if (data.check_in_status !== undefined || data.checkInStatus !== undefined) {
+      updateData.check_in_status = data.check_in_status ?? data.checkInStatus
+    }
+    if (data.health_notes !== undefined || data.healthNotes !== undefined) {
+      updateData.health_notes = data.health_notes ?? data.healthNotes
+    }
+    if (data.passport_number !== undefined || data.passportNumber !== undefined) {
+      updateData.passport_number = data.passport_number ?? data.passportNumber
+    }
+    if (data.room_type !== undefined || data.roomType !== undefined) {
+      updateData.room_type = data.room_type ?? data.roomType
+    }
+    if (data.preferred_language !== undefined || data.preferredLanguage !== undefined) {
+      updateData.preferred_language = data.preferred_language ?? data.preferredLanguage
+    }
+    if (data.travel_insurance !== undefined || data.travelInsurance !== undefined) {
+      updateData.travel_insurance = data.travel_insurance ?? data.travelInsurance
+    }
+    if (data.has_insurance !== undefined || data.hasInsurance !== undefined) {
+      updateData.has_insurance = data.has_insurance ?? data.hasInsurance
+    }
+    if (data.insurance_fee !== undefined || data.insuranceFee !== undefined) {
+      const fee = data.insurance_fee ?? data.insuranceFee
+      updateData.insurance_fee =
+        fee !== null && fee !== undefined ? new Prisma.Decimal(fee.toString()) : null
+    }
+    if (data.total_amount !== undefined || data.totalAmount !== undefined) {
+      const total = data.total_amount ?? data.totalAmount
+      updateData.total_amount =
+        total !== null && total !== undefined ? new Prisma.Decimal(total.toString()) : null
+    }
+
+    return prisma.participant.update({ where: { id: cleanPartId }, data: updateData as never })
   }
 
   static async deleteParticipant(id: string) {
