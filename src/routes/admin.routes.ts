@@ -1,11 +1,13 @@
 import { Router } from 'express'
 import { AdminController } from '../controllers/admin.controller'
+import { GroupController } from '../controllers/group.controller'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 import { validateRequest } from '../middleware/validation'
 import { asyncHandler } from '../utils/asyncHandler'
 import { articleValidator } from '../validators/article.validator'
 import { destinationValidator } from '../validators/destination.validator'
 import { driverValidator } from '../validators/driver.validator'
+import { groupValidator } from '../validators/group.validator'
 import { participantValidator } from '../validators/participant.validator'
 import { tripValidator } from '../validators/trip.validator'
 
@@ -16,6 +18,32 @@ router.use(authenticate, authorize(['admin']))
 // Dashboard & Metrics
 router.get('/metrics', asyncHandler(AdminController.getMetrics))
 router.get('/audit-logs', asyncHandler(AdminController.getAuditLogs))
+
+// Booking Groups & Fleet Management
+router.post(
+  '/groups',
+  validateRequest(groupValidator.create),
+  asyncHandler(GroupController.createGroup)
+)
+router.get('/groups', asyncHandler(GroupController.listGroups))
+router.get('/groups/:id', asyncHandler(GroupController.getGroup))
+router.patch(
+  '/groups/:id',
+  validateRequest(groupValidator.update),
+  asyncHandler(GroupController.updateGroup)
+)
+router.patch(
+  '/groups/:id/driver',
+  validateRequest(groupValidator.assignDriver),
+  asyncHandler(GroupController.assignDriver)
+)
+router.post(
+  '/groups/:id/assign-driver',
+  validateRequest(groupValidator.assignDriver),
+  asyncHandler(GroupController.assignDriver)
+)
+router.delete('/groups/:id', asyncHandler(GroupController.deleteGroup))
+
 
 // Participants
 router.post(

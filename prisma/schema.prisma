@@ -86,6 +86,7 @@ model Trip {
 model BookingGroup {
   id                   String   @id @default(uuid())
   trip_id              String
+  driver_id            String?
   group_number         Int
   status               String   @default("open")
   current_participants Int      @default(0)
@@ -96,11 +97,13 @@ model BookingGroup {
   updated_at           DateTime @updatedAt
 
   trip         Trip          @relation(fields: [trip_id], references: [id])
+  driver       Driver?       @relation(fields: [driver_id], references: [id], onDelete: SetNull)
   participants Participant[]
   payments     Payment[]
 
   @@unique([trip_id, group_number])
   @@index([trip_id])
+  @@index([driver_id])
   @@index([status])
 }
 
@@ -210,7 +213,8 @@ model Driver {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  user User @relation(fields: [user_id], references: [id])
+  user           User           @relation(fields: [user_id], references: [id])
+  booking_groups BookingGroup[]
 
   @@index([is_available])
 }
