@@ -1092,11 +1092,161 @@ Menghapus destinasi dari database. Otomatis menolak jika sudah terdapat partisip
 ---
 
 ### 10.6 Manajemen Master Jadwal Trip Admin (`CRUD`)
-- `POST /api/admin/trips` — Buat jadwal keberangkatan trip baru
-- `GET /api/admin/trips` — List jadwal trip admin
-- `GET /api/admin/trips/:id` — Detail jadwal trip
-- `PATCH /api/admin/trips/:id` — Update jadwal trip
-- `DELETE /api/admin/trips/:id` — Hapus jadwal trip
+
+#### 10.6.1 List Jadwal Trip (`GET /api/admin/trips`)
+Mengambil seluruh data jadwal trip keberangkatan wisata dengan filter opsional `destinationId` / `destination_id` dan `status`.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/trips`
+- **Auth**: `Bearer <admin_jwt_token>`
+- **Query Params**:
+  - `destination_id` / `destinationId` *(opsional, string)*: Filter berdasarkan ID destinasi.
+  - `status` *(opsional, string)*: Filter status (`planning`, `published`, `scheduled`, `active`, `departed`, `completed`, `cancelled`).
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Trips retrieved",
+  "data": [
+    {
+      "id": "938e1459-c2c9-41c0-9538-7be727db4ba1",
+      "destination_id": "dest-ijen-01",
+      "departure_date": "2026-09-18T00:00:00.000Z",
+      "return_date": "2026-09-21T10:00:00.000Z",
+      "guide_id": "guide-uuid-123",
+      "max_participants": 6,
+      "current_participants": 0,
+      "status": "planning",
+      "notes": "Keberangkatan via Banyuwangi",
+      "destination": {
+        "id": "dest-ijen-01",
+        "name": "Kawah Ijen Blue Fire",
+        "slug": "kawah-ijen-blue-fire"
+      },
+      "guide": {
+        "id": "guide-uuid-123",
+        "name": "Budi Santoso",
+        "phone": "081234567890"
+      },
+      "booking_groups": []
+    }
+  ],
+  "timestamp": "2026-09-07T06:30:00.000Z"
+}
+```
+
+---
+
+#### 10.6.2 Buat Jadwal Trip Baru (`POST /api/admin/trips`)
+Mendaftarkan jadwal keberangkatan trip baru. Mendukung payload `camelCase` dan `snake_case`.
+
+- **Method**: `POST`
+- **Path**: `/api/admin/trips`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "destinationId": "dest-ijen-01",
+  "departureDate": "2026-09-18T00:00:00.000Z",
+  "returnDate": "2026-09-21T10:00:00.000Z",
+  "maxParticipants": 6,
+  "status": "planning",
+  "notes": "Meeting point di Stasiun Karangasem"
+}
+```
+*(Atau format snake_case: `destination_id`, `departure_date`, `return_date`, `max_participants`, `guide_id`)*
+
+##### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Trip created successfully",
+  "data": {
+    "id": "938e1459-c2c9-41c0-9538-7be727db4ba1",
+    "destination_id": "dest-ijen-01",
+    "departure_date": "2026-09-18T00:00:00.000Z",
+    "return_date": "2026-09-21T10:00:00.000Z",
+    "guide_id": null,
+    "max_participants": 6,
+    "current_participants": 0,
+    "status": "planning",
+    "notes": "Meeting point di Stasiun Karangasem",
+    "created_at": "2026-09-07T06:30:00.000Z",
+    "updated_at": "2026-09-07T06:30:00.000Z",
+    "destination": { "id": "dest-ijen-01", "name": "Kawah Ijen Blue Fire" },
+    "guide": null
+  },
+  "timestamp": "2026-09-07T06:30:00.000Z"
+}
+```
+
+---
+
+#### 10.6.3 Detail Jadwal Trip (`GET /api/admin/trips/:id`)
+- **Method**: `GET`
+- **Path**: `/api/admin/trips/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+---
+
+#### 10.6.4 Update Jadwal Trip (`PATCH /api/admin/trips/:id` atau `PUT /api/admin/trips/:id`)
+Memperbarui jadwal keberangkatan, tanggal kepulangan, kapasitas, status, catatan, atau pemandu. Mendukung format payload `camelCase` maupun `snake_case`.
+
+- **Method**: `PATCH` / `PUT`
+- **Path**: `/api/admin/trips/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "departureDate": "2026-09-18T00:00:00.000Z",
+  "returnDate": "2026-09-21T10:00:00.000Z",
+  "maxParticipants": 12,
+  "status": "planning",
+  "notes": "Jadwal telah dikonfirmasi pemandu"
+}
+```
+*(Field yang didukung: `destinationId` / `destination_id`, `departureDate` / `departure_date`, `returnDate` / `return_date`, `maxParticipants` / `max_participants`, `guideId` / `guide_id`, `status`, `notes`)*
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Trip updated",
+  "data": {
+    "id": "938e1459-c2c9-41c0-9538-7be727db4ba1",
+    "destination_id": "dest-ijen-01",
+    "departure_date": "2026-09-18T00:00:00.000Z",
+    "return_date": "2026-09-21T10:00:00.000Z",
+    "guide_id": null,
+    "max_participants": 12,
+    "status": "planning",
+    "notes": "Jadwal telah dikonfirmasi pemandu",
+    "updated_at": "2026-09-07T06:31:00.000Z"
+  },
+  "timestamp": "2026-09-07T06:31:00.000Z"
+}
+```
+
+---
+
+#### 10.6.5 Hapus Jadwal Trip (`DELETE /api/admin/trips/:id`)
+Menghapus jadwal trip yang belum memiliki peserta aktif.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/trips/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Trip deleted",
+  "timestamp": "2026-09-07T06:32:00.000Z"
+}
+```
 
 ---
 

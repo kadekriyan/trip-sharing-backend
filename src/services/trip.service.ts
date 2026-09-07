@@ -59,8 +59,9 @@ export class TripService {
   }
 
   static async get(id: string) {
+    const cleanId = id.replace(/^trip-/, '')
     const trip = await prisma.trip.findUnique({
-      where: { id },
+      where: { id: cleanId },
       include: {
         destination: true,
         guide: true,
@@ -100,17 +101,96 @@ export class TripService {
     }
   }
 
-  static async update(id: string, data: Record<string, unknown>) {
-    await this.get(id)
-    return prisma.trip.update({ where: { id }, data: data as never })
+  static async update(
+    id: string,
+    data: {
+      destination_id?: string
+      destinationId?: string
+      departure_date?: Date | string
+      departureDate?: Date | string
+      return_date?: Date | string | null
+      returnDate?: Date | string | null
+      guide_id?: string | null
+      guideId?: string | null
+      max_participants?: number
+      maxParticipants?: number
+      status?: string
+      notes?: string | null
+      [key: string]: unknown
+    }
+  ) {
+    const cleanId = id.replace(/^trip-/, '')
+    await this.get(cleanId)
+
+    const updateData: Record<string, unknown> = {}
+
+    const destinationId = (data.destination_id ?? data.destinationId) as string | undefined
+    if (destinationId !== undefined) {
+      const destination = await prisma.destination.findUnique({ where: { id: destinationId } })
+      if (!destination) throw new ApiError('Destination not found', 404)
+      updateData.destination_id = destinationId
+    }
+
+    const rawDeparture = data.departure_date ?? data.departureDate
+    if (rawDeparture !== undefined) {
+      const departureDate = new Date(rawDeparture as string | number | Date)
+      if (isNaN(departureDate.getTime())) {
+        throw new ApiError('Invalid departure date', 400)
+      }
+      updateData.departure_date = departureDate
+    }
+
+    if (data.return_date !== undefined || data.returnDate !== undefined) {
+      const rawReturn = data.return_date !== undefined ? data.return_date : data.returnDate
+      if (rawReturn === null || rawReturn === '') {
+        updateData.return_date = null
+      } else {
+        const returnDate = new Date(rawReturn as string | number | Date)
+        if (isNaN(returnDate.getTime())) {
+          throw new ApiError('Invalid return date', 400)
+        }
+        updateData.return_date = returnDate
+      }
+    }
+
+    if (data.guide_id !== undefined || data.guideId !== undefined) {
+      const rawGuide = (data.guide_id !== undefined ? data.guide_id : data.guideId) as string | null
+      if (rawGuide === null || rawGuide === '') {
+        updateData.guide_id = null
+      } else {
+        const guide = await prisma.user.findUnique({ where: { id: rawGuide } })
+        if (!guide) throw new ApiError('Guide not found', 404)
+        updateData.guide_id = rawGuide
+      }
+    }
+
+    const rawMax = data.max_participants ?? data.maxParticipants
+    if (rawMax !== undefined) {
+      updateData.max_participants = Number(rawMax)
+    }
+
+    if (data.status !== undefined) {
+      updateData.status = String(data.status)
+    }
+
+    if (data.notes !== undefined) {
+      updateData.notes = data.notes === null ? null : String(data.notes)
+    }
+
+    return prisma.trip.update({
+      where: { id: cleanId },
+      data: updateData,
+      include: { destination: true, guide: true, booking_groups: true },
+    })
   }
 
   static async delete(id: string) {
-    const trip = await this.get(id)
+    const cleanId = id.replace(/^trip-/, '')
+    const trip = await this.get(cleanId)
     if (trip.booking_groups.some((group) => group.current_participants > 0)) {
       throw new ApiError('Trip has participants and cannot be deleted', 400)
     }
 
-    await prisma.trip.delete({ where: { id } })
+    await prisma.trip.delete({ where: { id: cleanId } })
   }
 }

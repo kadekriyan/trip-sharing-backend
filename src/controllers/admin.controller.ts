@@ -94,14 +94,7 @@ export class AdminController {
   }
 
   static async createTrip(req: Request, res: Response) {
-    const trip = await TripService.create({
-      ...req.body,
-      departure_date: new Date(req.body.departure_date || req.body.departureDate),
-      return_date:
-        req.body.return_date || req.body.returnDate
-          ? new Date(req.body.return_date || req.body.returnDate)
-          : undefined,
-    })
+    const trip = await TripService.create(req.body)
     sendResponse(res, 201, 'Trip created successfully', trip)
   }
 
@@ -121,14 +114,7 @@ export class AdminController {
   }
 
   static async updateTrip(req: Request, res: Response) {
-    const data = {
-      ...req.body,
-      ...(req.body.departure_date ? { departure_date: new Date(req.body.departure_date) } : {}),
-      ...(req.body.return_date !== undefined
-        ? { return_date: req.body.return_date === null ? null : new Date(req.body.return_date) }
-        : {}),
-    }
-    const trip = await TripService.update(req.params.id, data)
+    const trip = await TripService.update(req.params.id, req.body)
     sendResponse(res, 200, 'Trip updated', trip)
   }
 
