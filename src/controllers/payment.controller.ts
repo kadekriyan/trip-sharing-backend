@@ -13,4 +13,11 @@ export class PaymentController {
     const result = await PaymentService.handleWebhook(req.body)
     sendResponse(res, 200, 'Status pembayaran berhasil diperbarui.', result)
   }
+
+  static async simulatePayment(req: Request, res: Response) {
+    const rawId = req.params.id || req.params.participantId
+    const action = req.body.action || 'settle'
+    const result = await PaymentService.simulatePayment(rawId, action)
+    sendResponse(res, 200, result.message, result.payment)
+  }
 }

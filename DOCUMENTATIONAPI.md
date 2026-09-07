@@ -578,6 +578,50 @@ Endpoint penerima notifikasi otomatis dari Midtrans (dilindungi verifikasi SHA-5
 
 ---
 
+### 6.3 Simulasi Pembayaran Sandbox / Development
+Endpoint simulasi untuk mengubah status pembayaran dan peserta secara langsung tanpa melewati payment gateway Midtrans Sandbox (sangat berguna untuk testing alur e2e, demo, dan local development).
+
+- **Method**: `POST`
+- **Path**: `/api/payments/:id/simulate` *(atau `/api/payments/participants/:participantId/simulate`)*
+- **Auth**: Opsional
+- **URL Parameter**:
+  - `:id`: ID pembayaran (`payment.id`), ID peserta (`participant.id`), atau `orderId` (`TRIP-...`).
+
+#### Request Body
+```json
+{
+  "action": "settle"
+}
+```
+*Opsi value `action`:*
+- `"settle"` / `"settlement"` / `"capture"` / `"success"`: Mengubah payment jadi `completed` dan status peserta jadi `paid` (serta mengirim email konfirmasi pembayaran).
+- `"expire"` / `"expired"`: Mengubah payment jadi `failed` dan status peserta jadi `cancelled`.
+- `"cancel"` / `"cancelled"`: Mengubah payment jadi `failed` dan status peserta jadi `cancelled`.
+- `"deny"` / `"denied"` / `"failure"`: Mengubah payment jadi `failed` dan status peserta jadi `cancelled`.
+- *(Default jika body kosong `{}` adalah `"settle"`)*.
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Simulasi pembayaran berhasil diproses: completed",
+  "data": {
+    "id": "91a02b11-7782-4ef1-8901-bca123456789",
+    "participant_id": "c19208a1-5512-48ea-9201-7fa112345678",
+    "booking_group_id": "88112233-4455-6677-8899-aabbccddeeff",
+    "amount": "900000",
+    "status": "completed",
+    "midtrans_order_id": "TRIP-c19208a1-5512-48ea-9201-7fa112345678-1756872000000",
+    "completion_time": "2026-09-07T06:50:00.000Z",
+    "created_at": "2026-09-07T06:45:00.000Z",
+    "updated_at": "2026-09-07T06:50:00.000Z"
+  },
+  "timestamp": "2026-09-07T06:50:00.000Z"
+}
+```
+
+---
+
 ## 7. Blog & Artikel Wisata (`/api/blogs`)
 
 ### 7.1 Daftar Artikel Blog Terbit

@@ -108,4 +108,93 @@ export class PaymentService {
 
     return { status: 'ok', payment: updated }
   }
+
+  static async simulatePayment(id: string, action = 'settle') {
+    const cleanId = id.replace(/^part-/, '').replace(/^pay-/, '')
+    const act = (action || 'settle').toLowerCase()
+
+    let payment = await prisma.payment.findFirst({
+      where: {
+        OR: [{ id: cleanId }, { participant_id: cleanId }, { midtrans_order_id: cleanId }],
+      },
+      include: {
+        participant: { include: { user: true } },
+        booking_group: { include: { trip: true } },
+      },
+    })
+
+    if (!payment) {
+      const participant = await prisma.participant.findUnique({
+        where: { id: cleanId },
+        include: {
+          booking_group: { include: { trip: true } },
+          user: true,
+        },
+      })
+      if (!participant) {
+        throw new ApiError('Payment or Participant not found', 404)
+      }
+
+      const amount = participant.booking_group.price_per_person
+      const orderId = `TRIP-${cleanId}-${Date.now()}`
+
+      payment = await prisma.payment.create({
+        data: {
+          participant_id: participant.id,
+          booking_group_id: participant.booking_group.id,
+          amount,
+          midtrans_order_id: orderId,
+          status: 'pending',
+        },
+        include: {
+          participant: { include: { user: true } },
+          booking_group: { include: { trip: true } },
+        },
+      })
+    }
+
+    const completed = ['capture', 'settlement', 'settle', 'success'].includes(act)
+    const failed = [
+      'deny',
+      'cancel',
+      'expire',
+      'failure',
+      'denied',
+      'cancelled',
+      'expired',
+    ].includes(act)
+    const status = completed ? 'completed' : failed ? 'failed' : 'pending'
+
+    const updated = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status,
+        completion_time: completed ? new Date() : null,
+      },
+    })
+
+    if (completed) {
+      await prisma.participant.update({
+        where: { id: payment.participant_id },
+        data: { payment_status: 'paid' },
+      })
+      if (payment.participant?.user?.email) {
+        await EmailService.sendPaymentReceipt(payment.participant.user.email, {
+          participant_name: payment.participant.full_name,
+          amount: payment.amount,
+        })
+      }
+    } else if (failed) {
+      await prisma.participant.update({
+        where: { id: payment.participant_id },
+        data: { payment_status: 'cancelled' },
+      })
+    }
+
+    return {
+      status: 'ok',
+      message: `Simulasi pembayaran berhasil diproses: ${status}`,
+      payment: updated,
+    }
+  }
 }
