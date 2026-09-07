@@ -102,6 +102,104 @@ describe('ArticleService / BlogService', () => {
     })
   })
 
+  describe('create', () => {
+    it('should create article with direct slug when no collision exists', async () => {
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'user-admin-1', role: 'admin' })
+      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.article.create as jest.Mock).mockResolvedValue({
+        id: 'art-1',
+        title: 'Bromo Sunrise Camp',
+        slug: 'bromo-sunrise-camp',
+        content: 'Content test',
+        category: 'Destinations',
+        is_published: true,
+        author: { name: 'Admin Editorial' },
+      })
+
+      const result = await ArticleService.create({
+        title: 'Bromo Sunrise Camp',
+        content: 'Content test',
+        category: 'Destinations',
+      })
+
+      expect(result.slug).toBe('bromo-sunrise-camp')
+      expect(prisma.article.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: 'bromo-sunrise-camp',
+          }),
+        })
+      )
+    })
+
+    it('should automatically append suffix when slug collision occurs', async () => {
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'user-admin-1', role: 'admin' })
+      // First check 'bromo-sunrise-camp' returns existing record, second check 'bromo-sunrise-camp-1' returns null
+      ;(prisma.article.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'existing-art-1', slug: 'bromo-sunrise-camp' })
+        .mockResolvedValueOnce(null)
+
+      ;(prisma.article.create as jest.Mock).mockResolvedValue({
+        id: 'art-2',
+        title: 'Bromo Sunrise Camp',
+        slug: 'bromo-sunrise-camp-1',
+        content: 'Content test',
+        category: 'Destinations',
+        is_published: true,
+        author: { name: 'Admin Editorial' },
+      })
+
+      const result = await ArticleService.create({
+        title: 'Bromo Sunrise Camp',
+        slug: 'bromo-sunrise-camp',
+        content: 'Content test',
+        category: 'Destinations',
+      })
+
+      expect(result.slug).toBe('bromo-sunrise-camp-1')
+      expect(prisma.article.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: 'bromo-sunrise-camp-1',
+          }),
+        })
+      )
+    })
+
+    it('should increment suffix until a unique slug is found on multiple collisions', async () => {
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({ id: 'user-admin-1', role: 'admin' })
+      ;(prisma.article.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'existing-art-1', slug: 'bromo-sunrise-camp' })
+        .mockResolvedValueOnce({ id: 'existing-art-2', slug: 'bromo-sunrise-camp-1' })
+        .mockResolvedValueOnce(null)
+
+      ;(prisma.article.create as jest.Mock).mockResolvedValue({
+        id: 'art-3',
+        title: 'Bromo Sunrise Camp',
+        slug: 'bromo-sunrise-camp-2',
+        content: 'Content test',
+        category: 'Destinations',
+        is_published: true,
+        author: { name: 'Admin Editorial' },
+      })
+
+      const result = await ArticleService.create({
+        title: 'Bromo Sunrise Camp',
+        content: 'Content test',
+        category: 'Destinations',
+      })
+
+      expect(result.slug).toBe('bromo-sunrise-camp-2')
+      expect(prisma.article.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: 'bromo-sunrise-camp-2',
+          }),
+        })
+      )
+    })
+  })
+
   describe('update', () => {
     it('should throw 404 if article not found', async () => {
       ;(prisma.article.findUnique as jest.Mock).mockResolvedValue(null)
@@ -111,13 +209,16 @@ describe('ArticleService / BlogService', () => {
     })
 
     it('should update article and toggle isActive/isPublished properly', async () => {
-      ;(prisma.article.findUnique as jest.Mock).mockResolvedValue({
-        id: 'art-1',
-        title: 'Old Title',
-        slug: 'old-title',
-        is_published: false,
-        published_at: null,
-      })
+      ;(prisma.article.findUnique as jest.Mock)
+        .mockResolvedValueOnce({
+          id: 'art-1',
+          title: 'Old Title',
+          slug: 'old-title',
+          is_published: false,
+          published_at: null,
+        })
+        .mockResolvedValueOnce(null) // for generateUniqueSlug check
+
       ;(prisma.article.update as jest.Mock).mockResolvedValue({
         id: 'art-1',
         title: 'New Updated Title',
@@ -152,3 +253,4 @@ describe('ArticleService / BlogService', () => {
     })
   })
 })
+

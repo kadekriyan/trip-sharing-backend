@@ -57,6 +57,36 @@ function formatArticle(art: Record<string, unknown>) {
 }
 
 export class ArticleService {
+  static async generateUniqueSlug(baseText: string, currentId?: string): Promise<string> {
+    const rawSlug =
+      baseText
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'article'
+
+    let slug = rawSlug
+    let counter = 1
+    let isUnique = false
+
+    while (!isUnique) {
+      const existing = await prisma.article.findUnique({
+        where: { slug },
+        select: { id: true },
+      })
+
+      if (!existing || (currentId && existing.id === currentId)) {
+        isUnique = true
+        return slug
+      }
+
+      slug = `${rawSlug}-${counter}`
+      counter++
+    }
+
+    return slug
+  }
+
   static async create(data: {
     title: string
     slug?: string
@@ -89,12 +119,8 @@ export class ArticleService {
     isActive?: boolean
     is_active?: boolean
   }) {
-    const slug =
-      data.slug ||
-      data.title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
+    const candidateSlug = data.slug || data.title
+    const slug = await this.generateUniqueSlug(candidateSlug)
     const coverImage = data.cover_image || data.coverImage || data.featured_image_url || null
     let authorId = data.author_id || data.authorId
 
@@ -239,15 +265,13 @@ export class ArticleService {
     if (data.title !== undefined) {
       updateData.title = data.title as string
       if (!existing.slug || data.slug) {
-        updateData.slug =
-          (data.slug as string) ||
-          (data.title as string)
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '')
+        const candidate = (data.slug as string) || (data.title as string)
+        updateData.slug = await this.generateUniqueSlug(candidate, id)
       }
     }
-    if (data.slug !== undefined) updateData.slug = data.slug as string
+    if (data.slug !== undefined && !updateData.slug) {
+      updateData.slug = await this.generateUniqueSlug(data.slug as string, id)
+    }
     if (data.excerpt !== undefined) updateData.excerpt = data.excerpt as string
     if (data.content !== undefined) updateData.content = data.content as Prisma.InputJsonValue
     if (
