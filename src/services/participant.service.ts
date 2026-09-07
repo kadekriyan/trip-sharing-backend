@@ -127,6 +127,23 @@ export class ParticipantService {
         await tx.bookingGroup.update({ where: { id: groupId }, data: { status: 'full' } })
       }
 
+      // Generate payment record pelengkap
+      const calculatedAmount = totalAmount || Number(group.price_per_person) || 0
+      const isPaid = paymentStatus === 'paid'
+      const isFailed = paymentStatus === 'cancelled' || paymentStatus === 'failed'
+
+      await tx.payment.create({
+        data: {
+          participant_id: participant.id,
+          booking_group_id: groupId,
+          amount: new Prisma.Decimal(calculatedAmount.toString()),
+          payment_method: 'manual_cash_or_transfer',
+          midtrans_order_id: `MANUAL-${bookingCode}-${Date.now()}`,
+          status: isPaid ? 'completed' : isFailed ? 'failed' : 'pending',
+          completion_time: isPaid ? new Date() : null,
+        },
+      })
+
       await tx.auditLog.create({
         data: {
           user_id: data.admin_id,
@@ -171,13 +188,22 @@ export class ParticipantService {
         ...(search && {
           OR: [
             { full_name: { contains: search, mode: 'insensitive' } },
+            { phone_number: { contains: search, mode: 'insensitive' } },
             { booking_code: { contains: search, mode: 'insensitive' } },
-            { user: { email: { contains: search, mode: 'insensitive' } } },
           ],
         }),
       },
       include: {
-        booking_group: { include: { trip: { include: { destination: true } } } },
+        booking_group: {
+          include: {
+            trip: {
+              include: {
+                destination: true,
+              },
+            },
+            driver: true,
+          },
+        },
         user: true,
         payment: true,
       },
@@ -185,8 +211,58 @@ export class ParticipantService {
     })
   }
 
-  static async updateParticipant(id: string, data: Record<string, unknown>) {
+  static async updateParticipant(
+    id: string,
+    data: {
+      full_name?: string
+      fullName?: string
+      phone_number?: string
+      phoneNumber?: string
+      country?: string
+      nationality?: string
+      identity_number?: string
+      identityNumber?: string
+      identity_type?: string
+      identityType?: string
+      gender?: string
+      date_of_birth?: Date | string
+      dateOfBirth?: Date | string
+      room_preference?: string
+      roomPreference?: string
+      hotel_preference?: string
+      hotelPreference?: string
+      payment_status?: string
+      paymentStatus?: string
+      checked_in?: boolean
+      checkedIn?: boolean
+      check_in_status?: string
+      checkInStatus?: string
+      health_notes?: string
+      healthNotes?: string
+      passport_number?: string
+      passportNumber?: string
+      room_type?: string
+      roomType?: string
+      preferred_language?: string
+      preferredLanguage?: string
+      travel_insurance?: boolean
+      travelInsurance?: boolean
+      has_insurance?: boolean
+      hasInsurance?: boolean
+      insurance_fee?: number | string
+      insuranceFee?: number | string
+      total_amount?: number | string
+      totalAmount?: number | string
+      [key: string]: unknown
+    }
+  ) {
     const cleanPartId = cleanId(id)
+    const existing = await prisma.participant.findUnique({
+      where: { id: cleanPartId },
+      include: { booking_group: true },
+    })
+    if (!existing) throw new ApiError('Participant not found', 404)
+
     const updateData: Record<string, unknown> = {}
 
     if (data.full_name !== undefined || data.fullName !== undefined) {
@@ -258,7 +334,36 @@ export class ParticipantService {
         total !== null && total !== undefined ? new Prisma.Decimal(total.toString()) : null
     }
 
-    return prisma.participant.update({ where: { id: cleanPartId }, data: updateData as never })
+    const updated = await prisma.participant.update({
+      where: { id: cleanPartId },
+      data: updateData as never,
+    })
+
+    if (updateData.payment_status) {
+      const isPaid = updateData.payment_status === 'paid'
+      const isFailed = updateData.payment_status === 'cancelled' || updateData.payment_status === 'failed'
+      const status = isPaid ? 'completed' : isFailed ? 'failed' : 'pending'
+      const amount = updated.total_amount || existing.booking_group.price_per_person
+
+      await prisma.payment.upsert({
+        where: { participant_id: cleanPartId },
+        update: {
+          status,
+          completion_time: isPaid ? new Date() : null,
+        },
+        create: {
+          participant_id: cleanPartId,
+          booking_group_id: existing.booking_group_id,
+          amount: new Prisma.Decimal(amount ? amount.toString() : '0'),
+          midtrans_order_id: `MANUAL-${existing.booking_code || cleanPartId}-${Date.now()}`,
+          payment_method: 'manual_cash_or_transfer',
+          status,
+          completion_time: isPaid ? new Date() : null,
+        },
+      })
+    }
+
+    return updated
   }
 
   static async deleteParticipant(id: string) {

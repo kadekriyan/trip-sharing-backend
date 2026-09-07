@@ -2,24 +2,38 @@ import { prisma } from '../config/database'
 
 export class AdminService {
   static async getMetrics() {
-    // 1. Total Revenue
-    const completedPayments = await prisma.payment.findMany({
-      where: { status: 'completed' },
-      select: { amount: true, created_at: true },
+    // 1. Total Revenue (dihitung dari seluruh peserta berstatus 'paid')
+    const paidParticipants = await prisma.participant.findMany({
+      where: { payment_status: 'paid' },
+      select: {
+        total_amount: true,
+        created_at: true,
+        booking_group: { select: { price_per_person: true } },
+        payment: { select: { amount: true } },
+      },
     })
-    const totalRevenue = completedPayments.reduce((acc, p) => acc + Number(p.amount), 0)
+    const totalRevenue = paidParticipants.reduce((acc, p) => {
+      const amt = p.total_amount ?? p.payment?.amount ?? p.booking_group?.price_per_person ?? 0
+      return acc + Number(amt)
+    }, 0)
 
     // Revenue growth (this month vs last month)
     const now = new Date()
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
-    const thisMonthRev = completedPayments
+    const thisMonthRev = paidParticipants
       .filter((p) => p.created_at >= thisMonthStart)
-      .reduce((acc, p) => acc + Number(p.amount), 0)
-    const lastMonthRev = completedPayments
+      .reduce((acc, p) => {
+        const amt = p.total_amount ?? p.payment?.amount ?? p.booking_group?.price_per_person ?? 0
+        return acc + Number(amt)
+      }, 0)
+    const lastMonthRev = paidParticipants
       .filter((p) => p.created_at >= lastMonthStart && p.created_at < thisMonthStart)
-      .reduce((acc, p) => acc + Number(p.amount), 0)
+      .reduce((acc, p) => {
+        const amt = p.total_amount ?? p.payment?.amount ?? p.booking_group?.price_per_person ?? 0
+        return acc + Number(amt)
+      }, 0)
 
     const revenueGrowthPercentage =
       lastMonthRev > 0

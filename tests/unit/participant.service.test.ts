@@ -11,6 +11,10 @@ jest.mock('../../src/config/database', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    payment: {
+      create: jest.fn(),
+      upsert: jest.fn(),
+    },
     bookingGroup: {
       findUnique: jest.fn(),
       update: jest.fn(),
@@ -43,11 +47,20 @@ describe('ParticipantService', () => {
 
   describe('updateParticipant', () => {
     it('should map camelCase paymentStatus to payment_status and clean participant ID', async () => {
+      const mockExisting = {
+        id: 'e4d33fec-cb9c-40cb-98ec-b4f2163113cb',
+        booking_group_id: 'grp-1',
+        total_amount: new Prisma.Decimal('750000'),
+        booking_group: { price_per_person: new Prisma.Decimal('750000') },
+      }
       const mockUpdated = {
         id: 'e4d33fec-cb9c-40cb-98ec-b4f2163113cb',
         payment_status: 'paid',
+        total_amount: new Prisma.Decimal('750000'),
       }
+      ;(prisma.participant.findUnique as jest.Mock).mockResolvedValue(mockExisting)
       ;(prisma.participant.update as jest.Mock).mockResolvedValue(mockUpdated)
+      ;(prisma.payment.upsert as jest.Mock).mockResolvedValue({})
 
       const result = await ParticipantService.updateParticipant(
         'part-e4d33fec-cb9c-40cb-98ec-b4f2163113cb',
@@ -67,6 +80,12 @@ describe('ParticipantService', () => {
     })
 
     it('should map various camelCase fields to snake_case database columns', async () => {
+      const mockExisting = {
+        id: '123',
+        booking_group_id: 'grp-1',
+        booking_group: { price_per_person: new Prisma.Decimal('750000') },
+      }
+      ;(prisma.participant.findUnique as jest.Mock).mockResolvedValue(mockExisting)
       ;(prisma.participant.update as jest.Mock).mockResolvedValue({ id: 'part-123' })
 
       await ParticipantService.updateParticipant('part-123', {
@@ -120,7 +139,14 @@ describe('ParticipantService', () => {
     })
 
     it('should allow snake_case fields as well', async () => {
+      const mockExisting = {
+        id: '123',
+        booking_group_id: 'grp-1',
+        booking_group: { price_per_person: new Prisma.Decimal('750000') },
+      }
+      ;(prisma.participant.findUnique as jest.Mock).mockResolvedValue(mockExisting)
       ;(prisma.participant.update as jest.Mock).mockResolvedValue({ id: 'part-123' })
+      ;(prisma.payment.upsert as jest.Mock).mockResolvedValue({})
 
       await ParticipantService.updateParticipant('123', {
         payment_status: 'refunded',
@@ -161,6 +187,56 @@ describe('ParticipantService', () => {
         where: { id: 'trip-1' },
         data: { current_participants: { decrement: 1 } },
       })
+    })
+  })
+
+  describe('createParticipantAsAdmin', () => {
+    it('should create participant and generate completed payment record when status is paid', async () => {
+      const mockGroup = {
+        id: '1',
+        trip_id: 'trip-1',
+        current_participants: 2,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal('750000'),
+        trip: { id: 'trip-1' },
+      }
+
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockGroup)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'usr-1', email: 'test@booking.local' })
+      ;(prisma.participant.create as jest.Mock).mockResolvedValue({
+        id: 'part-new',
+        booking_code: 'TRV-9999',
+        full_name: 'Manual Traveler',
+        payment_status: 'paid',
+      })
+      ;(prisma.bookingGroup.update as jest.Mock).mockResolvedValue({
+        ...mockGroup,
+        current_participants: 3,
+      })
+      ;(prisma.trip.update as jest.Mock).mockResolvedValue({})
+      ;(prisma.payment.create as jest.Mock).mockResolvedValue({ id: 'pay-new', status: 'completed' })
+      ;(prisma.auditLog.create as jest.Mock).mockResolvedValue({})
+
+      const result = await ParticipantService.createParticipantAsAdmin({
+        bookingGroupId: 'grp-1',
+        fullName: 'Manual Traveler',
+        phoneNumber: '081234567890',
+        paymentStatus: 'paid',
+        totalAmount: 750000,
+      })
+
+      expect(prisma.payment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            participant_id: 'part-new',
+            booking_group_id: '1',
+            status: 'completed',
+            payment_method: 'manual_cash_or_transfer',
+          }),
+        })
+      )
+      expect(result.fullName).toBe('Manual Traveler')
+      expect(result.paymentStatus).toBe('paid')
     })
   })
 })

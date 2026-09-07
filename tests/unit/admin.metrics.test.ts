@@ -14,6 +14,7 @@ jest.mock('../../src/config/database', () => ({
       findMany: jest.fn(),
     },
     participant: {
+      findMany: jest.fn(),
       count: jest.fn(),
     },
     auditLog: {
@@ -30,9 +31,9 @@ describe('AdminService', () => {
 
   describe('getMetrics', () => {
     it('should calculate revenue, active trips, occupancy rate, and participant counts correctly', async () => {
-      ;(prisma.payment.findMany as jest.Mock).mockResolvedValue([
-        { amount: 850000, created_at: new Date() },
-        { amount: 1250000, created_at: new Date() },
+      ;(prisma.participant.findMany as jest.Mock).mockResolvedValue([
+        { total_amount: 850000, created_at: new Date() },
+        { total_amount: 1250000, created_at: new Date() },
       ])
       ;(prisma.trip.count as jest.Mock).mockResolvedValue(14)
       ;(prisma.bookingGroup.findMany as jest.Mock).mockResolvedValue([
