@@ -1,5 +1,6 @@
 import './config/env'
 import './types'
+import path from 'path'
 import express, { Express, Request, Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -10,13 +11,16 @@ import { apiRateLimiter } from './middleware/rateLimiter'
 
 const app: Express = express()
 
-app.use(helmet())
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }))
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000'],
     credentials: true,
   })
 )
+
+// Static file serving for uploaded images
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')))
 
 app.use('/api', apiRateLimiter)
 app.use(express.json({ limit: '10mb' }))

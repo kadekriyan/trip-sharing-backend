@@ -16,11 +16,12 @@
 4. [Jadwal Trip & Ketersediaan Kursi (`/api/trips`)](#4-jadwal-trip--ketersediaan-kursi-apitrips)
 5. [Pemesanan Tiket & Auto-Grouping (`/api/bookings`)](#5-pemesanan-tiket--auto-grouping-apibookings)
 6. [Pembayaran & Midtrans Snap Gateway (`/api/payments`)](#6-pembayaran--midtrans-snap-gateway-apipayments)
-7. [Blog & Artikel Wisata (`/api/blogs`)](#7-blog--artikel-wisata-apiblogs)
-8. [Driver & Armada (`/api/drivers`)](#8-driver--armada-apidrivers)
-9. [Partisipan Traveler (`/api/participants`)](#9-partisipan-traveler-apiparticipants)
-10. [Dashboard & Manajemen Admin (`/api/admin`)](#10-dashboard--manajemen-admin-apiadmin)
-11. [Panduan Integrasi Frontend (Next.js Client Example)](#11-panduan-integrasi-frontend-nextjs-client-example)
+7. [Layanan Unggah Berkas & Gambar (`/api/upload`)](#7-layanan-unggah-berkas--gambar-apiupload)
+8. [Blog & Artikel Wisata (`/api/blogs`)](#8-blog--artikel-wisata-apiblogs)
+9. [Driver & Armada (`/api/drivers`)](#9-driver--armada-apidrivers)
+10. [Partisipan Traveler (`/api/participants`)](#10-partisipan-traveler-apiparticipants)
+11. [Dashboard & Manajemen Admin (`/api/admin`)](#11-dashboard--manajemen-admin-apiadmin)
+12. [Panduan Integrasi Frontend (Next.js Client Example)](#12-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -622,9 +623,97 @@ Endpoint simulasi untuk mengubah status pembayaran dan peserta secara langsung t
 
 ---
 
-## 7. Blog & Artikel Wisata (`/api/blogs`)
+## 7. Layanan Unggah Berkas & Gambar (`/api/upload`)
 
-### 7.1 Daftar Artikel Blog Terbit
+Layanan multipart file upload terintegrasi untuk menyimpan gambar aset destinasi wisata, foto galeri, dan artikel CMS. Berkas yang diunggah disimpan di server dan disajikan secara statis via URL `/uploads/...`.
+
+> **Catatan Khusus:** Profil Driver & Armada **tidak memerlukan** upload berkas gambar profil.
+
+---
+
+### 7.1 Unggah Berkas Gambar Tunggal (Single Upload)
+Digunakan untuk mengunggah 1 gambar cover destinasi, thumbnail artikel, atau aset lainnya.
+
+- **Method**: `POST`
+- **Path**: `/api/upload` *(atau `/api/upload/image`, `/api/upload/file`, `/api/admin/upload`)*
+- **Auth**: Opsional / Admin
+- **Content-Type**: `multipart/form-data`
+- **Query Params**:
+  - `folder` *(opsional, string)*: Subdirektori penyimpanan (`destinations`, `articles`, atau `general` - default: `general`).
+
+#### Form Data Fields
+- `image` atau `file` *(File)*: Berkas gambar (format JPG, PNG, WEBP, GIF; maksimal 10 MB).
+
+#### Contoh cURL / FormData Request
+```bash
+curl -X POST "http://localhost:3001/api/upload?folder=destinations" \
+  -F "image=@/path/to/kawah-ijen.webp"
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Berkas gambar berhasil diunggah",
+  "data": {
+    "url": "http://localhost:3001/uploads/destinations/kawah-ijen-1756872000000-123456.webp",
+    "path": "/uploads/destinations/kawah-ijen-1756872000000-123456.webp",
+    "filename": "kawah-ijen-1756872000000-123456.webp",
+    "originalName": "kawah-ijen.webp",
+    "mimetype": "image/webp",
+    "size": 245120
+  },
+  "timestamp": "2026-09-07T08:30:00.000Z"
+}
+```
+
+---
+
+### 7.2 Unggah Berkas Gambar Majemuk (Multiple Upload)
+Digunakan untuk mengunggah banyak foto galeri destinasi atau dokumentasi sekaligus (maksimal 10 berkas per request).
+
+- **Method**: `POST`
+- **Path**: `/api/upload/multiple` *(atau `/api/upload/files`)*
+- **Auth**: Opsional / Admin
+- **Content-Type**: `multipart/form-data`
+- **Query Params**:
+  - `folder` *(opsional, string)*: Subdirektori penyimpanan (contoh: `destinations`).
+
+#### Form Data Fields
+- `images` atau `files` *(File[])*: Array berkas gambar.
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "2 berkas gambar berhasil diunggah",
+  "data": [
+    {
+      "url": "http://localhost:3001/uploads/destinations/gallery-1-1756872000000-111111.webp",
+      "path": "/uploads/destinations/gallery-1-1756872000000-111111.webp",
+      "filename": "gallery-1-1756872000000-111111.webp",
+      "originalName": "gallery-1.webp",
+      "mimetype": "image/webp",
+      "size": 182300
+    },
+    {
+      "url": "http://localhost:3001/uploads/destinations/gallery-2-1756872000000-222222.webp",
+      "path": "/uploads/destinations/gallery-2-1756872000000-222222.webp",
+      "filename": "gallery-2-1756872000000-222222.webp",
+      "originalName": "gallery-2.webp",
+      "mimetype": "image/webp",
+      "size": 194100
+    }
+  ],
+  "timestamp": "2026-09-07T08:30:00.000Z"
+}
+```
+
+---
+
+## 8. Blog & Artikel Wisata (`/api/blogs`)
+
+### 8.1 Daftar Artikel Blog Terbit
 Menampilkan artikel blog/tips wisata dengan filter kategori, pencarian, dan paginasi.
 
 - **Method**: `GET`
@@ -711,9 +800,9 @@ Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`)
 
 ---
 
-## 8. Driver & Armada (`/api/drivers`)
+## 9. Driver & Armada (`/api/drivers`)
 
-### 8.1 Daftar Driver Tersedia
+### 9.1 Daftar Driver Tersedia
 Menampilkan daftar driver aktif yang siap bertugas mengantar armada trip sharing.
 
 - **Method**: `GET`
@@ -748,9 +837,9 @@ Menampilkan daftar driver aktif yang siap bertugas mengantar armada trip sharing
 
 ---
 
-## 9. Partisipan Traveler (`/api/participants`)
+## 10. Partisipan Traveler (`/api/participants`)
 
-### 9.1 Data Partisipan Saya
+### 10.1 Data Partisipan Saya
 Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 - **Method**: `GET`
@@ -780,13 +869,13 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 ---
 
-## 10. Dashboard & Manajemen Admin (`/api/admin`)
+## 11. Dashboard & Manajemen Admin (`/api/admin`)
 
 > **Catatan Keamanan**: Seluruh endpoint admin di bawah ini **WAJIB** menyertakan header `Authorization: Bearer <admin_jwt_token>` dengan akun ber-role `'admin'`.
 
 ---
 
-### 10.1 Analytics & Metrik Dashboard
+### 11.1 Analytics & Metrik Dashboard
 - **Method**: `GET`
 - **Path**: `/api/admin/metrics`
 
@@ -1970,9 +2059,9 @@ Menghapus grup armada mobil. Otomatis dilindungi jika grup masih memiliki pesert
 
 ---
 
-## 11. Panduan Integrasi Frontend (Next.js Client Example)
+## 12. Panduan Integrasi Frontend (Next.js Client Example)
 
-### 11.1 HTTP Client Helper (`lib/api.ts`)
+### 12.1 HTTP Client Helper (`lib/api.ts`)
 ```typescript
 import axios from 'axios'
 

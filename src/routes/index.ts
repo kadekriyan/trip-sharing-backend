@@ -9,6 +9,7 @@ import participantRoutes from './participants.routes'
 import articleRoutes from './articles.routes'
 import blogRoutes from './blogs.routes'
 import driverRoutes from './drivers.routes'
+import uploadRoutes from './upload.routes'
 
 export const routes = Router()
 
@@ -22,3 +23,5 @@ routes.use('/participants', participantRoutes)
 routes.use('/articles', articleRoutes)
 routes.use('/blogs', blogRoutes)
 routes.use('/drivers', driverRoutes)
+routes.use('/upload', uploadRoutes)
+routes.use('/admin/upload', uploadRoutes)
