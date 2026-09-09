@@ -23,3 +23,8 @@ coverage/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Uploads
+uploads/
+!uploads/.gitkeep
+
