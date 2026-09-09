@@ -427,6 +427,10 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
   "gender": "female",
   "roomPreference": "Single Supplement",
   "healthNotes": "Alergi seafood ringan",
+  "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+  "pickupLatitude": -7.962145,
+  "pickupLongitude": 112.634125,
+  "pickupNotes": "Tunggu di lobi timur dekat drop-off point",
   "hasInsurance": true,
   "captchaToken": "10000000-aaaa-bbbb-cccc-000000000001"
 }
@@ -446,6 +450,10 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
       "groupNumber": 1,
       "fullName": "Siti Rahmawati",
       "email": "siti.rahma@example.com",
+      "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+      "pickupLatitude": -7.962145,
+      "pickupLongitude": 112.634125,
+      "pickupNotes": "Tunggu di lobi timur dekat drop-off point",
       "totalAmount": 900000,
       "paymentStatus": "pending",
       "checkInStatus": "pending",
@@ -1833,6 +1841,10 @@ Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driv
           "bookingCode": "TRV-8921",
           "fullName": "Siti Rahmawati",
           "phoneNumber": "+6281298765432",
+          "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+          "pickupLatitude": -7.962145,
+          "pickupLongitude": 112.634125,
+          "pickupNotes": "Lobi timur drop-off point",
           "paymentStatus": "paid",
           "checkInStatus": "pending",
           "user": {

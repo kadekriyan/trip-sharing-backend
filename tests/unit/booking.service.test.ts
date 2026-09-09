@@ -329,5 +329,62 @@ describe('BookingService', () => {
       expect(result.bookingGroup.group_number).toBe(1)
       expect(result.bookingGroup.current_participants).toBe(1)
     })
+
+    it('should save pickup location and coordinates properly on booking creation', async () => {
+      const mockTrip = {
+        id: 'trip-1',
+        destination: { price_per_person: new Prisma.Decimal(750000) },
+        booking_groups: [
+          {
+            id: 'grp-10',
+            trip_id: 'trip-1',
+            group_number: 1,
+            status: 'open',
+            current_participants: 1,
+            max_participants: 6,
+          },
+        ],
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockTrip)
+
+      let capturedParticipantData: any = null
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
+          participant: {
+            create: jest.fn().mockImplementation(({ data }) => {
+              capturedParticipantData = data
+              return { id: 'part-pickup-1', ...data }
+            }),
+          },
+          bookingGroup: {
+            update: jest.fn().mockResolvedValue({
+              id: 'grp-10',
+              current_participants: 2,
+              max_participants: 6,
+            }),
+          },
+          trip: { update: jest.fn().mockResolvedValue({ id: 'trip-1', current_participants: 2 }) },
+        }
+        return callback(tx)
+      })
+
+      const result = await BookingService.createBooking('usr-1', {
+        tripId: 'trip-1',
+        fullName: 'Traveler Pickup Test',
+        phoneNumber: '081234567890',
+        pickupLocation: 'Hotel Santika Malang',
+        pickupLatitude: -7.962145,
+        pickupLongitude: 112.634125,
+        pickupNotes: 'Tunggu di lobi timur',
+      })
+
+      expect(result.participant.id).toBe('part-pickup-1')
+      expect(capturedParticipantData.pickup_location).toBe('Hotel Santika Malang')
+      expect(capturedParticipantData.pickup_latitude).toEqual(new Prisma.Decimal('-7.962145'))
+      expect(capturedParticipantData.pickup_longitude).toEqual(new Prisma.Decimal('112.634125'))
+      expect(capturedParticipantData.pickup_notes).toBe('Tunggu di lobi timur')
+    })
   })
 })
+

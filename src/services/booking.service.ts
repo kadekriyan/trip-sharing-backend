@@ -81,6 +81,14 @@ export class BookingService {
       healthNotes?: string
       preferred_language?: string
       preferredLanguage?: string
+      pickup_location?: string
+      pickupLocation?: string
+      pickup_latitude?: number
+      pickupLatitude?: number
+      pickup_longitude?: number
+      pickupLongitude?: number
+      pickup_notes?: string
+      pickupNotes?: string
       travel_insurance?: boolean
       hasInsurance?: boolean
     }
@@ -261,6 +269,20 @@ export class BookingService {
           room_type: bookingData.room_type || bookingData.roomType,
           health_notes: healthNotes,
           preferred_language: bookingData.preferred_language || bookingData.preferredLanguage,
+          pickup_location: bookingData.pickup_location || bookingData.pickupLocation || null,
+          pickup_latitude:
+            bookingData.pickup_latitude !== undefined && bookingData.pickup_latitude !== null
+              ? new Prisma.Decimal(bookingData.pickup_latitude.toString())
+              : bookingData.pickupLatitude !== undefined && bookingData.pickupLatitude !== null
+              ? new Prisma.Decimal(bookingData.pickupLatitude.toString())
+              : null,
+          pickup_longitude:
+            bookingData.pickup_longitude !== undefined && bookingData.pickup_longitude !== null
+              ? new Prisma.Decimal(bookingData.pickup_longitude.toString())
+              : bookingData.pickupLongitude !== undefined && bookingData.pickupLongitude !== null
+              ? new Prisma.Decimal(bookingData.pickupLongitude.toString())
+              : null,
+          pickup_notes: bookingData.pickup_notes || bookingData.pickupNotes || null,
           travel_insurance: hasInsurance,
           has_insurance: hasInsurance,
           insurance_fee: new Prisma.Decimal(insuranceFee.toString()),

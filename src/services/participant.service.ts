@@ -40,6 +40,14 @@ export class ParticipantService {
     paymentStatus?: string
     healthNotes?: string
     health_notes?: string
+    pickup_location?: string
+    pickupLocation?: string
+    pickup_latitude?: number
+    pickupLatitude?: number
+    pickup_longitude?: number
+    pickupLongitude?: number
+    pickup_notes?: string
+    pickupNotes?: string
     admin_id?: string
   }) {
     const rawTripId = data.trip_id || data.tripId
@@ -59,6 +67,20 @@ export class ParticipantService {
     const totalAmount = data.totalAmount ?? data.total_amount ?? 0
     const paymentStatus = data.payment_status || data.paymentStatus || 'paid'
     const healthNotes = data.healthNotes || data.health_notes || null
+    const pickupLocation = data.pickup_location || data.pickupLocation || null
+    const pickupLatitude =
+      data.pickup_latitude !== undefined && data.pickup_latitude !== null
+        ? new Prisma.Decimal(data.pickup_latitude.toString())
+        : data.pickupLatitude !== undefined && data.pickupLatitude !== null
+        ? new Prisma.Decimal(data.pickupLatitude.toString())
+        : null
+    const pickupLongitude =
+      data.pickup_longitude !== undefined && data.pickup_longitude !== null
+        ? new Prisma.Decimal(data.pickup_longitude.toString())
+        : data.pickupLongitude !== undefined && data.pickupLongitude !== null
+        ? new Prisma.Decimal(data.pickupLongitude.toString())
+        : null
+    const pickupNotes = data.pickup_notes || data.pickupNotes || null
     const userEmail =
       data.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
 
@@ -110,6 +132,10 @@ export class ParticipantService {
           total_amount: totalAmount ? new Prisma.Decimal(totalAmount.toString()) : null,
           payment_status: paymentStatus,
           health_notes: healthNotes,
+          pickup_location: pickupLocation,
+          pickup_latitude: pickupLatitude,
+          pickup_longitude: pickupLongitude,
+          pickup_notes: pickupNotes,
         },
       })
 
@@ -201,7 +227,11 @@ export class ParticipantService {
                 destination: true,
               },
             },
-            driver: true,
+            driver: {
+              include: {
+                user: true,
+              },
+            },
           },
         },
         user: true,
@@ -245,6 +275,14 @@ export class ParticipantService {
       roomType?: string
       preferred_language?: string
       preferredLanguage?: string
+      pickup_location?: string
+      pickupLocation?: string
+      pickup_latitude?: number
+      pickupLatitude?: number
+      pickup_longitude?: number
+      pickupLongitude?: number
+      pickup_notes?: string
+      pickupNotes?: string
       travel_insurance?: boolean
       travelInsurance?: boolean
       has_insurance?: boolean
@@ -316,6 +354,22 @@ export class ParticipantService {
     }
     if (data.preferred_language !== undefined || data.preferredLanguage !== undefined) {
       updateData.preferred_language = data.preferred_language ?? data.preferredLanguage
+    }
+    if (data.pickup_location !== undefined || data.pickupLocation !== undefined) {
+      updateData.pickup_location = data.pickup_location ?? data.pickupLocation
+    }
+    if (data.pickup_latitude !== undefined || data.pickupLatitude !== undefined) {
+      const lat = data.pickup_latitude ?? data.pickupLatitude
+      updateData.pickup_latitude =
+        lat !== null && lat !== undefined ? new Prisma.Decimal(lat.toString()) : null
+    }
+    if (data.pickup_longitude !== undefined || data.pickupLongitude !== undefined) {
+      const lng = data.pickup_longitude ?? data.pickupLongitude
+      updateData.pickup_longitude =
+        lng !== null && lng !== undefined ? new Prisma.Decimal(lng.toString()) : null
+    }
+    if (data.pickup_notes !== undefined || data.pickupNotes !== undefined) {
+      updateData.pickup_notes = data.pickup_notes ?? data.pickupNotes
     }
     if (data.travel_insurance !== undefined || data.travelInsurance !== undefined) {
       updateData.travel_insurance = data.travel_insurance ?? data.travelInsurance

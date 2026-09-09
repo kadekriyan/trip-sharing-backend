@@ -126,6 +126,10 @@ model Participant {
   room_type          String?
   health_notes       String?
   preferred_language String?
+  pickup_location    String?
+  pickup_latitude    Decimal? @db.Decimal(10, 7)
+  pickup_longitude   Decimal? @db.Decimal(10, 7)
+  pickup_notes       String?
   travel_insurance   Boolean  @default(false)
   has_insurance      Boolean  @default(false)
   insurance_fee      Decimal? @db.Decimal(10, 2)
