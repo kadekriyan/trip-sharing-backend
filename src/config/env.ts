@@ -21,6 +21,11 @@ const envSchema = Joi.object({
   MIDTRANS_CLIENT_KEY: Joi.string().allow('').optional(),
   MIDTRANS_ENVIRONMENT: Joi.string().valid('sandbox', 'production').default('sandbox'),
   CORS_ORIGIN: Joi.string().default('http://localhost:3000'),
+  SUPABASE_PROJECT_REF: Joi.string().default('elaekvkqftsxrrynyhoy'),
+  SUPABASE_URL: Joi.string().uri().optional(),
+  SUPABASE_ANON_KEY: Joi.string().allow('').optional(),
+  SUPABASE_SERVICE_ROLE_KEY: Joi.string().allow('').optional(),
+  SUPABASE_STORAGE_BUCKET: Joi.string().default('uploads'),
   RATE_LIMIT_WINDOW_MS: Joi.number().default(900000),
   RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
 }).unknown(true)
