@@ -40,3 +40,5 @@ app.use((req: Request, res: Response) => {
 app.use(errorHandler)
 
 export { app }
+export default app
+
