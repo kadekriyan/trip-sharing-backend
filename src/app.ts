@@ -32,6 +32,7 @@ app.get('/health', (_req: Request, res: Response) => {
 })
 
 app.use('/api', routes)
+app.use('/', routes)
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({ success: false, message: 'Route not found', path: req.originalUrl })
