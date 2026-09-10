@@ -53,6 +53,8 @@ export const bookingValidator = {
     durationDays: Joi.number().optional(),
     captchaToken: Joi.string().optional(),
     captcha_token: Joi.string().optional(),
+    'g-recaptcha-response': Joi.string().optional(),
+    gRecaptchaResponse: Joi.string().optional(),
   })
     .or('tripId', 'trip_id', 'destinationId', 'destination_id')
     .or('fullName', 'full_name', 'name')

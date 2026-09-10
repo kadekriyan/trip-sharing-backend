@@ -56,11 +56,11 @@ describe('CaptchaService', () => {
       })
     })
 
-    it('should verify token with hCaptcha API and return true on success', async () => {
+    it('should verify token with reCAPTCHA API and return true on success', async () => {
       process.env.NODE_ENV = 'production'
-      captchaConfig.secretKey = 'prod-key'
+      captchaConfig.secretKey = 'prod-recaptcha-key'
       ;(axios.post as jest.Mock).mockResolvedValue({
-        data: { success: true, score: 0.9 },
+        data: { success: true, score: 0.9, action: 'booking_submit' },
       })
 
       const result = await CaptchaService.verifyCaptcha('valid-prod-token')
@@ -69,14 +69,27 @@ describe('CaptchaService', () => {
         captchaConfig.verifyUrl,
         null,
         expect.objectContaining({
-          params: { response: 'valid-prod-token', secret: 'prod-key' },
+          params: { response: 'valid-prod-token', secret: 'prod-recaptcha-key' },
         })
       )
     })
 
-    it('should throw ApiError (400) if hCaptcha API returns success=false', async () => {
+    it('should throw ApiError (400) if reCAPTCHA score is too low (< 0.5)', async () => {
       process.env.NODE_ENV = 'production'
-      captchaConfig.secretKey = 'prod-key'
+      captchaConfig.secretKey = 'prod-recaptcha-key'
+      ;(axios.post as jest.Mock).mockResolvedValue({
+        data: { success: true, score: 0.2, action: 'booking_submit' },
+      })
+
+      await expect(CaptchaService.verifyCaptcha('low-score-token')).rejects.toMatchObject({
+        statusCode: 400,
+        message: 'Captcha score too low',
+      })
+    })
+
+    it('should throw ApiError (400) if reCAPTCHA API returns success=false', async () => {
+      process.env.NODE_ENV = 'production'
+      captchaConfig.secretKey = 'prod-recaptcha-key'
       ;(axios.post as jest.Mock).mockResolvedValue({
         data: { success: false, 'error-codes': ['invalid-input-response'] },
       })
@@ -88,3 +101,4 @@ describe('CaptchaService', () => {
     })
   })
 })
+

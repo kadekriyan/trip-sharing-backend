@@ -413,7 +413,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 - **Method**: `POST`
 - **Path**: `/api/bookings`
 - **Auth**: Opsional (`Bearer <token>` jika login)
-- **Bot Protection**: Menyertakan `captchaToken` (hCaptcha)
+- **Bot Protection**: Menyertakan `captchaToken` atau `g-recaptcha-response` (Google reCAPTCHA v2/v3 / fallback hCaptcha)
 
 #### Request Body
 ```json
@@ -432,7 +432,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
   "pickupLongitude": 112.634125,
   "pickupNotes": "Tunggu di lobi timur dekat drop-off point",
   "hasInsurance": true,
-  "captchaToken": "10000000-aaaa-bbbb-cccc-000000000001"
+  "captchaToken": "03AFcWeA7..."
 }
 ```
 

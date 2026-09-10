@@ -11,6 +11,8 @@ export const authValidator = {
     nationality: Joi.string().optional(),
     captchaToken: Joi.string().optional(),
     captcha_token: Joi.string().optional(),
+    'g-recaptcha-response': Joi.string().optional(),
+    gRecaptchaResponse: Joi.string().optional(),
   }).or('name', 'fullName'),
 
   login: Joi.object({
@@ -18,5 +20,7 @@ export const authValidator = {
     password: Joi.string().required(),
     captchaToken: Joi.string().optional(),
     captcha_token: Joi.string().optional(),
+    'g-recaptcha-response': Joi.string().optional(),
+    gRecaptchaResponse: Joi.string().optional(),
   }),
 }

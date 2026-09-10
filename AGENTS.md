@@ -258,7 +258,7 @@ Validasi environment ada di `src/config/env.ts`. Variabel wajib:
 | `MIDTRANS_SERVER_KEY` | — | — | Required untuk payment |
 | `MIDTRANS_CLIENT_KEY` | — | — | Required untuk payment |
 | `MIDTRANS_ENVIRONMENT` | — | `sandbox` | `sandbox/production` |
-| `HCAPTCHA_SECRET_KEY` | — | — | Required untuk captcha |
+| `RECAPTCHA_SECRET_KEY` | — | — | Required untuk captcha (Google reCAPTCHA / fallback HCaptcha) |
 | `SMTP_HOST` | — | — | Email service, opsional |
 | `CORS_ORIGIN` | — | `http://localhost:3000` | Comma-separated origins |
 
