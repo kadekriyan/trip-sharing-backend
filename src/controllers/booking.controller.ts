@@ -52,4 +52,14 @@ export class BookingController {
     const bookings = await BookingService.getUserBookings({ userId, email, bookingCode })
     sendResponse(res, 200, 'User bookings retrieved', bookings)
   }
+
+  static async getInvoice(req: Request, res: Response) {
+    const identifier = req.params.identifier || req.params.id || (req.query.bookingCode as string) || (req.query.booking_code as string)
+    const userId = req.user?.id
+    const email = (req.query.email as string) || (req.user as { email?: string })?.email
+    const isAdmin = (req.user as { role?: string })?.role === 'admin'
+
+    const invoice = await BookingService.getInvoice(identifier, { userId, email, isAdmin })
+    sendResponse(res, 200, 'Official invoice retrieved successfully', invoice)
+  }
 }

@@ -34,5 +34,8 @@ router.post(
 )
 
 router.get('/my-bookings', optionalAuth, asyncHandler(BookingController.getUserBookings))
+router.get('/invoice/:identifier', optionalAuth, asyncHandler(BookingController.getInvoice))
+router.get('/:identifier/invoice', optionalAuth, asyncHandler(BookingController.getInvoice))
 
 export default router
+

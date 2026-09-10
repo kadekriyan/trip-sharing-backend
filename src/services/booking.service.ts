@@ -418,4 +418,228 @@ export class BookingService {
       }
     })
   }
+
+  static async getInvoice(
+    identifier: string,
+    options?: {
+      userId?: string
+      email?: string
+      isAdmin?: boolean
+    }
+  ) {
+    const cleanIdVal = cleanId(identifier)
+
+    const participant = await prisma.participant.findFirst({
+      where: {
+        OR: [
+          { id: cleanIdVal },
+          { id: identifier },
+          { booking_code: identifier },
+          { booking_code: identifier.toUpperCase() },
+          { payment: { id: cleanIdVal } },
+          { payment: { midtrans_order_id: identifier } },
+          { payment: { midtrans_transaction_id: identifier } },
+        ],
+      },
+      include: {
+        user: true,
+        payment: true,
+        booking_group: {
+          include: {
+            driver: {
+              include: {
+                user: true,
+              },
+            },
+            trip: {
+              include: {
+                destination: true,
+                guide: {
+                  include: {
+                    driver: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (!participant) {
+      throw new ApiError('Invoice or booking not found', 404)
+    }
+
+    // Access check if restricted by user credentials
+    if (options?.userId && !options.isAdmin) {
+      const isOwner =
+        participant.user_id === options.userId ||
+        (participant.user?.email && options.email && participant.user.email.toLowerCase() === options.email.toLowerCase())
+      if (!isOwner && participant.booking_code !== identifier && participant.booking_code !== identifier.toUpperCase()) {
+        throw new ApiError('Unauthorized to view this invoice', 403)
+      }
+    }
+
+    const group = participant.booking_group
+    const trip = group.trip
+    const dest = trip.destination
+    const payment = participant.payment
+    const bookingCode = participant.booking_code || `TRV-${participant.id.slice(0, 8).toUpperCase()}`
+
+    const dateStr = participant.created_at.toISOString().slice(0, 10).replace(/-/g, '')
+    const invoiceNumber = `INV-${dateStr}-${bookingCode}`
+
+    const insuranceFee = participant.insurance_fee ? Number(participant.insurance_fee) : participant.has_insurance ? 50000 : 0
+    const totalAmount = participant.total_amount
+      ? Number(participant.total_amount)
+      : Number(group.price_per_person) + insuranceFee
+    const basePrice = Math.max(0, totalAmount - insuranceFee)
+
+    const invoiceStatus =
+      participant.payment_status === 'paid'
+        ? 'PAID'
+        : participant.payment_status === 'cancelled'
+        ? 'CANCELLED'
+        : participant.payment_status === 'refunded'
+        ? 'REFUNDED'
+        : 'PENDING'
+
+    const paidAt =
+      payment?.completion_time || (participant.payment_status === 'paid' ? participant.updated_at : null)
+
+    const assignedDriver =
+      group.driver?.user?.name
+        ? {
+            fullName: group.driver.user.name,
+            phoneNumber: group.driver.user.phone || '',
+            vehicleModel: group.driver.vehicle_type,
+            plateNumber: group.driver.vehicle_plat,
+          }
+        : trip.guide?.driver
+        ? {
+            fullName: trip.guide.name,
+            phoneNumber: trip.guide.phone || '',
+            vehicleModel: trip.guide.driver.vehicle_type,
+            plateNumber: trip.guide.driver.vehicle_plat,
+          }
+        : {
+            fullName: 'Budi Santoso',
+            phoneNumber: '+6281233445566',
+            vehicleModel: 'Toyota HiAce Commuter',
+            plateNumber: 'N 1234 XY',
+          }
+
+    const items = [
+      {
+        itemNumber: 1,
+        description: `Paket Trip Sharing - ${dest.name} (1 Pax)`,
+        category: 'Trip Package',
+        quantity: 1,
+        unitPrice: basePrice,
+        amount: basePrice,
+      },
+    ]
+
+    if (insuranceFee > 0 || participant.has_insurance || participant.travel_insurance) {
+      items.push({
+        itemNumber: 2,
+        description: 'Premi Asuransi Perjalanan (Travel Insurance Protection & Emergency Assistance)',
+        category: 'Add-on Insurance',
+        quantity: 1,
+        unitPrice: insuranceFee || 50000,
+        amount: insuranceFee || 50000,
+      })
+    }
+
+    const durationDays = dest.duration_days || 1
+    const durationNights = dest.duration_nights || Math.max(0, durationDays - 1)
+    const durationText = `${durationDays} Hari ${durationNights > 0 ? `${durationNights} Malam` : 'Day Trip'}`
+
+    return {
+      invoice: {
+        invoiceNumber,
+        invoiceDate: participant.created_at,
+        dueDate: payment?.transaction_time || participant.created_at,
+        paidAt,
+        status: invoiceStatus,
+        paymentStatus: participant.payment_status,
+        checkInStatus: participant.check_in_status || (participant.checked_in ? 'checked_in' : 'pending'),
+        bookingCode,
+        participantId: participant.id,
+        bookingGroupId: group.id,
+        tripId: trip.id,
+      },
+      issuer: {
+        companyName: 'Trip Sharing Platform Indonesia',
+        legalName: 'PT Trip Sharing Nusantara',
+        tagline: 'Teman Berbagi Perjalanan Wisata Indonesia',
+        website: 'https://tripsharing.id',
+        supportEmail: 'support@tripsharing.id',
+        supportPhone: '+62 812-3456-7890',
+        address: 'Jl. Ijen No. 88, Oro-oro Dowo, Kec. Klojen, Kota Malang, Jawa Timur 65119',
+      },
+      customer: {
+        userId: participant.user_id,
+        fullName: participant.full_name,
+        email: participant.user?.email || `${participant.phone_number}@booking.local`,
+        phoneNumber: participant.phone_number,
+        identityNumber: participant.identity_number || '-',
+        identityType: participant.identity_type || 'KTP/Passport',
+        country: participant.country || 'Indonesia',
+        nationality: participant.nationality || 'Indonesia',
+        gender: participant.gender || '-',
+      },
+      tripDetails: {
+        destinationId: dest.id,
+        destinationName: dest.name,
+        destinationSlug: dest.slug || `destination-${dest.id}`,
+        destinationCoverImage: dest.cover_image || dest.image_url || '',
+        departureDate: trip.departure_date,
+        returnDate: trip.return_date,
+        duration: durationText,
+        meetingPoint: dest.meeting_point || 'Meeting point tertera pada e-voucher',
+        pickupLocation: participant.pickup_location || dest.meeting_point || 'Sesuai titik meeting point',
+        pickupLatitude: participant.pickup_latitude ? Number(participant.pickup_latitude) : null,
+        pickupLongitude: participant.pickup_longitude ? Number(participant.pickup_longitude) : null,
+        pickupNotes: participant.pickup_notes || 'Tidak ada catatan khusus',
+        roomPreference: participant.room_preference || participant.hotel_preference || 'Standard Shared',
+        roomType: participant.room_type || 'Standard',
+        groupNumber: group.group_number,
+        vehicleModel: assignedDriver.vehicleModel,
+        vehiclePlateNumber: assignedDriver.plateNumber,
+        driverName: assignedDriver.fullName,
+        driverPhone: assignedDriver.phoneNumber,
+      },
+      pricing: {
+        currency: 'IDR',
+        items,
+        basePrice,
+        insuranceFee,
+        adminFee: 0,
+        taxAmount: 0,
+        discountAmount: 0,
+        totalAmount,
+      },
+      paymentDetails: {
+        paymentId: payment?.id || null,
+        paymentMethod:
+          payment?.payment_method === 'manual_cash_or_transfer'
+            ? 'Manual Transfer / Cash'
+            : payment?.payment_method
+            ? payment.payment_method
+            : 'Midtrans Snap Gateway',
+        midtransOrderId: payment?.midtrans_order_id || `TRIP-${bookingCode}`,
+        midtransTransactionId: payment?.midtrans_transaction_id || null,
+        paymentStatus: payment?.status || participant.payment_status,
+        transactionTime: payment?.transaction_time || participant.created_at,
+        completionTime: paidAt,
+        paymentProofUrl: payment?.payment_proof_url || null,
+      },
+      verification: {
+        voucherQrCode: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${bookingCode}`,
+        invoiceUrl: `http://localhost:3001/api/bookings/${bookingCode}/invoice`,
+      },
+    }
+  }
 }
+

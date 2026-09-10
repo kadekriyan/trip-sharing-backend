@@ -533,6 +533,133 @@ GET /api/bookings/my-bookings?email=siti.rahma@example.com&bookingCode=TRV-8921
 
 ---
 
+### 5.4 Unduh / Tampilkan Faktur Resmi & Invoice Detail (`/api/bookings/:identifier/invoice`)
+Mengambil data faktur/invoice resmi yang komprehensif untuk bukti transaksi, laporan keuangan traveler, e-invoice PDF generator, atau rekonsiliasi pembayaran. Mendukung query fleksibel menggunakan `bookingCode`, `participantId`, `paymentId`, maupun `midtransOrderId`.
+
+- **Method**: `GET`
+- **Path**: `/api/bookings/:identifier/invoice` *(alias: `/api/bookings/invoice/:identifier`)*
+- **Auth**: Opsional (`Bearer <token>` untuk verifikasi kepemilikan akun, atau Public via kode booking yang valid)
+- **URL Parameter**:
+  - `:identifier`: Kode booking (contoh `TRV-8921`), UUID Partisipan, UUID Payment, atau Order ID Midtrans.
+
+#### Contoh Request
+```http
+GET /api/bookings/TRV-8921/invoice
+```
+atau
+```http
+GET /api/bookings/c19208a1-5512-48ea-9201-7fa112345678/invoice
+Authorization: Bearer <jwt_access_token>
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Invoice retrieved successfully",
+  "data": {
+    "invoice": {
+      "invoiceNumber": "INV-20260903-TRV-8921",
+      "invoiceDate": "2026-09-03T04:00:00.000Z",
+      "dueDate": "2026-09-03T04:00:00.000Z",
+      "paidAt": "2026-09-03T04:15:30.000Z",
+      "status": "PAID",
+      "paymentStatus": "paid",
+      "checkInStatus": "pending",
+      "bookingCode": "TRV-8921",
+      "participantId": "c19208a1-5512-48ea-9201-7fa112345678",
+      "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001"
+    },
+    "issuer": {
+      "companyName": "Trip Sharing Platform Indonesia",
+      "legalName": "PT Trip Sharing Nusantara",
+      "tagline": "Teman Berbagi Perjalanan Wisata Indonesia",
+      "website": "https://tripsharing.id",
+      "supportEmail": "support@tripsharing.id",
+      "supportPhone": "+62 812-3456-7890",
+      "address": "Jl. Ijen No. 88, Oro-oro Dowo, Kec. Klojen, Kota Malang, Jawa Timur 65119"
+    },
+    "customer": {
+      "userId": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+      "fullName": "Siti Rahmawati",
+      "email": "siti.rahma@example.com",
+      "phoneNumber": "+6281987654321",
+      "identityNumber": "3201123456780002",
+      "identityType": "KTP",
+      "country": "Indonesia",
+      "nationality": "Indonesia",
+      "gender": "female"
+    },
+    "tripDetails": {
+      "destinationId": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+      "destinationName": "Bromo Sunrise & Midnight Safari",
+      "destinationSlug": "bromo-sunrise-midnight-safari",
+      "destinationCoverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
+      "departureDate": "2026-09-10T23:00:00.000Z",
+      "returnDate": "2026-09-11T13:00:00.000Z",
+      "duration": "2 Hari 1 Malam",
+      "meetingPoint": "Stasiun Malang Kota Baru (Pintu Timur)",
+      "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+      "pickupLatitude": -7.962145,
+      "pickupLongitude": 112.634125,
+      "pickupNotes": "Tunggu di lobi timur dekat drop-off point",
+      "roomPreference": "Single Supplement",
+      "roomType": "Standard",
+      "groupNumber": 1,
+      "vehicleModel": "Toyota HiAce (6-Seater VIP)",
+      "vehiclePlateNumber": "N 1234 XY",
+      "driverName": "Pak Joko Santoso",
+      "driverPhone": "+6281233445566"
+    },
+    "pricing": {
+      "currency": "IDR",
+      "items": [
+        {
+          "itemNumber": 1,
+          "description": "Paket Trip Sharing - Bromo Sunrise & Midnight Safari (1 Pax)",
+          "category": "Trip Package",
+          "quantity": 1,
+          "unitPrice": 850000,
+          "amount": 850000
+        },
+        {
+          "itemNumber": 2,
+          "description": "Premi Asuransi Perjalanan (Travel Insurance Protection & Emergency Assistance)",
+          "category": "Add-on Insurance",
+          "quantity": 1,
+          "unitPrice": 50000,
+          "amount": 50000
+        }
+      ],
+      "basePrice": 850000,
+      "insuranceFee": 50000,
+      "adminFee": 0,
+      "taxAmount": 0,
+      "discountAmount": 0,
+      "totalAmount": 900000
+    },
+    "paymentDetails": {
+      "paymentId": "91a02b11-7782-4ef1-8901-bca123456789",
+      "paymentMethod": "Midtrans Snap Gateway",
+      "midtransOrderId": "TRIP-TRV-8921",
+      "midtransTransactionId": "5e10034a-bc12-421e-9988-112233445566",
+      "paymentStatus": "paid",
+      "transactionTime": "2026-09-03T04:05:00.000Z",
+      "completionTime": "2026-09-03T04:15:30.000Z",
+      "paymentProofUrl": null
+    },
+    "verification": {
+      "voucherQrCode": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=TRV-8921",
+      "invoiceUrl": "http://localhost:3001/api/bookings/TRV-8921/invoice"
+    }
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
 ## 6. Pembayaran & Midtrans Snap Gateway (`/api/payments`)
 
 ### 6.1 Generate Midtrans Snap Token
