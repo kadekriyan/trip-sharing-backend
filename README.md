@@ -1586,13 +1586,8 @@ Request body:
   "phone_number": "+628123456789",
   "country": "ID",
   "date_of_birth": "1995-01-20",
-  "hotel_preference": "near beach",
-  "passport_number": "A1234567",
-  "identity_type": "passport",
-  "room_type": "double",
   "health_notes": "No allergies",
   "preferred_language": "id",
-  "travel_insurance": true,
   "captcha_token": "hcaptcha_token"
 }
 ```
@@ -1679,7 +1674,6 @@ Base path:
   "phone_number": "+628111111111",
   "country": "ID",
   "date_of_birth": "1990-01-01",
-  "hotel_preference": "single room",
   "payment_status": "pending"
 }
 ```

@@ -165,7 +165,6 @@ graph LR
     "email": "rian@example.com",
     "phoneNumber": "+6281234567890",
     "nationality": "Indonesia",
-    "identityNumber": "3271020304950001",
     "role": "traveler"
   }
 }
@@ -368,11 +367,8 @@ graph LR
   "email": "elena.j@example.com",
   "phoneNumber": "+6281299887766",
   "nationality": "Indonesia",
-  "identityNumber": "3271020304950002",
   "gender": "female",
-  "roomPreference": "single",
   "healthNotes": "Alergi kacang-kacangan",
-  "hasInsurance": true,
   "captchaToken": "P1_eyJ0eXAiOiJKV1QiLCJhbGciOi..."
 }
 ```
@@ -635,11 +631,8 @@ graph LR
       "email": "elena.j@example.com",
       "phoneNumber": "+1 (555) 019-2834",
       "nationality": "Indonesia",
-      "identityNumber": "3271020304950002",
       "bookingGroupId": "grp-01",
-      "roomPreference": "single",
-      "hasInsurance": true,
-      "totalAmount": 1250000,
+      "totalAmount": 1200000,
       "paymentStatus": "paid",
       "checkInStatus": "pending"
     }
@@ -662,12 +655,8 @@ graph LR
   "email": "bambang@example.com",
   "phoneNumber": "+6281122334455",
   "nationality": "Indonesia",
-  "identityNumber": "3171010203800005",
   "gender": "male",
-  "roomPreference": "shared",
-  "hasInsurance": true,
-  "insuranceFee": 50000,
-  "totalAmount": 900000,
+  "totalAmount": 850000,
   "paymentStatus": "paid",
   "healthNotes": "Sehat tidak ada pantangan"
 }

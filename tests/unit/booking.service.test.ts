@@ -114,13 +114,8 @@ describe('BookingService', () => {
       phone_number: '08123456789',
       country: 'Indonesia',
       date_of_birth: '1995-05-15',
-      hotel_preference: 'Standard Double',
-      passport_number: 'A12345678',
-      identity_type: 'passport',
-      room_type: 'twin',
       health_notes: 'None',
       preferred_language: 'English',
-      travel_insurance: true,
     }
 
     it('should throw ApiError (404) if trip and destination do not exist', async () => {
@@ -397,22 +392,16 @@ describe('BookingService', () => {
       phone_number: '08123456789',
       country: 'Indonesia',
       nationality: 'Indonesia',
-      identity_number: '3578012345678901',
-      identity_type: 'KTP',
       gender: 'female',
       created_at: new Date('2026-09-01T10:00:00.000Z'),
       updated_at: new Date('2026-09-01T10:30:00.000Z'),
-      has_insurance: true,
-      insurance_fee: new Prisma.Decimal(50000),
-      total_amount: new Prisma.Decimal(850000),
+      total_amount: new Prisma.Decimal(800000),
       payment_status: 'paid',
       check_in_status: 'checked_in',
       pickup_location: 'Hotel Santika Malang',
       pickup_latitude: new Prisma.Decimal('-7.962145'),
       pickup_longitude: new Prisma.Decimal('112.634125'),
       pickup_notes: 'Lobby',
-      room_preference: 'twin',
-      room_type: 'twin',
       user: {
         id: 'usr-1',
         email: 'jane@example.com',
@@ -467,7 +456,7 @@ describe('BookingService', () => {
       })
     })
 
-    it('should return itemized invoice details with PAID status and insurance fee', async () => {
+    it('should return itemized invoice details with PAID status', async () => {
       ;(prisma.participant.findFirst as jest.Mock).mockResolvedValue(mockFullParticipant)
 
       const result = await BookingService.getInvoice('TRV-INV99')
@@ -481,11 +470,9 @@ describe('BookingService', () => {
       expect(result.tripDetails.pickupLocation).toBe('Hotel Santika Malang')
       expect(result.tripDetails.driverName).toBe('Pak Supir')
       expect(result.pricing.basePrice).toBe(800000)
-      expect(result.pricing.insuranceFee).toBe(50000)
-      expect(result.pricing.totalAmount).toBe(850000)
-      expect(result.pricing.items).toHaveLength(2)
+      expect(result.pricing.totalAmount).toBe(800000)
+      expect(result.pricing.items).toHaveLength(1)
       expect(result.pricing.items[0].category).toBe('Trip Package')
-      expect(result.pricing.items[1].category).toBe('Add-on Insurance')
       expect(result.paymentDetails.midtransOrderId).toBe('TRIP-TRV-INV99')
       expect(result.verification.voucherQrCode).toContain('TRV-INV99')
     })

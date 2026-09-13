@@ -118,22 +118,13 @@ model Participant {
   country            String?
   nationality        String?
   date_of_birth      DateTime?
-  identity_number    String?
-  identity_type      String?
   gender             String?
-  hotel_preference   String?
-  room_preference    String?
-  passport_number    String?
-  room_type          String?
   health_notes       String?
   preferred_language String?
   pickup_location    String?
   pickup_latitude    Decimal? @db.Decimal(10, 7)
   pickup_longitude   Decimal? @db.Decimal(10, 7)
   pickup_notes       String?
-  travel_insurance   Boolean  @default(false)
-  has_insurance      Boolean  @default(false)
-  insurance_fee      Decimal? @db.Decimal(10, 2)
   total_amount       Decimal? @db.Decimal(12, 2)
   payment_status     String   @default("pending")
   check_in_status    String   @default("pending")

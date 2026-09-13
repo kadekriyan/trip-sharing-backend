@@ -23,17 +23,8 @@ export class ParticipantService {
     phoneNumber?: string
     country?: string
     nationality?: string
-    identityNumber?: string
-    identity_number?: string
     gender?: string
     date_of_birth?: Date | string
-    hotel_preference?: string
-    roomPreference?: string
-    room_preference?: string
-    hasInsurance?: boolean
-    has_insurance?: boolean
-    insuranceFee?: number
-    insurance_fee?: number
     totalAmount?: number
     total_amount?: number
     payment_status?: string
@@ -58,12 +49,7 @@ export class ParticipantService {
     const phoneNumber = data.phone_number || data.phoneNumber || ''
     const country = data.country || data.nationality || 'Indonesia'
     const nationality = data.nationality || data.country || 'Indonesia'
-    const identityNumber = data.identityNumber || data.identity_number || null
     const gender = data.gender || null
-    const roomPreference =
-      data.roomPreference || data.room_preference || data.hotel_preference || null
-    const hasInsurance = data.hasInsurance ?? data.has_insurance ?? false
-    const insuranceFee = data.insuranceFee ?? data.insurance_fee ?? 0
     const totalAmount = data.totalAmount ?? data.total_amount ?? 0
     const paymentStatus = data.payment_status || data.paymentStatus || 'paid'
     const healthNotes = data.healthNotes || data.health_notes || null
@@ -122,13 +108,8 @@ export class ParticipantService {
           phone_number: phoneNumber,
           country,
           nationality,
-          identity_number: identityNumber,
           gender,
           date_of_birth: data.date_of_birth ? new Date(data.date_of_birth) : new Date(),
-          room_preference: roomPreference,
-          hotel_preference: roomPreference,
-          has_insurance: hasInsurance,
-          insurance_fee: insuranceFee ? new Prisma.Decimal(insuranceFee.toString()) : null,
           total_amount: totalAmount ? new Prisma.Decimal(totalAmount.toString()) : null,
           payment_status: paymentStatus,
           health_notes: healthNotes,
@@ -250,17 +231,9 @@ export class ParticipantService {
       phoneNumber?: string
       country?: string
       nationality?: string
-      identity_number?: string
-      identityNumber?: string
-      identity_type?: string
-      identityType?: string
       gender?: string
       date_of_birth?: Date | string
       dateOfBirth?: Date | string
-      room_preference?: string
-      roomPreference?: string
-      hotel_preference?: string
-      hotelPreference?: string
       payment_status?: string
       paymentStatus?: string
       checked_in?: boolean
@@ -269,10 +242,6 @@ export class ParticipantService {
       checkInStatus?: string
       health_notes?: string
       healthNotes?: string
-      passport_number?: string
-      passportNumber?: string
-      room_type?: string
-      roomType?: string
       preferred_language?: string
       preferredLanguage?: string
       pickup_location?: string
@@ -283,12 +252,6 @@ export class ParticipantService {
       pickupLongitude?: number
       pickup_notes?: string
       pickupNotes?: string
-      travel_insurance?: boolean
-      travelInsurance?: boolean
-      has_insurance?: boolean
-      hasInsurance?: boolean
-      insurance_fee?: number | string
-      insuranceFee?: number | string
       total_amount?: number | string
       totalAmount?: number | string
       [key: string]: unknown
@@ -315,24 +278,12 @@ export class ParticipantService {
     if (data.nationality !== undefined) {
       updateData.nationality = data.nationality
     }
-    if (data.identity_number !== undefined || data.identityNumber !== undefined) {
-      updateData.identity_number = data.identity_number ?? data.identityNumber
-    }
-    if (data.identity_type !== undefined || data.identityType !== undefined) {
-      updateData.identity_type = data.identity_type ?? data.identityType
-    }
     if (data.gender !== undefined) {
       updateData.gender = data.gender
     }
     if (data.date_of_birth !== undefined || data.dateOfBirth !== undefined) {
       const dob = data.date_of_birth ?? data.dateOfBirth
       updateData.date_of_birth = dob ? new Date(dob as string | number | Date) : null
-    }
-    if (data.room_preference !== undefined || data.roomPreference !== undefined) {
-      updateData.room_preference = data.room_preference ?? data.roomPreference
-    }
-    if (data.hotel_preference !== undefined || data.hotelPreference !== undefined) {
-      updateData.hotel_preference = data.hotel_preference ?? data.hotelPreference
     }
     if (data.payment_status !== undefined || data.paymentStatus !== undefined) {
       updateData.payment_status = data.payment_status ?? data.paymentStatus
@@ -345,12 +296,6 @@ export class ParticipantService {
     }
     if (data.health_notes !== undefined || data.healthNotes !== undefined) {
       updateData.health_notes = data.health_notes ?? data.healthNotes
-    }
-    if (data.passport_number !== undefined || data.passportNumber !== undefined) {
-      updateData.passport_number = data.passport_number ?? data.passportNumber
-    }
-    if (data.room_type !== undefined || data.roomType !== undefined) {
-      updateData.room_type = data.room_type ?? data.roomType
     }
     if (data.preferred_language !== undefined || data.preferredLanguage !== undefined) {
       updateData.preferred_language = data.preferred_language ?? data.preferredLanguage
@@ -370,17 +315,6 @@ export class ParticipantService {
     }
     if (data.pickup_notes !== undefined || data.pickupNotes !== undefined) {
       updateData.pickup_notes = data.pickup_notes ?? data.pickupNotes
-    }
-    if (data.travel_insurance !== undefined || data.travelInsurance !== undefined) {
-      updateData.travel_insurance = data.travel_insurance ?? data.travelInsurance
-    }
-    if (data.has_insurance !== undefined || data.hasInsurance !== undefined) {
-      updateData.has_insurance = data.has_insurance ?? data.hasInsurance
-    }
-    if (data.insurance_fee !== undefined || data.insuranceFee !== undefined) {
-      const fee = data.insurance_fee ?? data.insuranceFee
-      updateData.insurance_fee =
-        fee !== null && fee !== undefined ? new Prisma.Decimal(fee.toString()) : null
     }
     if (data.total_amount !== undefined || data.totalAmount !== undefined) {
       const total = data.total_amount ?? data.totalAmount
