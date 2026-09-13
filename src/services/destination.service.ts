@@ -44,7 +44,37 @@ function formatDestination(dest: Record<string, unknown>) {
 }
 
 export class DestinationService {
-  static async create(data: {
+  static async generateUniqueSlug(baseText: string, currentId?: string): Promise<string> {
+    const rawSlug =
+      baseText
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'destination'
+
+    let slug = rawSlug
+    let counter = 1
+    let isUnique = false
+
+    while (!isUnique) {
+      const existing = await prisma.destination.findUnique({
+        where: { slug },
+        select: { id: true },
+      })
+
+      if (!existing || (currentId && existing.id === currentId)) {
+        isUnique = true
+        return slug
+      }
+
+      slug = `${rawSlug}-${counter}`
+      counter++
+    }
+
+    return slug
+  }
+
+  static async createDestination(data: {
     name?: string
     title?: string
     slug?: string
@@ -77,12 +107,8 @@ export class DestinationService {
     is_active?: boolean
   }) {
     const name = data.name || data.title || 'Untitled Destination'
-    const slug =
-      data.slug ||
-      name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
+    const candidateSlug = (data.slug as string) || name
+    const slug = await this.generateUniqueSlug(candidateSlug)
     const price = data.price_per_person ?? data.pricePerPax ?? 0
     const coverImage = data.cover_image || data.coverImage || data.image_url || null
 
@@ -116,6 +142,8 @@ export class DestinationService {
 
     return formatDestination(created as unknown as Record<string, unknown>)
   }
+
+  static create = DestinationService.createDestination
 
   static async list(filters: DestinationQueryFilters = {}) {
     const page = filters.page && filters.page > 0 ? Number(filters.page) : 1
@@ -295,15 +323,13 @@ export class DestinationService {
       const name = (data.name || data.title) as string
       updateData.name = name
       if (!existing.slug || data.slug) {
-        updateData.slug =
-          (data.slug as string) ||
-          name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '')
+        const candidate = (data.slug as string) || name
+        updateData.slug = await this.generateUniqueSlug(candidate, id)
       }
     }
-    if (data.slug !== undefined) updateData.slug = data.slug as string
+    if (data.slug !== undefined && !updateData.slug) {
+      updateData.slug = await this.generateUniqueSlug(data.slug as string, id)
+    }
     if (data.tagline !== undefined) updateData.tagline = data.tagline as string
     if (data.description !== undefined) updateData.description = data.description as string
     if (data.location !== undefined) updateData.location = data.location as string

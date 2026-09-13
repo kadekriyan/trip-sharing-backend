@@ -208,4 +208,54 @@ describe('DestinationService', () => {
       await expect(DestinationService.delete('dest-1')).resolves.not.toThrow()
     })
   })
+
+  describe('generateUniqueSlug & createDestination', () => {
+    it('should sanitize special characters and uppercase into URL friendly slug', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(null)
+      const slug = await DestinationService.generateUniqueSlug('Promo Bromo & Ijen Tour 2026!')
+      expect(slug).toBe('promo-bromo-ijen-tour-2026')
+    })
+
+    it('should increment slug counter if collision exists', async () => {
+      ;(prisma.destination.findUnique as jest.Mock)
+        .mockResolvedValueOnce({ id: 'existing-1' }) // first try 'bromo-sunrise'
+        .mockResolvedValueOnce({ id: 'existing-2' }) // second try 'bromo-sunrise-1'
+        .mockResolvedValueOnce(null) // third try 'bromo-sunrise-2'
+
+      const slug = await DestinationService.generateUniqueSlug('Bromo Sunrise')
+      expect(slug).toBe('bromo-sunrise-2')
+    })
+
+    it('should allow same slug if matching currentId when updating', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue({ id: 'dest-same' })
+      const slug = await DestinationService.generateUniqueSlug('Bromo Sunrise', 'dest-same')
+      expect(slug).toBe('bromo-sunrise')
+    })
+
+    it('should create destination with sanitized and unique slug', async () => {
+      ;(prisma.destination.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.destination.create as jest.Mock).mockResolvedValue({
+        id: 'dest-created',
+        name: 'Labuan Bajo Trip',
+        slug: 'labuan-bajo-trip',
+        price_per_person: 2500000,
+      })
+
+      const result = await DestinationService.createDestination({
+        title: 'Labuan Bajo Trip',
+        pricePerPax: 2500000,
+      })
+
+      expect(prisma.destination.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            slug: 'labuan-bajo-trip',
+            name: 'Labuan Bajo Trip',
+          }),
+        })
+      )
+      expect(result.id).toBe('dest-created')
+    })
+  })
 })
+
