@@ -84,7 +84,6 @@ export class AuthService {
       email: user.email,
       phoneNumber: user.phone,
       nationality: latestParticipant?.nationality || latestParticipant?.country || 'Indonesia',
-      identityNumber: latestParticipant?.identity_number || null,
       role: user.role === 'participant' ? 'traveler' : user.role,
       createdAt: user.created_at,
     }

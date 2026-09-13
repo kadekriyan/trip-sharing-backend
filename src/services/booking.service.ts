@@ -65,18 +65,7 @@ export class BookingService {
       nationality?: string
       date_of_birth?: Date | string
       dateOfBirth?: Date | string
-      identity_number?: string
-      identityNumber?: string
       gender?: string
-      room_preference?: string
-      roomPreference?: string
-      hotel_preference?: string
-      passport_number?: string
-      passportNumber?: string
-      identity_type?: string
-      identityType?: string
-      room_type?: string
-      roomType?: string
       health_notes?: string
       healthNotes?: string
       preferred_language?: string
@@ -89,8 +78,6 @@ export class BookingService {
       pickupLongitude?: number
       pickup_notes?: string
       pickupNotes?: string
-      travel_insurance?: boolean
-      hasInsurance?: boolean
     }
   ) {
     const rawTripId = bookingData.trip_id || bookingData.tripId
@@ -203,15 +190,8 @@ export class BookingService {
       bookingData.phone_number || bookingData.phoneNumber || bookingData.phone || ''
     const country = bookingData.country || bookingData.nationality || 'Indonesia'
     const nationality = bookingData.nationality || bookingData.country || 'Indonesia'
-    const identityNumber = bookingData.identityNumber || bookingData.identity_number || null
     const gender = bookingData.gender || null
-    const roomPreference =
-      bookingData.roomPreference ||
-      bookingData.room_preference ||
-      bookingData.hotel_preference ||
-      null
     const healthNotes = bookingData.healthNotes || bookingData.health_notes || null
-    const hasInsurance = bookingData.hasInsurance ?? bookingData.travel_insurance ?? false
     const userEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
 
@@ -220,9 +200,7 @@ export class BookingService {
         ? Number(customPrice)
         : Number(trip.destination.price_per_person)
 
-    const basePrice = pricePerPerson
-    const insuranceFee = hasInsurance ? 50000 : 0
-    const totalAmount = basePrice + insuranceFee
+    const totalAmount = pricePerPerson
 
     const randomDigits = Math.floor(1000 + Math.random() * 9000)
     const bookingCode = `TRV-${randomDigits}`
@@ -256,17 +234,11 @@ export class BookingService {
           phone_number: phoneNumber,
           country,
           nationality,
-          identity_number: identityNumber,
           gender,
           date_of_birth:
             bookingData.date_of_birth || bookingData.dateOfBirth
               ? new Date(bookingData.date_of_birth || bookingData.dateOfBirth!)
               : new Date(),
-          room_preference: roomPreference,
-          hotel_preference: roomPreference,
-          passport_number: bookingData.passport_number || bookingData.passportNumber,
-          identity_type: bookingData.identity_type || bookingData.identityType,
-          room_type: bookingData.room_type || bookingData.roomType,
           health_notes: healthNotes,
           preferred_language: bookingData.preferred_language || bookingData.preferredLanguage,
           pickup_location: bookingData.pickup_location || bookingData.pickupLocation || null,
@@ -283,9 +255,6 @@ export class BookingService {
               ? new Prisma.Decimal(bookingData.pickupLongitude.toString())
               : null,
           pickup_notes: bookingData.pickup_notes || bookingData.pickupNotes || null,
-          travel_insurance: hasInsurance,
-          has_insurance: hasInsurance,
-          insurance_fee: new Prisma.Decimal(insuranceFee.toString()),
           total_amount: new Prisma.Decimal(totalAmount.toString()),
           payment_status: 'pending',
           check_in_status: 'pending',
@@ -489,11 +458,10 @@ export class BookingService {
     const dateStr = participant.created_at.toISOString().slice(0, 10).replace(/-/g, '')
     const invoiceNumber = `INV-${dateStr}-${bookingCode}`
 
-    const insuranceFee = participant.insurance_fee ? Number(participant.insurance_fee) : participant.has_insurance ? 50000 : 0
     const totalAmount = participant.total_amount
       ? Number(participant.total_amount)
-      : Number(group.price_per_person) + insuranceFee
-    const basePrice = Math.max(0, totalAmount - insuranceFee)
+      : Number(group.price_per_person)
+    const basePrice = totalAmount
 
     const invoiceStatus =
       participant.payment_status === 'paid'
@@ -540,17 +508,6 @@ export class BookingService {
       },
     ]
 
-    if (insuranceFee > 0 || participant.has_insurance || participant.travel_insurance) {
-      items.push({
-        itemNumber: 2,
-        description: 'Premi Asuransi Perjalanan (Travel Insurance Protection & Emergency Assistance)',
-        category: 'Add-on Insurance',
-        quantity: 1,
-        unitPrice: insuranceFee || 50000,
-        amount: insuranceFee || 50000,
-      })
-    }
-
     const durationDays = dest.duration_days || 1
     const durationNights = dest.duration_nights || Math.max(0, durationDays - 1)
     const durationText = `${durationDays} Hari ${durationNights > 0 ? `${durationNights} Malam` : 'Day Trip'}`
@@ -583,8 +540,6 @@ export class BookingService {
         fullName: participant.full_name,
         email: participant.user?.email || `${participant.phone_number}@booking.local`,
         phoneNumber: participant.phone_number,
-        identityNumber: participant.identity_number || '-',
-        identityType: participant.identity_type || 'KTP/Passport',
         country: participant.country || 'Indonesia',
         nationality: participant.nationality || 'Indonesia',
         gender: participant.gender || '-',
@@ -602,8 +557,6 @@ export class BookingService {
         pickupLatitude: participant.pickup_latitude ? Number(participant.pickup_latitude) : null,
         pickupLongitude: participant.pickup_longitude ? Number(participant.pickup_longitude) : null,
         pickupNotes: participant.pickup_notes || 'Tidak ada catatan khusus',
-        roomPreference: participant.room_preference || participant.hotel_preference || 'Standard Shared',
-        roomType: participant.room_type || 'Standard',
         groupNumber: group.group_number,
         vehicleModel: assignedDriver.vehicleModel,
         vehiclePlateNumber: assignedDriver.plateNumber,
@@ -614,7 +567,6 @@ export class BookingService {
         currency: 'IDR',
         items,
         basePrice,
-        insuranceFee,
         adminFee: 0,
         taxAmount: 0,
         discountAmount: 0,
