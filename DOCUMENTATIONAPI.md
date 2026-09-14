@@ -1087,6 +1087,166 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
 
 ---
 
+### 10.3 Tambah Armada Baru (`POST /api/vehicles` atau `POST /api/armada`)
+Mendaftarkan armada baru ke dalam sistem, termasuk penentuan jumlah kursi/seat (`capacity`).
+
+- **Method**: `POST`
+- **Path**: `/api/vehicles` *(atau `/api/armada`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Parameter Body
+| Parameter | Tipe | Wajib | Keterangan |
+| :--- | :--- | :--- | :--- |
+| `name` | `string` | Ya | Nama kendaraan/armada (contoh: `"Toyota HiAce Premio Luxury"`) |
+| `plateNumber` / `plate_number` | `string` | Ya | Nomor plat polisi unik (contoh: `"N 1234 XY"`) |
+| `capacity` | `number (integer)` | Opsional | **Jumlah kursi / seat armada** (range: `1`–`60`, default: `6`) |
+| `vehicleType` / `vehicle_type` | `string` | Opsional | Tipe kendaraan (contoh: `"Minivan"`, `"SUV"`, `"Bus"`, default: `"Minivan"`) |
+| `transmission` | `string` | Opsional | Transmisi (contoh: `"Manual"`, `"Automatic"`) |
+| `fuelType` / `fuel_type` | `string` | Opsional | Jenis bahan bakar (contoh: `"Diesel"`, `"Bensin"`) |
+| `facility` | `array<string>` | Opsional | Daftar fasilitas (contoh: `["AC", "Audio/Radio", "Reclining Seat"]`) |
+| `coverImage` / `cover_image` | `string (URL)` | Opsional | URL foto armada |
+| `status` | `string` | Opsional | Status (`"active"`, `"maintenance"`, `"inactive"`) |
+| `isAvailable` / `is_available` | `boolean` | Opsional | Status ketersediaan (`true`/`false`) |
+| `driverId` / `driver_id` | `string (UUID)` | Opsional | ID Driver yang langsung dipasangkan (opsional) |
+
+#### Request Body
+```json
+{
+  "name": "Isuzu Elf Long Giga",
+  "plateNumber": "DK 7890 AB",
+  "capacity": 14,
+  "vehicleType": "Minibus",
+  "transmission": "Manual",
+  "fuelType": "Diesel",
+  "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Karaoke Mic"],
+  "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+  "status": "active",
+  "isAvailable": true
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Vehicle created successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "name": "Isuzu Elf Long Giga",
+    "plateNumber": "DK 7890 AB",
+    "capacity": 14,
+    "vehicleType": "Minibus",
+    "transmission": "Manual",
+    "fuelType": "Diesel",
+    "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Karaoke Mic"],
+    "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+    "status": "active",
+    "isAvailable": true,
+    "driverId": null,
+    "driver": null,
+    "createdAt": "2026-09-14T08:00:00.000Z",
+    "updatedAt": "2026-09-14T08:00:00.000Z"
+  },
+  "timestamp": "2026-09-14T08:00:00.000Z"
+}
+```
+
+---
+
+### 10.4 Edit Armada & Ubah Jumlah Kursi (`PATCH` atau `PUT /api/vehicles/:id`)
+Mengubah data armada, termasuk memperbarui kapasitas seat (`capacity`), fasilitas, tipe, nama, plat nomor, atau status armada.
+
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body (Contoh Ubah Kapasitas Seat Menjadi 12)
+```json
+{
+  "capacity": 12,
+  "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "WiFi"],
+  "status": "active"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicle updated successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "name": "Isuzu Elf Long Giga",
+    "plateNumber": "DK 7890 AB",
+    "capacity": 12,
+    "vehicleType": "Minibus",
+    "status": "active",
+    "isAvailable": true,
+    "updatedAt": "2026-09-14T08:15:00.000Z"
+  },
+  "timestamp": "2026-09-14T08:15:00.000Z"
+}
+```
+
+---
+
+### 10.5 Pasang / Ubah Driver Armada (`POST /api/vehicles/:id/assign-driver`)
+Memasangkan driver ke armada tertentu (atau melepas driver dengan mengirimkan `driverId: null`).
+
+- **Method**: `POST` *(atau `PATCH /api/vehicles/:id/driver`)*
+- **Path**: `/api/vehicles/:id/assign-driver`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "driverId": "d0912384-1234-4bc1-9022-771199aabb01"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Driver assigned to vehicle successfully",
+  "data": {
+    "id": "veh-7711-4bc1-9022-882299aabb01",
+    "name": "Toyota HiAce Premio Luxury",
+    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+    "driver": {
+      "id": "d0912384-1234-4bc1-9022-771199aabb01",
+      "fullName": "Pak Joko Santoso",
+      "phoneNumber": "+6281233445566"
+    }
+  },
+  "timestamp": "2026-09-14T08:10:00.000Z"
+}
+```
+
+---
+
+### 10.6 Hapus Armada (`DELETE /api/vehicles/:id`)
+Menghapus armada dari sistem. Sistem akan otomatis menolak penghapusan jika armada masih ditugaskan pada grup perjalanan yang aktif (`open`, `waiting`, `confirmed`).
+
+- **Method**: `DELETE`
+- **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicle deleted successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "deleted": true
+  },
+  "timestamp": "2026-09-14T08:20:00.000Z"
+}
+```
+
+---
+
 ## 11. Partisipan Traveler (`/api/participants`)
 
 ### 11.1 Data Partisipan Saya
