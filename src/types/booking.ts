@@ -11,6 +11,7 @@ export interface CreateBookingInput {
   country?: string
   nationality?: string
   date_of_birth?: string | Date
+  dateOfBirth?: string | Date
   gender?: string
   health_notes?: string
   healthNotes?: string

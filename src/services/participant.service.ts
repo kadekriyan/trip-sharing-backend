@@ -25,6 +25,7 @@ export class ParticipantService {
     nationality?: string
     gender?: string
     date_of_birth?: Date | string
+    dateOfBirth?: Date | string
     totalAmount?: number
     total_amount?: number
     payment_status?: string
@@ -109,7 +110,10 @@ export class ParticipantService {
           country,
           nationality,
           gender,
-          date_of_birth: data.date_of_birth ? new Date(data.date_of_birth) : new Date(),
+          date_of_birth:
+            data.date_of_birth || data.dateOfBirth
+              ? new Date(data.date_of_birth || data.dateOfBirth!)
+              : null,
           total_amount: totalAmount ? new Prisma.Decimal(totalAmount.toString()) : null,
           payment_status: paymentStatus,
           health_notes: healthNotes,

@@ -414,6 +414,24 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 - **Auth**: Opsional (`Bearer <token>` jika login)
 - **Bot Protection**: Menyertakan `captchaToken` atau `g-recaptcha-response` (Google reCAPTCHA v2/v3 / fallback hCaptcha)
 
+#### Parameter Body & Validasi Keamanan Input Traveler
+| Parameter | Tipe | Wajib | Keterangan & Validasi Keamanan |
+| :--- | :--- | :--- | :--- |
+| `tripId` / `destinationId` | `string` | Ya (salah satu) | UUID Trip atau Destinasi (mendukung format id maupun slug) |
+| `fullName` / `full_name` | `string` | Ya | Nama lengkap traveler (min: 2, max: 100 karakter, auto-trimmed) |
+| `phoneNumber` / `phone_number` | `string` | Ya | Nomor telepon/WhatsApp aktif (7–20 karakter, regex format aman `/^[+0-9\s\-()]+$/`) |
+| `email` | `string` | Opsional | Alamat email traveler (format email valid RFC, max: 255) |
+| `dateOfBirth` / `date_of_birth` | `string (ISO)` | Opsional | Tanggal lahir format `YYYY-MM-DD` (tidak wajib diisi, `<= now`, `>= 1900-01-01`) |
+| `gender` | `string` | Opsional | Jenis kelamin: `'male'`, `'female'`, atau `'other'` |
+| `nationality` / `country` | `string` | Opsional | Kewarganegaraan / negara asal (max: 100 karakter) |
+| `healthNotes` / `health_notes` | `string` | Opsional | Catatan kesehatan khusus atau riwayat alergi (max: 1000 karakter) |
+| `preferredLanguage` | `string` | Opsional | Bahasa pengantar pilihan (contoh: `'id'`, `'en'`) |
+| `pickupLocation` | `string` | Opsional | Titik penjemputan spesifik (max: 255 karakter) |
+| `pickupLatitude` | `number` | Opsional | Koordinat latitude jemput (range: `-90` s.d `90`) |
+| `pickupLongitude` | `number` | Opsional | Koordinat longitude jemput (range: `-180` s.d `180`) |
+| `pickupNotes` | `string` | Opsional | Instruksi penjemputan (max: 1000 karakter) |
+| `captchaToken` | `string` | Opsional | Token bot verification reCAPTCHA / hCaptcha |
+
 #### Request Body
 ```json
 {
@@ -421,6 +439,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
   "fullName": "Siti Rahmawati",
   "email": "siti.rahma@example.com",
   "phoneNumber": "+6281987654321",
+  "dateOfBirth": "1998-07-20",
   "nationality": "Indonesia",
   "gender": "female",
   "healthNotes": "Alergi seafood ringan",
@@ -583,6 +602,7 @@ Authorization: Bearer <jwt_access_token>
       "phoneNumber": "+6281987654321",
       "country": "Indonesia",
       "nationality": "Indonesia",
+      "dateOfBirth": "1998-07-20",
       "gender": "female"
     },
     "tripDetails": {

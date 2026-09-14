@@ -238,7 +238,7 @@ export class BookingService {
           date_of_birth:
             bookingData.date_of_birth || bookingData.dateOfBirth
               ? new Date(bookingData.date_of_birth || bookingData.dateOfBirth!)
-              : new Date(),
+              : null,
           health_notes: healthNotes,
           preferred_language: bookingData.preferred_language || bookingData.preferredLanguage,
           pickup_location: bookingData.pickup_location || bookingData.pickupLocation || null,
@@ -543,6 +543,7 @@ export class BookingService {
         country: participant.country || 'Indonesia',
         nationality: participant.nationality || 'Indonesia',
         gender: participant.gender || '-',
+        dateOfBirth: participant.date_of_birth ? participant.date_of_birth.toISOString().slice(0, 10) : null,
       },
       tripDetails: {
         destinationId: dest.id,

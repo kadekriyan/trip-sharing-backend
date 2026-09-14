@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { BookingService } from '../../src/services/booking.service'
 import { prisma } from '../../src/config/database'
 import { CreateBookingInput } from '../../src/types/booking'
+import { bookingValidator } from '../../src/validators/booking.validator'
 
 jest.mock('../../src/config/database', () => ({
   prisma: {
@@ -393,6 +394,7 @@ describe('BookingService', () => {
       country: 'Indonesia',
       nationality: 'Indonesia',
       gender: 'female',
+      date_of_birth: new Date('1995-05-15T00:00:00.000Z'),
       created_at: new Date('2026-09-01T10:00:00.000Z'),
       updated_at: new Date('2026-09-01T10:30:00.000Z'),
       total_amount: new Prisma.Decimal(800000),
@@ -456,7 +458,7 @@ describe('BookingService', () => {
       })
     })
 
-    it('should return itemized invoice details with PAID status', async () => {
+    it('should return itemized invoice details with PAID status and formatted dateOfBirth', async () => {
       ;(prisma.participant.findFirst as jest.Mock).mockResolvedValue(mockFullParticipant)
 
       const result = await BookingService.getInvoice('TRV-INV99')
@@ -466,6 +468,7 @@ describe('BookingService', () => {
       expect(result.invoice.bookingCode).toBe('TRV-INV99')
       expect(result.customer.fullName).toBe('Jane Traveler')
       expect(result.customer.email).toBe('jane@example.com')
+      expect(result.customer.dateOfBirth).toBe('1995-05-15')
       expect(result.tripDetails.destinationName).toBe('Bromo Sunrise Tour')
       expect(result.tripDetails.pickupLocation).toBe('Hotel Santika Malang')
       expect(result.tripDetails.driverName).toBe('Pak Supir')
@@ -490,6 +493,75 @@ describe('BookingService', () => {
         statusCode: 403,
         message: 'Unauthorized to view this invoice',
       })
+    })
+  })
+
+  describe('bookingValidator (Security & Input Hardening)', () => {
+    it('should validate valid booking payload with optional dateOfBirth', () => {
+      const validPayload = {
+        tripId: '3a09e112-9c44-48f1-9011-8a9d12340001',
+        fullName: '  Siti Rahmawati  ',
+        phoneNumber: '+6281987654321',
+        email: 'siti@example.com',
+        dateOfBirth: '1998-07-20',
+        gender: 'female',
+        pickupLatitude: -7.962145,
+        pickupLongitude: 112.634125,
+      }
+
+      const { error, value } = bookingValidator.create.validate(validPayload)
+      expect(error).toBeUndefined()
+      expect(value.fullName).toBe('Siti Rahmawati')
+      expect(value.phoneNumber).toBe('+6281987654321')
+    })
+
+    it('should allow omitting dateOfBirth or passing empty / null', () => {
+      const payloadWithoutDob = {
+        tripId: '3a09e112-9c44-48f1-9011-8a9d12340001',
+        fullName: 'Budi Santoso',
+        phoneNumber: '081234567890',
+        dateOfBirth: null,
+      }
+
+      const { error } = bookingValidator.create.validate(payloadWithoutDob)
+      expect(error).toBeUndefined()
+    })
+
+    it('should reject future date of birth', () => {
+      const futurePayload = {
+        tripId: '3a09e112-9c44-48f1-9011-8a9d12340001',
+        fullName: 'Time Traveler',
+        phoneNumber: '081234567890',
+        dateOfBirth: '2099-01-01',
+      }
+
+      const { error } = bookingValidator.create.validate(futurePayload)
+      expect(error).toBeDefined()
+    })
+
+    it('should reject invalid phone number containing malicious characters', () => {
+      const maliciousPayload = {
+        tripId: '3a09e112-9c44-48f1-9011-8a9d12340001',
+        fullName: 'Attacker',
+        phoneNumber: '08123;DROP',
+      }
+
+      const { error } = bookingValidator.create.validate(maliciousPayload)
+      expect(error).toBeDefined()
+      expect(error?.details[0].message).toContain('Phone number format is invalid')
+    })
+
+    it('should reject out of range GPS coordinates', () => {
+      const invalidGpsPayload = {
+        tripId: '3a09e112-9c44-48f1-9011-8a9d12340001',
+        fullName: 'GPS Tester',
+        phoneNumber: '081234567890',
+        pickupLatitude: 95.5,
+        pickupLongitude: 190.0,
+      }
+
+      const { error } = bookingValidator.create.validate(invalidGpsPayload)
+      expect(error).toBeDefined()
     })
   })
 })

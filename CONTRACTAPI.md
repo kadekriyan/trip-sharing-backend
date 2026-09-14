@@ -366,6 +366,7 @@ graph LR
   "fullName": "Elena Jenkins",
   "email": "elena.j@example.com",
   "phoneNumber": "+6281299887766",
+  "dateOfBirth": "1998-07-20",
   "nationality": "Indonesia",
   "gender": "female",
   "healthNotes": "Alergi kacang-kacangan",
