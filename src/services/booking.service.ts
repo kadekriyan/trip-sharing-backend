@@ -323,12 +323,23 @@ export class BookingService {
       include: {
         booking_group: {
           include: {
+            vehicle: true,
+            driver: {
+              include: {
+                user: true,
+                vehicle: true,
+              },
+            },
             trip: {
               include: {
                 destination: true,
                 guide: {
                   include: {
-                    driver: true,
+                    driver: {
+                      include: {
+                        vehicle: true,
+                      },
+                    },
                   },
                 },
               },
@@ -344,6 +355,8 @@ export class BookingService {
       const trip = p.booking_group.trip
       const dest = trip.destination
       const bookingCode = p.booking_code || `TRV-${p.id}`
+      const groupVehicle = p.booking_group.vehicle || p.booking_group.driver?.vehicle || trip.guide?.driver?.vehicle || null
+      const driverObj = p.booking_group.driver || trip.guide?.driver || null
 
       return {
         id: p.id,
@@ -364,50 +377,63 @@ export class BookingService {
           groupNumber: p.booking_group.group_number,
           capacity: p.booking_group.max_participants,
           currentParticipants: p.booking_group.current_participants,
-          driver: trip.guide?.driver
+          driver: driverObj
             ? {
-                fullName: trip.guide.name,
-                phoneNumber: trip.guide.phone || '',
-                vehicleModel: trip.guide.driver.vehicle_type,
-                plateNumber: trip.guide.driver.vehicle_plat,
+                fullName: p.booking_group.driver?.user?.name || trip.guide?.name || 'Driver',
+                phoneNumber: p.booking_group.driver?.user?.phone || trip.guide?.phone || '',
+                vehicleModel: groupVehicle?.name || groupVehicle?.vehicle_type || 'Toyota HiAce Premio',
+                plateNumber: groupVehicle?.plate_number || 'N 1234 XY',
+                vehicle: groupVehicle
+                  ? {
+                      id: groupVehicle.id,
+                      name: groupVehicle.name,
+                      plateNumber: groupVehicle.plate_number,
+                      vehicleType: groupVehicle.vehicle_type,
+                    }
+                  : null,
               }
             : {
                 fullName: 'Budi Santoso',
                 phoneNumber: '+6281233445566',
                 vehicleModel: 'Toyota HiAce Commuter',
                 plateNumber: 'N 1234 XY',
+                vehicle: null,
               },
+          vehicle: groupVehicle
+            ? {
+                id: groupVehicle.id,
+                name: groupVehicle.name,
+                plateNumber: groupVehicle.plate_number,
+                vehicleType: groupVehicle.vehicle_type,
+                capacity: groupVehicle.capacity,
+                transmission: groupVehicle.transmission,
+                fuelType: groupVehicle.fuel_type,
+                facility: groupVehicle.facility,
+                coverImage: groupVehicle.cover_image,
+                status: groupVehicle.status,
+                isAvailable: groupVehicle.is_available,
+              }
+            : null,
         },
         totalAmount: p.total_amount
           ? Number(p.total_amount)
           : Number(p.booking_group.price_per_person),
         paymentStatus: p.payment_status,
         checkInStatus: p.check_in_status || (p.checked_in ? 'checked_in' : 'pending'),
-        voucherQrCode: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${bookingCode}`,
+        createdAt: p.created_at,
       }
     })
   }
 
-  static async getInvoice(
-    identifier: string,
-    options?: {
-      userId?: string
-      email?: string
-      isAdmin?: boolean
-    }
-  ) {
-    const cleanIdVal = cleanId(identifier)
+  static async getInvoice(identifier: string, options?: { userId?: string; email?: string; isAdmin?: boolean }) {
+    const isCleanId = identifier.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) || identifier.match(/^[a-z0-9_-]{10,}$/i)
 
     const participant = await prisma.participant.findFirst({
       where: {
         OR: [
-          { id: cleanIdVal },
-          { id: identifier },
           { booking_code: identifier },
           { booking_code: identifier.toUpperCase() },
-          { payment: { id: cleanIdVal } },
-          { payment: { midtrans_order_id: identifier } },
-          { payment: { midtrans_transaction_id: identifier } },
+          ...(isCleanId ? [{ id: cleanId(identifier) }] : []),
         ],
       },
       include: {
@@ -415,9 +441,11 @@ export class BookingService {
         payment: true,
         booking_group: {
           include: {
+            vehicle: true,
             driver: {
               include: {
                 user: true,
+                vehicle: true,
               },
             },
             trip: {
@@ -425,7 +453,11 @@ export class BookingService {
                 destination: true,
                 guide: {
                   include: {
-                    driver: true,
+                    driver: {
+                      include: {
+                        vehicle: true,
+                      },
+                    },
                   },
                 },
               },
@@ -475,26 +507,45 @@ export class BookingService {
     const paidAt =
       payment?.completion_time || (participant.payment_status === 'paid' ? participant.updated_at : null)
 
+    const resolvedVehicle = group.vehicle || group.driver?.vehicle || trip.guide?.driver?.vehicle || null
+
     const assignedDriver =
       group.driver?.user?.name
         ? {
             fullName: group.driver.user.name,
             phoneNumber: group.driver.user.phone || '',
-            vehicleModel: group.driver.vehicle_type,
-            plateNumber: group.driver.vehicle_plat,
+            vehicleModel: resolvedVehicle?.name || resolvedVehicle?.vehicle_type || 'Toyota HiAce Premio',
+            plateNumber: resolvedVehicle?.plate_number || 'N 1234 XY',
+            vehicle: resolvedVehicle
+              ? {
+                  id: resolvedVehicle.id,
+                  name: resolvedVehicle.name,
+                  plateNumber: resolvedVehicle.plate_number,
+                  vehicleType: resolvedVehicle.vehicle_type,
+                }
+              : null,
           }
         : trip.guide?.driver
         ? {
             fullName: trip.guide.name,
             phoneNumber: trip.guide.phone || '',
-            vehicleModel: trip.guide.driver.vehicle_type,
-            plateNumber: trip.guide.driver.vehicle_plat,
+            vehicleModel: resolvedVehicle?.name || resolvedVehicle?.vehicle_type || 'Toyota HiAce Premio',
+            plateNumber: resolvedVehicle?.plate_number || 'N 1234 XY',
+            vehicle: resolvedVehicle
+              ? {
+                  id: resolvedVehicle.id,
+                  name: resolvedVehicle.name,
+                  plateNumber: resolvedVehicle.plate_number,
+                  vehicleType: resolvedVehicle.vehicle_type,
+                }
+              : null,
           }
         : {
             fullName: 'Budi Santoso',
             phoneNumber: '+6281233445566',
             vehicleModel: 'Toyota HiAce Commuter',
             plateNumber: 'N 1234 XY',
+            vehicle: null,
           }
 
     const items = [

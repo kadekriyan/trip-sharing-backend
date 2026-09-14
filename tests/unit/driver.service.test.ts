@@ -6,10 +6,17 @@ jest.mock('../../src/config/database', () => ({
   prisma: {
     driver: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    vehicle: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -40,11 +47,34 @@ describe('DriverService', () => {
         id: 'drv-1',
         user_id: 'usr-1',
         license_number: 'SIM-A-1234',
-        vehicle_type: 'Toyota HiAce Premio',
-        vehicle_plat: 'N 1234 XY',
         experience_years: 5,
         is_available: true,
         user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
+        vehicle: null,
+      })
+      ;(prisma.vehicle.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.vehicle.create as jest.Mock).mockResolvedValue({
+        id: 'veh-1',
+        name: 'Toyota HiAce Premio',
+        plate_number: 'N 1234 XY',
+        driver_id: 'drv-1',
+      })
+      ;(prisma.driver.findUnique as jest.Mock).mockResolvedValue({
+        id: 'drv-1',
+        user_id: 'usr-1',
+        license_number: 'SIM-A-1234',
+        experience_years: 5,
+        is_available: true,
+        user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
+        vehicle: {
+          id: 'veh-1',
+          name: 'Toyota HiAce Premio',
+          plate_number: 'N 1234 XY',
+          vehicle_type: 'Minivan',
+          capacity: 6,
+          status: 'active',
+          is_available: true,
+        },
       })
 
       const result = await DriverService.create({
@@ -61,17 +91,24 @@ describe('DriverService', () => {
   })
 
   describe('list', () => {
-    it('should return formatted drivers list', async () => {
+    it('should return formatted drivers list with vehicle info', async () => {
       ;(prisma.driver.findMany as jest.Mock).mockResolvedValue([
         {
           id: 'drv-1',
           user_id: 'usr-1',
           license_number: 'SIM-A-1234',
-          vehicle_type: 'Toyota HiAce Premio',
-          vehicle_plat: 'N 1234 XY',
           experience_years: 5,
           is_available: true,
           user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
+          vehicle: {
+            id: 'veh-1',
+            name: 'Toyota HiAce Premio',
+            plate_number: 'N 1234 XY',
+            vehicle_type: 'Minivan',
+            capacity: 6,
+            status: 'active',
+            is_available: true,
+          },
         },
       ])
 
@@ -80,53 +117,47 @@ describe('DriverService', () => {
       expect(result).toHaveLength(1)
       expect(result[0].fullName).toBe('Pak Budi')
       expect(result[0].vehicleType).toBe('Toyota HiAce Premio')
+      expect(result[0].plateNumber).toBe('N 1234 XY')
     })
   })
 
-  describe('update', () => {
-    it('should update driver and linked user', async () => {
-      ;(prisma.driver.findUnique as jest.Mock).mockResolvedValue({
-        id: 'drv-1',
-        user_id: 'usr-1',
-        user: { id: 'usr-1', name: 'Pak Budi' },
-      })
-      ;(prisma.user.update as jest.Mock).mockResolvedValue({
-        id: 'usr-1',
-        name: 'Pak Budi Updated',
-      })
-      ;(prisma.driver.update as jest.Mock).mockResolvedValue({
-        id: 'drv-1',
-        user_id: 'usr-1',
-        license_number: 'SIM-A-9999',
-        vehicle_type: 'Toyota HiAce Commuter',
-        vehicle_plat: 'N 9999 ZZ',
-        experience_years: 7,
-        is_available: false,
-        user: { id: 'usr-1', name: 'Pak Budi Updated', phone: '+62812345678' },
-      })
+  describe('assignVehicle', () => {
+    it('should assign vehicle to driver successfully', async () => {
+      const mockDriver = { id: 'drv-1', user_id: 'usr-1' }
+      const mockVehicle = { id: 'veh-1', name: 'Toyota HiAce', plate_number: 'N 1111 AA' }
 
-      const result = await DriverService.update('drv-1', {
-        fullName: 'Pak Budi Updated',
-        vehicleModel: 'Toyota HiAce Commuter',
-        isAvailable: false,
-      })
+      ;(prisma.driver.findUnique as jest.Mock)
+        .mockResolvedValueOnce(mockDriver)
+        .mockResolvedValueOnce({
+          ...mockDriver,
+          user: { name: 'Pak Joko', phone: '+628123' },
+          vehicle: mockVehicle,
+        })
+      ;(prisma.vehicle.findUnique as jest.Mock).mockResolvedValue(mockVehicle)
+      ;(prisma.vehicle.updateMany as jest.Mock).mockResolvedValue({ count: 1 })
+      ;(prisma.vehicle.update as jest.Mock).mockResolvedValue({ ...mockVehicle, driver_id: 'drv-1' })
 
-      expect(result.fullName).toBe('Pak Budi Updated')
-      expect(result.vehicleModel).toBe('Toyota HiAce Commuter')
-      expect(result.isAvailable).toBe(false)
+      const result = await DriverService.assignVehicle('drv-1', 'veh-1')
+
+      expect(prisma.vehicle.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { driver_id: '1' },
+      })
+      expect(result.vehicleId).toBe('veh-1')
+      expect(result.vehicle?.name).toBe('Toyota HiAce')
     })
   })
 
   describe('delete', () => {
-    it('should throw 400 if driver is assigned to active trips', async () => {
+    it('should throw 400 if driver is assigned to active trips or groups', async () => {
       ;(prisma.driver.findUnique as jest.Mock).mockResolvedValue({
         id: 'drv-1',
         user_id: 'usr-1',
+        booking_groups: [{ id: 'grp-1', status: 'open' }],
       })
-      ;(prisma.trip.findMany as jest.Mock).mockResolvedValue([{ id: 'trip-1', status: 'active' }])
 
       await expect(DriverService.delete('drv-1')).rejects.toThrow(
-        'Driver tidak dapat dihapus karena sedang ditugaskan pada jadwal trip aktif.'
+        'Driver tidak dapat dihapus karena sedang ditugaskan pada grup armada aktif.'
       )
     })
 
@@ -134,11 +165,15 @@ describe('DriverService', () => {
       ;(prisma.driver.findUnique as jest.Mock).mockResolvedValue({
         id: 'drv-1',
         user_id: 'usr-1',
+        booking_groups: [],
       })
       ;(prisma.trip.findMany as jest.Mock).mockResolvedValue([])
+      ;(prisma.vehicle.updateMany as jest.Mock).mockResolvedValue({ count: 1 })
+      ;(prisma.driver.delete as jest.Mock).mockResolvedValue({ id: 'drv-1' })
 
-      await expect(DriverService.delete('drv-1')).resolves.not.toThrow()
-      expect(prisma.driver.delete).toHaveBeenCalledWith({ where: { id: 'drv-1' } })
+      const result = await DriverService.delete('drv-1')
+      expect(result.deleted).toBe(true)
+      expect(prisma.driver.delete).toHaveBeenCalledWith({ where: { id: '1' } })
     })
   })
 })

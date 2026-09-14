@@ -18,6 +18,9 @@ jest.mock('../../src/config/database', () => ({
     driver: {
       findUnique: jest.fn(),
     },
+    vehicle: {
+      findUnique: jest.fn(),
+    },
     auditLog: {
       create: jest.fn(),
     },
@@ -279,6 +282,105 @@ describe('GroupService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             action: 'UNASSIGN_DRIVER_FROM_GROUP',
+          }),
+        })
+      )
+    })
+  })
+
+  describe('assignVehicle', () => {
+    it('should assign valid vehicle to group', async () => {
+      const mockExistingGroup = {
+        id: 'grp-1',
+        vehicle_id: null,
+        vehicle: null,
+      }
+      const mockVehicle = {
+        id: 'veh-1',
+        name: 'Toyota HiAce Premio',
+        plate_number: 'N 1234 XY',
+        vehicle_type: 'Minivan',
+        capacity: 6,
+        status: 'active',
+        is_available: true,
+      }
+
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockExistingGroup)
+      ;(prisma.vehicle.findUnique as jest.Mock).mockResolvedValue(mockVehicle)
+      ;(prisma.bookingGroup.update as jest.Mock).mockResolvedValue({
+        id: 'grp-1',
+        trip_id: 'trip-1',
+        driver_id: null,
+        vehicle_id: 'veh-1',
+        group_number: 1,
+        status: 'open',
+        current_participants: 0,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal(500000),
+        total_price: new Prisma.Decimal(3000000),
+        created_at: new Date(),
+        updated_at: new Date(),
+        vehicle: mockVehicle,
+        driver: null,
+        trip: null,
+        participants: [],
+      })
+
+      const result = await GroupService.assignVehicle('grp-1', { vehicleId: 'veh-1' }, 'admin-1')
+
+      expect(prisma.bookingGroup.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { vehicle_id: '1' },
+        include: expect.any(Object),
+      })
+      expect(result.vehicleId).toBe('veh-1')
+      expect(result.vehicle?.name).toBe('Toyota HiAce Premio')
+      expect(prisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'ASSIGN_VEHICLE_TO_GROUP',
+          }),
+        })
+      )
+    })
+
+    it('should unassign vehicle when vehicleId is null', async () => {
+      const mockExistingGroup = {
+        id: 'grp-1',
+        vehicle_id: 'veh-1',
+      }
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockExistingGroup)
+      ;(prisma.bookingGroup.update as jest.Mock).mockResolvedValue({
+        id: 'grp-1',
+        trip_id: 'trip-1',
+        driver_id: null,
+        vehicle_id: null,
+        group_number: 1,
+        status: 'open',
+        current_participants: 0,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal(500000),
+        total_price: new Prisma.Decimal(3000000),
+        created_at: new Date(),
+        updated_at: new Date(),
+        vehicle: null,
+        driver: null,
+        trip: null,
+        participants: [],
+      })
+
+      const result = await GroupService.assignVehicle('grp-1', { vehicleId: null }, 'admin-1')
+
+      expect(prisma.bookingGroup.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: { vehicle_id: null },
+        include: expect.any(Object),
+      })
+      expect(result.vehicleId).toBeNull()
+      expect(prisma.auditLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            action: 'UNASSIGN_VEHICLE_FROM_GROUP',
           }),
         })
       )

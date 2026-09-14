@@ -5,6 +5,7 @@ import { DestinationService } from '../services/destination.service'
 import { DriverService } from '../services/driver.service'
 import { ParticipantService } from '../services/participant.service'
 import { TripService } from '../services/trip.service'
+import { VehicleService } from '../services/vehicle.service'
 import { sendResponse } from '../utils/response'
 
 export class AdminController {
@@ -164,6 +165,8 @@ export class AdminController {
     const drivers = await DriverService.list({
       is_available:
         req.query.is_available !== undefined ? req.query.is_available === 'true' : undefined,
+      status: req.query.status as string | undefined,
+      search: req.query.search as string | undefined,
     })
     sendResponse(res, 200, 'Drivers retrieved', drivers)
   }
@@ -178,8 +181,63 @@ export class AdminController {
     sendResponse(res, 200, 'Driver updated', driver)
   }
 
+  static async assignVehicleToDriver(req: Request, res: Response) {
+    const vehicleId = req.body.vehicleId ?? req.body.vehicle_id ?? null
+    const driver = await DriverService.assignVehicle(req.params.id, vehicleId)
+    const message = driver.vehicle
+      ? `Armada ${driver.vehicle.name} (${driver.vehicle.plateNumber}) berhasil dipasangkan ke Driver ${driver.fullName}`
+      : `Armada berhasil dilepas dari Driver ${driver.fullName}`
+    sendResponse(res, 200, message, driver)
+  }
+
   static async deleteDriver(req: Request, res: Response) {
     await DriverService.delete(req.params.id)
     sendResponse(res, 200, 'Driver deleted')
+  }
+
+  // Vehicles (Armada)
+  static async createVehicle(req: Request, res: Response) {
+    const vehicle = await VehicleService.create(req.body)
+    sendResponse(res, 201, 'Armada berhasil ditambahkan', vehicle)
+  }
+
+  static async getVehicles(req: Request, res: Response) {
+    const isAvailable =
+      req.query.is_available !== undefined
+        ? req.query.is_available === 'true'
+        : req.query.isAvailable !== undefined
+        ? req.query.isAvailable === 'true'
+        : undefined
+
+    const vehicles = await VehicleService.list({
+      status: (req.query.status as string) || undefined,
+      isAvailable,
+      vehicleType: (req.query.vehicleType as string) || (req.query.vehicle_type as string) || undefined,
+      search: (req.query.search as string) || undefined,
+    })
+    sendResponse(res, 200, 'Vehicles retrieved successfully', vehicles)
+  }
+
+  static async getVehicle(req: Request, res: Response) {
+    const vehicle = await VehicleService.get(req.params.id)
+    sendResponse(res, 200, 'Vehicle retrieved successfully', vehicle)
+  }
+
+  static async updateVehicle(req: Request, res: Response) {
+    const vehicle = await VehicleService.update(req.params.id, req.body)
+    sendResponse(res, 200, 'Armada berhasil diperbarui', vehicle)
+  }
+
+  static async assignDriverToVehicle(req: Request, res: Response) {
+    const vehicle = await VehicleService.assignDriver(req.params.id, req.body)
+    const message = vehicle.driver
+      ? `Driver ${vehicle.driver.fullName} berhasil dipasangkan ke armada ${vehicle.name} (${vehicle.plateNumber})`
+      : `Driver berhasil dilepas dari armada ${vehicle.name} (${vehicle.plateNumber})`
+    sendResponse(res, 200, message, vehicle)
+  }
+
+  static async deleteVehicle(req: Request, res: Response) {
+    const result = await VehicleService.delete(req.params.id)
+    sendResponse(res, 200, 'Armada berhasil dihapus', result)
   }
 }

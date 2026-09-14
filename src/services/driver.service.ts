@@ -1,20 +1,41 @@
 import { prisma } from '../config/database'
 import { ApiError } from '../utils/errors'
 
-function formatDriver(d: Record<string, unknown> & { user?: Record<string, unknown> | null }) {
+function cleanId(val: unknown): string {
+  if (typeof val === 'string') {
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|drv-|veh-)/, '')
+  }
+  return String(val || '')
+}
+
+export function formatDriver(
+  d: Record<string, unknown> & {
+    user?: Record<string, unknown> | null
+    vehicle?: Record<string, unknown> | null
+  }
+) {
   const user = d.user || {}
+  const vehicle = d.vehicle || null
   const fullName = (user.name as string) || (d.fullName as string) || (d.name as string) || 'Driver'
   const phoneNumber =
     (user.phone as string) || (d.phoneNumber as string) || (d.phone as string) || ''
   const email = (user.email as string) || (d.email as string) || ''
+  const licenseNumber = (d.license_number as string) || (d.licenseNumber as string) || ''
+
+  // Fallback vehicle info from linked vehicle or legacy properties
   const vehicleModel =
+    (vehicle?.name as string) ||
+    (vehicle?.vehicle_type as string) ||
     (d.vehicle_type as string) ||
     (d.vehicleType as string) ||
     (d.vehicleModel as string) ||
     'Toyota HiAce Premio'
   const plateNumber =
-    (d.vehicle_plat as string) || (d.vehiclePlat as string) || (d.plateNumber as string) || ''
-  const licenseNumber = (d.license_number as string) || (d.licenseNumber as string) || ''
+    (vehicle?.plate_number as string) ||
+    (d.vehicle_plat as string) ||
+    (d.vehiclePlat as string) ||
+    (d.plateNumber as string) ||
+    ''
 
   return {
     id: d.id as string,
@@ -26,23 +47,40 @@ function formatDriver(d: Record<string, unknown> & { user?: Record<string, unkno
     email,
     licenseNumber,
     license_number: licenseNumber,
+    experienceYears: (d.experience_years as number) || (d.experienceYears as number) || 1,
+    experience_years: (d.experience_years as number) || (d.experienceYears as number) || 1,
+    rating: d.rating ? Number(d.rating) : 5.0,
+    isAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
+    is_available: d.is_available !== undefined ? (d.is_available as boolean) : true,
+    status: (d.status as string) || 'active',
+    vehicleId: vehicle ? (vehicle.id as string) : (d.vehicle_id as string) || null,
+    vehicle_id: vehicle ? (vehicle.id as string) : (d.vehicle_id as string) || null,
+    vehicle: vehicle
+      ? {
+          id: vehicle.id as string,
+          name: vehicle.name as string,
+          plateNumber: vehicle.plate_number as string,
+          plate_number: vehicle.plate_number as string,
+          vehicleType: vehicle.vehicle_type as string,
+          capacity: vehicle.capacity as number,
+          status: vehicle.status as string,
+          isAvailable: vehicle.is_available as boolean,
+        }
+      : null,
+    // Backward compatibility aliases
     vehicleType: vehicleModel,
     vehicleModel,
     vehicle_type: vehicleModel,
     vehiclePlat: plateNumber,
     plateNumber,
     vehicle_plat: plateNumber,
-    experienceYears: (d.experience_years as number) || (d.experienceYears as number) || 1,
-    experience_years: (d.experience_years as number) || (d.experienceYears as number) || 1,
-    rating: d.rating ? Number(d.rating) : 5.0,
-    isAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
-    is_available: d.is_available !== undefined ? (d.is_available as boolean) : true,
     user: {
       id: (user.id as string) || (d.user_id as string) || '',
       name: fullName,
       phone: phoneNumber,
       email,
       profileImageUrl:
+        (user.profile_image_url as string) ||
         (user.avatar_url as string) ||
         (user.profileImageUrl as string) ||
         (d.photoUrl as string) ||
@@ -64,17 +102,20 @@ export class DriverService {
     email?: string
     license_number?: string
     licenseNumber?: string
+    experience_years?: number
+    experienceYears?: number
+    is_available?: boolean
+    isAvailable?: boolean
+    status?: string
+    rating?: number
+    vehicle_id?: string | null
+    vehicleId?: string | null
     vehicle_type?: string
     vehicleType?: string
     vehicleModel?: string
     vehicle_plat?: string
     vehiclePlat?: string
     plateNumber?: string
-    experience_years?: number
-    experienceYears?: number
-    is_available?: boolean
-    isAvailable?: boolean
-    rating?: number
   }) {
     let userId = data.user_id || data.userId
     const name = data.fullName || data.name || 'Driver'
@@ -101,55 +142,119 @@ export class DriverService {
     const existingUser = await prisma.user.findUnique({ where: { id: userId } })
     if (!existingUser) throw new ApiError('User not found', 404)
 
+    const licenseNumber =
+      data.license_number || data.licenseNumber || `SIM-${Math.floor(10000000 + Math.random() * 90000000)}`
+    const experienceYears = Number(data.experience_years ?? data.experienceYears ?? 3)
+    const isAvailable = data.is_available ?? data.isAvailable ?? true
+    const status = data.status || 'active'
+
     const driver = await prisma.driver.create({
       data: {
         user_id: userId,
-        license_number: data.license_number || data.licenseNumber || `SIM-${Date.now()}`,
-        vehicle_type:
-          data.vehicle_type || data.vehicleType || data.vehicleModel || 'Toyota HiAce Premio',
-        vehicle_plat:
-          data.vehicle_plat ||
-          data.vehiclePlat ||
-          data.plateNumber ||
-          `B ${Math.floor(1000 + Math.random() * 9000)} TST`,
-        experience_years: data.experience_years ?? data.experienceYears ?? 3,
-        is_available: data.is_available ?? data.isAvailable ?? true,
+        license_number: licenseNumber,
+        experience_years: experienceYears,
+        is_available: isAvailable,
+        status,
       },
-      include: { user: true },
+      include: { user: true, vehicle: true },
     })
 
-    return formatDriver(
-      driver as unknown as Record<string, unknown> & { user?: Record<string, unknown> }
-    )
+    // Handle pairing vehicle if vehicleId or legacy vehicle parameters provided
+    const rawVehId = data.vehicleId || data.vehicle_id
+    if (rawVehId) {
+      const cleanVehId = cleanId(rawVehId)
+      await prisma.vehicle.update({
+        where: { id: cleanVehId },
+        data: { driver_id: driver.id },
+      })
+    } else if (data.plateNumber || data.vehiclePlat || data.vehicle_plat) {
+      const plate = (data.plateNumber || data.vehiclePlat || data.vehicle_plat)!.trim().toUpperCase()
+      const existingVehicle = await prisma.vehicle.findUnique({ where: { plate_number: plate } })
+      if (existingVehicle) {
+        await prisma.vehicle.update({
+          where: { id: existingVehicle.id },
+          data: { driver_id: driver.id },
+        })
+      } else {
+        await prisma.vehicle.create({
+          data: {
+            name: data.vehicleModel || data.vehicleType || data.vehicle_type || 'Toyota HiAce Premio',
+            plate_number: plate,
+            vehicle_type: data.vehicleType || data.vehicle_type || 'Minivan',
+            capacity: 6,
+            driver_id: driver.id,
+          },
+        })
+      }
+    }
+
+    const finalDriver = await prisma.driver.findUnique({
+      where: { id: driver.id },
+      include: { user: true, vehicle: true },
+    })
+
+    return formatDriver(finalDriver as never)
   }
 
-  static async list(filters: { is_available?: boolean } = {}) {
+  static async list(filters: { is_available?: boolean; status?: string; search?: string } = {}) {
+    const where: Record<string, unknown> = {}
+
+    if (filters.is_available !== undefined) {
+      where.is_available = filters.is_available
+    }
+    if (filters.status) {
+      where.status = filters.status
+    }
+    if (filters.search) {
+      const s = filters.search.trim()
+      where.OR = [
+        { user: { name: { contains: s, mode: 'insensitive' } } },
+        { user: { phone: { contains: s, mode: 'insensitive' } } },
+        { license_number: { contains: s, mode: 'insensitive' } },
+        { vehicle: { plate_number: { contains: s, mode: 'insensitive' } } },
+        { vehicle: { name: { contains: s, mode: 'insensitive' } } },
+      ]
+    }
+
     const drivers = await prisma.driver.findMany({
-      where: { ...(filters.is_available !== undefined && { is_available: filters.is_available }) },
-      include: { user: true },
+      where: where as never,
+      include: { user: true, vehicle: true },
       orderBy: { created_at: 'desc' },
     })
-    return drivers.map((d) =>
-      formatDriver(d as unknown as Record<string, unknown> & { user?: Record<string, unknown> })
-    )
+
+    return drivers.map((d) => formatDriver(d as never))
   }
 
   static async get(id: string) {
-    const driver = await prisma.driver.findUnique({ where: { id }, include: { user: true } })
+    const cleanDrvId = cleanId(id)
+    const driver = await prisma.driver.findFirst({
+      where: {
+        OR: [
+          { id: cleanDrvId },
+          { id },
+          { user_id: cleanDrvId },
+          { license_number: id.toUpperCase() },
+        ],
+      },
+      include: { user: true, vehicle: true },
+    })
+
     if (!driver) throw new ApiError('Driver not found', 404)
-    return formatDriver(
-      driver as unknown as Record<string, unknown> & { user?: Record<string, unknown> }
-    )
+    return formatDriver(driver as never)
   }
 
   static async update(id: string, data: Record<string, unknown>) {
-    const existing = await prisma.driver.findUnique({ where: { id }, include: { user: true } })
+    const cleanDrvId = cleanId(id)
+    const existing = await prisma.driver.findUnique({
+      where: { id: cleanDrvId },
+      include: { user: true, vehicle: true },
+    })
     if (!existing) throw new ApiError('Driver not found', 404)
 
-    // Update linked user if name or phone or email changed
+    // Update linked user if personal info provided
     if (
       existing.user_id &&
-      (data.fullName || data.name || data.phoneNumber || data.phone || data.email)
+      (data.fullName || data.name || data.phoneNumber || data.phone || data.email || data.photoUrl)
     ) {
       await prisma.user.update({
         where: { id: existing.user_id },
@@ -159,6 +264,7 @@ export class DriverService {
             ? { phone: (data.phoneNumber || data.phone) as string }
             : {}),
           ...(data.email ? { email: data.email as string } : {}),
+          ...(data.photoUrl ? { profile_image_url: data.photoUrl as string } : {}),
         },
       })
     }
@@ -167,46 +273,117 @@ export class DriverService {
     if (data.licenseNumber !== undefined || data.license_number !== undefined) {
       driverUpdate.license_number = data.licenseNumber ?? data.license_number
     }
-    if (
-      data.vehicleModel !== undefined ||
-      data.vehicleType !== undefined ||
-      data.vehicle_type !== undefined
-    ) {
-      driverUpdate.vehicle_type = data.vehicleModel ?? data.vehicleType ?? data.vehicle_type
-    }
-    if (
-      data.plateNumber !== undefined ||
-      data.vehiclePlat !== undefined ||
-      data.vehicle_plat !== undefined
-    ) {
-      driverUpdate.vehicle_plat = data.plateNumber ?? data.vehiclePlat ?? data.vehicle_plat
-    }
     if (data.experienceYears !== undefined || data.experience_years !== undefined) {
       driverUpdate.experience_years = Number(data.experienceYears ?? data.experience_years)
     }
     if (data.isAvailable !== undefined || data.is_available !== undefined) {
       driverUpdate.is_available = Boolean(data.isAvailable ?? data.is_available)
     }
+    if (data.status !== undefined) {
+      driverUpdate.status = data.status
+    }
+    if (data.rating !== undefined) {
+      driverUpdate.rating = Number(data.rating)
+    }
 
-    const updated = await prisma.driver.update({
-      where: { id },
-      data: driverUpdate as never,
-      include: { user: true },
+    if (Object.keys(driverUpdate).length > 0) {
+      await prisma.driver.update({
+        where: { id: cleanDrvId },
+        data: driverUpdate as never,
+      })
+    }
+
+    // Handle vehicle pairing update if vehicleId is specified
+    if (data.vehicleId !== undefined || data.vehicle_id !== undefined) {
+      const rawVehId = data.vehicleId ?? data.vehicle_id
+      if (rawVehId) {
+        const cleanVehId = cleanId(rawVehId)
+        // Unassign driver from any other vehicle
+        await prisma.vehicle.updateMany({
+          where: { driver_id: cleanDrvId, id: { not: cleanVehId } },
+          data: { driver_id: null },
+        })
+        // Assign to target vehicle
+        await prisma.vehicle.update({
+          where: { id: cleanVehId },
+          data: { driver_id: cleanDrvId },
+        })
+      } else {
+        // Disconnect from vehicle
+        await prisma.vehicle.updateMany({
+          where: { driver_id: cleanDrvId },
+          data: { driver_id: null },
+        })
+      }
+    }
+
+    const updated = await prisma.driver.findUnique({
+      where: { id: cleanDrvId },
+      include: { user: true, vehicle: true },
     })
 
-    return formatDriver(
-      updated as unknown as Record<string, unknown> & { user?: Record<string, unknown> }
-    )
+    return formatDriver(updated as never)
+  }
+
+  static async assignVehicle(driverId: string, vehicleId: string | null) {
+    const cleanDrvId = cleanId(driverId)
+    const driver = await prisma.driver.findUnique({ where: { id: cleanDrvId } })
+    if (!driver) throw new ApiError('Driver not found', 404)
+
+    if (vehicleId) {
+      const cleanVehId = cleanId(vehicleId)
+      const vehicle = await prisma.vehicle.findUnique({ where: { id: cleanVehId } })
+      if (!vehicle) throw new ApiError('Armada tidak ditemukan', 404)
+
+      // Unassign driver from existing vehicle
+      await prisma.vehicle.updateMany({
+        where: { driver_id: cleanDrvId, id: { not: cleanVehId } },
+        data: { driver_id: null },
+      })
+
+      // Assign to this vehicle
+      await prisma.vehicle.update({
+        where: { id: cleanVehId },
+        data: { driver_id: cleanDrvId },
+      })
+    } else {
+      // Disconnect
+      await prisma.vehicle.updateMany({
+        where: { driver_id: cleanDrvId },
+        data: { driver_id: null },
+      })
+    }
+
+    const updated = await prisma.driver.findUnique({
+      where: { id: cleanDrvId },
+      include: { user: true, vehicle: true },
+    })
+
+    return formatDriver(updated as never)
   }
 
   static async delete(id: string) {
+    const cleanDrvId = cleanId(id)
     const driver = await prisma.driver.findUnique({
-      where: { id },
-      include: { user: true },
+      where: { id: cleanDrvId },
+      include: {
+        user: true,
+        booking_groups: {
+          where: {
+            status: { in: ['open', 'waiting', 'confirmed'] },
+          },
+        },
+      },
     })
     if (!driver) throw new ApiError('Driver not found', 404)
 
-    // Check if driver is assigned to active trips
+    if (driver.booking_groups.length > 0) {
+      throw new ApiError(
+        'Driver tidak dapat dihapus karena sedang ditugaskan pada grup armada aktif.',
+        400
+      )
+    }
+
     if (driver.user_id) {
       const activeTrips = await prisma.trip.findMany({
         where: {
@@ -217,12 +394,19 @@ export class DriverService {
 
       if (activeTrips.length > 0) {
         throw new ApiError(
-          'Driver tidak dapat dihapus karena sedang ditugaskan pada jadwal trip aktif.',
+          'Driver tidak dapat dihapus karena sedang ditugaskan sebagai pemandu pada jadwal trip aktif.',
           400
         )
       }
     }
 
-    await prisma.driver.delete({ where: { id } })
+    // Unassign any vehicle before deleting
+    await prisma.vehicle.updateMany({
+      where: { driver_id: cleanDrvId },
+      data: { driver_id: null },
+    })
+
+    await prisma.driver.delete({ where: { id: cleanDrvId } })
+    return { id: cleanDrvId, deleted: true }
   }
 }

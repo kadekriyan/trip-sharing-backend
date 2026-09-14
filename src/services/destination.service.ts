@@ -227,24 +227,37 @@ export class DestinationService {
   }
 
   static async getBySlug(slug: string) {
+    const tripIncludeConfig = {
+      booking_groups: {
+        include: {
+          participants: true,
+          vehicle: true,
+          driver: {
+            include: {
+              user: true,
+              vehicle: true,
+            },
+          },
+        },
+      },
+      guide: {
+        include: {
+          driver: {
+            include: {
+              vehicle: true,
+            },
+          },
+        },
+      },
+    }
+
     // Try finding by slug first, then fallback to id
     let dest = await prisma.destination.findUnique({
       where: { slug },
       include: {
         trips: {
           where: { status: { in: ['active', 'scheduled', 'planning'] } },
-          include: {
-            booking_groups: {
-              include: {
-                participants: true,
-              },
-            },
-            guide: {
-              include: {
-                driver: true,
-              },
-            },
-          },
+          include: tripIncludeConfig,
         },
       },
     })
@@ -256,18 +269,7 @@ export class DestinationService {
           include: {
             trips: {
               where: { status: { in: ['active', 'scheduled', 'planning'] } },
-              include: {
-                booking_groups: {
-                  include: {
-                    participants: true,
-                  },
-                },
-                guide: {
-                  include: {
-                    driver: true,
-                  },
-                },
-              },
+              include: tripIncludeConfig,
             },
           },
         })
@@ -285,26 +287,52 @@ export class DestinationService {
       returnDate: t.return_date,
       pricePerPax: Number(dest!.price_per_person),
       status: t.status,
-      groups: (t.booking_groups || []).map((g) => ({
-        id: g.id,
-        groupNumber: g.group_number,
-        capacity: g.max_participants,
-        currentParticipants: g.current_participants,
-        status: g.status,
-        driver: t.guide?.driver
-          ? {
-              id: t.guide.driver.id,
-              fullName: t.guide.name,
-              vehicleModel: t.guide.driver.vehicle_type,
-              plateNumber: t.guide.driver.vehicle_plat,
-            }
-          : {
-              id: 'drv-01',
-              fullName: 'Budi Santoso',
-              vehicleModel: 'Toyota HiAce Commuter',
-              plateNumber: 'N 1234 XY',
-            },
-      })),
+      groups: (t.booking_groups || []).map((g) => {
+        const resolvedVehicle = g.vehicle || g.driver?.vehicle || t.guide?.driver?.vehicle || null
+        const driverObj = g.driver || (t.guide?.driver ? { id: t.guide.driver.id, user: { name: t.guide.name } } : null)
+
+        return {
+          id: g.id,
+          groupNumber: g.group_number,
+          capacity: g.max_participants,
+          currentParticipants: g.current_participants,
+          status: g.status,
+          vehicleId: g.vehicle_id || null,
+          driver: driverObj
+            ? {
+                id: driverObj.id,
+                fullName: g.driver?.user?.name || t.guide?.name || 'Driver',
+                vehicleModel: resolvedVehicle?.name || resolvedVehicle?.vehicle_type || 'Toyota HiAce Premio',
+                plateNumber: resolvedVehicle?.plate_number || 'N 1234 XY',
+                vehicle: resolvedVehicle
+                  ? {
+                      id: resolvedVehicle.id,
+                      name: resolvedVehicle.name,
+                      plateNumber: resolvedVehicle.plate_number,
+                      vehicleType: resolvedVehicle.vehicle_type,
+                    }
+                  : null,
+              }
+            : {
+                id: 'drv-01',
+                fullName: 'Budi Santoso',
+                vehicleModel: 'Toyota HiAce Commuter',
+                plateNumber: 'N 1234 XY',
+                vehicle: null,
+              },
+          vehicle: resolvedVehicle
+            ? {
+                id: resolvedVehicle.id,
+                name: resolvedVehicle.name,
+                plateNumber: resolvedVehicle.plate_number,
+                vehicleType: resolvedVehicle.vehicle_type,
+                capacity: resolvedVehicle.capacity,
+                status: resolvedVehicle.status,
+                isAvailable: resolvedVehicle.is_available,
+              }
+            : null,
+        }
+      }),
     }))
 
     return {

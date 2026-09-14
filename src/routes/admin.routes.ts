@@ -10,6 +10,7 @@ import { driverValidator } from '../validators/driver.validator'
 import { groupValidator } from '../validators/group.validator'
 import { participantValidator } from '../validators/participant.validator'
 import { tripValidator } from '../validators/trip.validator'
+import { vehicleValidator } from '../validators/vehicle.validator'
 
 const router = Router()
 
@@ -41,6 +42,16 @@ router.post(
   '/groups/:id/assign-driver',
   validateRequest(groupValidator.assignDriver),
   asyncHandler(GroupController.assignDriver)
+)
+router.patch(
+  '/groups/:id/vehicle',
+  validateRequest(groupValidator.assignVehicle),
+  asyncHandler(GroupController.assignVehicle)
+)
+router.post(
+  '/groups/:id/assign-vehicle',
+  validateRequest(groupValidator.assignVehicle),
+  asyncHandler(GroupController.assignVehicle)
 )
 router.delete('/groups/:id', asyncHandler(GroupController.deleteGroup))
 
@@ -166,6 +177,76 @@ router.put(
   validateRequest(driverValidator.update),
   asyncHandler(AdminController.updateDriver)
 )
+router.post(
+  '/drivers/:id/assign-vehicle',
+  validateRequest(driverValidator.assignVehicle),
+  asyncHandler(AdminController.assignVehicleToDriver)
+)
+router.patch(
+  '/drivers/:id/vehicle',
+  validateRequest(driverValidator.assignVehicle),
+  asyncHandler(AdminController.assignVehicleToDriver)
+)
 router.delete('/drivers/:id', asyncHandler(AdminController.deleteDriver))
+
+// Vehicles (Armada)
+router.post(
+  '/vehicles',
+  validateRequest(vehicleValidator.create),
+  asyncHandler(AdminController.createVehicle)
+)
+router.get('/vehicles', asyncHandler(AdminController.getVehicles))
+router.get('/vehicles/:id', asyncHandler(AdminController.getVehicle))
+router.patch(
+  '/vehicles/:id',
+  validateRequest(vehicleValidator.update),
+  asyncHandler(AdminController.updateVehicle)
+)
+router.put(
+  '/vehicles/:id',
+  validateRequest(vehicleValidator.update),
+  asyncHandler(AdminController.updateVehicle)
+)
+router.post(
+  '/vehicles/:id/assign-driver',
+  validateRequest(vehicleValidator.assignDriver),
+  asyncHandler(AdminController.assignDriverToVehicle)
+)
+router.patch(
+  '/vehicles/:id/driver',
+  validateRequest(vehicleValidator.assignDriver),
+  asyncHandler(AdminController.assignDriverToVehicle)
+)
+router.delete('/vehicles/:id', asyncHandler(AdminController.deleteVehicle))
+
+// Armada Aliases
+router.post(
+  '/armada',
+  validateRequest(vehicleValidator.create),
+  asyncHandler(AdminController.createVehicle)
+)
+router.get('/armada', asyncHandler(AdminController.getVehicles))
+router.get('/armada/:id', asyncHandler(AdminController.getVehicle))
+router.patch(
+  '/armada/:id',
+  validateRequest(vehicleValidator.update),
+  asyncHandler(AdminController.updateVehicle)
+)
+router.put(
+  '/armada/:id',
+  validateRequest(vehicleValidator.update),
+  asyncHandler(AdminController.updateVehicle)
+)
+router.post(
+  '/armada/:id/assign-driver',
+  validateRequest(vehicleValidator.assignDriver),
+  asyncHandler(AdminController.assignDriverToVehicle)
+)
+router.patch(
+  '/armada/:id/driver',
+  validateRequest(vehicleValidator.assignDriver),
+  asyncHandler(AdminController.assignDriverToVehicle)
+)
+router.delete('/armada/:id', asyncHandler(AdminController.deleteVehicle))
 
 export default router

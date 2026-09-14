@@ -1,0 +1,48 @@
+import Joi from 'joi'
+
+export const vehicleValidator = {
+  create: Joi.object({
+    name: Joi.string().trim().min(2).max(100).required(),
+    plateNumber: Joi.string().trim().min(3).max(50).optional(),
+    plate_number: Joi.string().trim().min(3).max(50).optional(),
+    vehicleType: Joi.string().trim().min(2).max(100).optional(),
+    vehicle_type: Joi.string().trim().min(2).max(100).optional(),
+    capacity: Joi.number().integer().min(1).max(60).optional(),
+    transmission: Joi.string().trim().max(50).allow('', null).optional(),
+    fuelType: Joi.string().trim().max(50).allow('', null).optional(),
+    fuel_type: Joi.string().trim().max(50).allow('', null).optional(),
+    facility: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.object(), Joi.string()).allow(null).optional(),
+    coverImage: Joi.string().trim().uri().allow('', null).optional(),
+    cover_image: Joi.string().trim().uri().allow('', null).optional(),
+    status: Joi.string().trim().valid('active', 'maintenance', 'inactive').optional(),
+    isAvailable: Joi.boolean().optional(),
+    is_available: Joi.boolean().optional(),
+    driverId: Joi.string().trim().max(100).allow('', null).optional(),
+    driver_id: Joi.string().trim().max(100).allow('', null).optional(),
+  }).or('plateNumber', 'plate_number'),
+
+  update: Joi.object({
+    name: Joi.string().trim().min(2).max(100).optional(),
+    plateNumber: Joi.string().trim().min(3).max(50).optional(),
+    plate_number: Joi.string().trim().min(3).max(50).optional(),
+    vehicleType: Joi.string().trim().min(2).max(100).optional(),
+    vehicle_type: Joi.string().trim().min(2).max(100).optional(),
+    capacity: Joi.number().integer().min(1).max(60).optional(),
+    transmission: Joi.string().trim().max(50).allow('', null).optional(),
+    fuelType: Joi.string().trim().max(50).allow('', null).optional(),
+    fuel_type: Joi.string().trim().max(50).allow('', null).optional(),
+    facility: Joi.alternatives().try(Joi.array().items(Joi.string()), Joi.object(), Joi.string()).allow(null).optional(),
+    coverImage: Joi.string().trim().uri().allow('', null).optional(),
+    cover_image: Joi.string().trim().uri().allow('', null).optional(),
+    status: Joi.string().trim().valid('active', 'maintenance', 'inactive').optional(),
+    isAvailable: Joi.boolean().optional(),
+    is_available: Joi.boolean().optional(),
+    driverId: Joi.string().trim().max(100).allow('', null).optional(),
+    driver_id: Joi.string().trim().max(100).allow('', null).optional(),
+  }).min(1),
+
+  assignDriver: Joi.object({
+    driverId: Joi.string().trim().max(100).allow('', null).optional(),
+    driver_id: Joi.string().trim().max(100).allow('', null).optional(),
+  }),
+}

@@ -1,11 +1,17 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database'
-import { AssignDriverInput, CreateGroupInput, GroupFilterInput, UpdateGroupInput } from '../types/group'
+import {
+  AssignDriverInput,
+  AssignVehicleInput,
+  CreateGroupInput,
+  GroupFilterInput,
+  UpdateGroupInput,
+} from '../types/group'
 import { ApiError } from '../utils/errors'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|drv-)/, '')
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|drv-|veh-)/, '')
   }
   return String(val || '')
 }
@@ -16,6 +22,8 @@ export class GroupService {
     const tripId = rawTripId ? cleanId(rawTripId) : undefined
     const rawDriverId = filters.driver_id || filters.driverId
     const driverId = rawDriverId ? cleanId(rawDriverId) : undefined
+    const rawVehicleId = filters.vehicle_id || filters.vehicleId
+    const vehicleId = rawVehicleId ? cleanId(rawVehicleId) : undefined
     const status = filters.status
     const search = filters.search
 
@@ -24,12 +32,15 @@ export class GroupService {
         ...(tripId && { trip_id: tripId }),
         ...(status && { status }),
         ...(driverId && { driver_id: driverId }),
+        ...(vehicleId && { vehicle_id: vehicleId }),
         ...(search && {
           OR: [
             { trip: { destination: { name: { contains: search, mode: 'insensitive' } } } },
             { driver: { user: { name: { contains: search, mode: 'insensitive' } } } },
-            { driver: { vehicle_plat: { contains: search, mode: 'insensitive' } } },
-            { driver: { vehicle_type: { contains: search, mode: 'insensitive' } } },
+            { driver: { license_number: { contains: search, mode: 'insensitive' } } },
+            { vehicle: { name: { contains: search, mode: 'insensitive' } } },
+            { vehicle: { plate_number: { contains: search, mode: 'insensitive' } } },
+            { vehicle: { vehicle_type: { contains: search, mode: 'insensitive' } } },
           ],
         }),
       },
@@ -50,8 +61,10 @@ export class GroupService {
                 profile_image_url: true,
               },
             },
+            vehicle: true,
           },
         },
+        vehicle: true,
         participants: {
           include: {
             user: {
@@ -102,8 +115,10 @@ export class GroupService {
                 profile_image_url: true,
               },
             },
+            vehicle: true,
           },
         },
+        vehicle: true,
         participants: {
           include: {
             user: {
@@ -145,6 +160,15 @@ export class GroupService {
       driverId = cleanDriverId
     }
 
+    let vehicleId: string | null = null
+    const rawVehicleId = data.vehicle_id || data.vehicleId
+    if (rawVehicleId) {
+      const cleanVehId = cleanId(rawVehicleId)
+      const vehicle = await prisma.vehicle.findUnique({ where: { id: cleanVehId } })
+      if (!vehicle) throw new ApiError('Armada tidak ditemukan', 404)
+      vehicleId = cleanVehId
+    }
+
     let groupNumber = data.group_number || data.groupNumber
     if (!groupNumber) {
       const lastGroup = await prisma.bookingGroup.findFirst({
@@ -178,6 +202,7 @@ export class GroupService {
       data: {
         trip_id: tripId,
         driver_id: driverId,
+        vehicle_id: vehicleId,
         group_number: groupNumber,
         status,
         current_participants: 0,
@@ -187,7 +212,8 @@ export class GroupService {
       },
       include: {
         trip: { include: { destination: true } },
-        driver: { include: { user: true } },
+        driver: { include: { user: true, vehicle: true } },
+        vehicle: true,
         participants: true,
       },
     })
@@ -226,6 +252,18 @@ export class GroupService {
         updateData.driver = { connect: { id: cleanDriverId } }
       } else {
         updateData.driver = { disconnect: true }
+      }
+    }
+
+    if (data.vehicle_id !== undefined || data.vehicleId !== undefined) {
+      const rawVehId = data.vehicle_id ?? data.vehicleId
+      if (rawVehId) {
+        const cleanVehId = cleanId(rawVehId)
+        const vehicle = await prisma.vehicle.findUnique({ where: { id: cleanVehId } })
+        if (!vehicle) throw new ApiError('Armada tidak ditemukan', 404)
+        updateData.vehicle = { connect: { id: cleanVehId } }
+      } else {
+        updateData.vehicle = { disconnect: true }
       }
     }
 
@@ -276,7 +314,8 @@ export class GroupService {
       data: updateData,
       include: {
         trip: { include: { destination: true } },
-        driver: { include: { user: true } },
+        driver: { include: { user: true, vehicle: true } },
+        vehicle: true,
         participants: { include: { user: true } },
       },
     })
@@ -327,7 +366,8 @@ export class GroupService {
       },
       include: {
         trip: { include: { destination: true } },
-        driver: { include: { user: true } },
+        driver: { include: { user: true, vehicle: true } },
+        vehicle: true,
         participants: true,
       },
     })
@@ -345,6 +385,63 @@ export class GroupService {
             driverId: updatedDriverId,
             driverName: driverInfo?.user?.name || null,
             previousDriverId: existing.driver_id,
+          },
+        },
+      })
+    }
+
+    return this.formatGroup(updated)
+  }
+
+  static async assignVehicle(id: string, data: AssignVehicleInput, adminId?: string) {
+    const cleanGroupId = cleanId(id)
+    const existing = await prisma.bookingGroup.findUnique({
+      where: { id: cleanGroupId },
+      include: { vehicle: true },
+    })
+    if (!existing) throw new ApiError('Booking group not found', 404)
+
+    const rawVehicleId = data.vehicle_id ?? data.vehicleId
+    let updatedVehicleId: string | null = null
+    let vehicleInfo = null
+
+    if (rawVehicleId) {
+      const cleanVehicleId = cleanId(rawVehicleId)
+      const vehicle = await prisma.vehicle.findUnique({
+        where: { id: cleanVehicleId },
+      })
+      if (!vehicle) throw new ApiError('Armada tidak ditemukan', 404)
+      updatedVehicleId = cleanVehicleId
+      vehicleInfo = vehicle
+    }
+
+    const updated = await prisma.bookingGroup.update({
+      where: { id: cleanGroupId },
+      data: {
+        vehicle_id: updatedVehicleId,
+      },
+      include: {
+        trip: { include: { destination: true } },
+        driver: { include: { user: true, vehicle: true } },
+        vehicle: true,
+        participants: true,
+      },
+    })
+
+    if (adminId) {
+      const action = updatedVehicleId ? 'ASSIGN_VEHICLE_TO_GROUP' : 'UNASSIGN_VEHICLE_FROM_GROUP'
+      await prisma.auditLog.create({
+        data: {
+          user_id: adminId,
+          action,
+          entity_type: 'BookingGroup',
+          entity_id: cleanGroupId,
+          new_values: {
+            groupId: cleanGroupId,
+            vehicleId: updatedVehicleId,
+            vehicleName: vehicleInfo?.name || null,
+            vehiclePlate: vehicleInfo?.plate_number || null,
+            previousVehicleId: existing.vehicle_id,
           },
         },
       })
@@ -386,16 +483,22 @@ export class GroupService {
   }
 
   private static formatGroup(g: Record<string, unknown>) {
-    const driver = g.driver as Record<string, unknown> | null | undefined
+    const driver = g.driver as (Record<string, unknown> & { vehicle?: Record<string, unknown> | null }) | null | undefined
     const driverUser = driver?.user as Record<string, unknown> | null | undefined
+    const driverVehicle = driver?.vehicle as Record<string, unknown> | null | undefined
+    const groupVehicle = g.vehicle as Record<string, unknown> | null | undefined
     const trip = g.trip as Record<string, unknown> | null | undefined
     const destination = trip?.destination as Record<string, unknown> | null | undefined
     const participants = (g.participants as Array<Record<string, unknown>>) || []
+
+    // Effective vehicle is group's direct vehicle, or driver's assigned vehicle fallback
+    const effectiveVehicle = groupVehicle || driverVehicle || null
 
     return {
       id: g.id,
       tripId: g.trip_id,
       driverId: g.driver_id || null,
+      vehicleId: g.vehicle_id || null,
       groupNumber: g.group_number,
       status: g.status,
       currentParticipants: g.current_participants,
@@ -427,14 +530,42 @@ export class GroupService {
             id: driver.id,
             userId: driver.user_id,
             licenseNumber: driver.license_number,
-            vehicleType: driver.vehicle_type,
-            plateNumber: driver.vehicle_plat,
+            vehicleType: (driverVehicle?.vehicle_type as string) || (driver.vehicle_type as string) || null,
+            plateNumber: (driverVehicle?.plate_number as string) || (driver.vehicle_plat as string) || null,
             rating: Number(driver.rating || 0),
             isAvailable: driver.is_available,
             fullName: driverUser?.name || null,
             phoneNumber: driverUser?.phone || null,
             email: driverUser?.email || null,
             photoUrl: driverUser?.profile_image_url || null,
+            vehicle: driverVehicle
+              ? {
+                  id: driverVehicle.id,
+                  name: driverVehicle.name,
+                  plateNumber: driverVehicle.plate_number,
+                  vehicleType: driverVehicle.vehicle_type,
+                }
+              : null,
+          }
+        : null,
+      vehicle: effectiveVehicle
+        ? {
+            id: effectiveVehicle.id,
+            name: effectiveVehicle.name,
+            plateNumber: effectiveVehicle.plate_number,
+            plate_number: effectiveVehicle.plate_number,
+            vehicleType: effectiveVehicle.vehicle_type,
+            vehicle_type: effectiveVehicle.vehicle_type,
+            capacity: effectiveVehicle.capacity,
+            transmission: effectiveVehicle.transmission || null,
+            fuelType: effectiveVehicle.fuel_type || null,
+            fuel_type: effectiveVehicle.fuel_type || null,
+            facility: effectiveVehicle.facility || null,
+            coverImage: effectiveVehicle.cover_image || null,
+            cover_image: effectiveVehicle.cover_image || null,
+            status: effectiveVehicle.status || 'active',
+            isAvailable: effectiveVehicle.is_available ?? true,
+            is_available: effectiveVehicle.is_available ?? true,
           }
         : null,
       participants: participants.map((p) => ({

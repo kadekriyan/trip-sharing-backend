@@ -88,6 +88,7 @@ model BookingGroup {
   id                   String   @id @default(uuid())
   trip_id              String
   driver_id            String?
+  vehicle_id           String?
   group_number         Int
   status               String   @default("open")
   current_participants Int      @default(0)
@@ -99,12 +100,14 @@ model BookingGroup {
 
   trip         Trip          @relation(fields: [trip_id], references: [id])
   driver       Driver?       @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  vehicle      Vehicle?      @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
   participants Participant[]
   payments     Payment[]
 
   @@unique([trip_id, group_number])
   @@index([trip_id])
   @@index([driver_id])
+  @@index([vehicle_id])
   @@index([status])
 }
 
@@ -201,18 +204,43 @@ model Driver {
   id               String   @id @default(uuid())
   user_id          String   @unique
   license_number   String   @unique
-  vehicle_type     String
-  vehicle_plat     String   @unique
-  experience_years Int
+  experience_years Int      @default(1)
   rating           Decimal  @default(0) @db.Decimal(3, 2)
   is_available     Boolean  @default(true)
+  status           String   @default("active")
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
   user           User           @relation(fields: [user_id], references: [id])
+  vehicle        Vehicle?
   booking_groups BookingGroup[]
 
   @@index([is_available])
+  @@index([status])
+}
+
+model Vehicle {
+  id               String   @id @default(uuid())
+  name             String
+  plate_number     String   @unique
+  vehicle_type     String
+  capacity         Int      @default(6)
+  transmission     String?
+  fuel_type        String?
+  facility         Json?
+  cover_image      String?
+  status           String   @default("active")
+  is_available     Boolean  @default(true)
+  driver_id        String?  @unique
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  driver         Driver?        @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  booking_groups BookingGroup[]
+
+  @@index([is_available])
+  @@index([status])
+  @@index([plate_number])
 }
 
 model AuditLog {

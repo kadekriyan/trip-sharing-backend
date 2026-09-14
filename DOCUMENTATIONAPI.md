@@ -18,10 +18,11 @@
 6. [Pembayaran & Midtrans Snap Gateway (`/api/payments`)](#6-pembayaran--midtrans-snap-gateway-apipayments)
 7. [Layanan Unggah Berkas & Gambar (`/api/upload`)](#7-layanan-unggah-berkas--gambar-apiupload)
 8. [Blog & Artikel Wisata (`/api/blogs`)](#8-blog--artikel-wisata-apiblogs)
-9. [Driver & Armada (`/api/drivers`)](#9-driver--armada-apidrivers)
-10. [Partisipan Traveler (`/api/participants`)](#10-partisipan-traveler-apiparticipants)
-11. [Dashboard & Manajemen Admin (`/api/admin`)](#11-dashboard--manajemen-admin-apiadmin)
-12. [Panduan Integrasi Frontend (Next.js Client Example)](#12-panduan-integrasi-frontend-nextjs-client-example)
+9. [Driver / Pengemudi (`/api/drivers`)](#9-driver--pengemudi-apidrivers)
+10. [Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)](#10-armada--kendaraan-fisik-apivehicles--apiarmada)
+11. [Partisipan Traveler (`/api/participants`)](#11-partisipan-traveler-apiparticipants)
+12. [Dashboard & Manajemen Admin (`/api/admin`)](#12-dashboard--manajemen-admin-apiadmin)
+13. [Panduan Integrasi Frontend (Next.js Client Example)](#13-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -936,12 +937,10 @@ Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`)
 }
 ```
 
----
-
-## 9. Driver & Armada (`/api/drivers`)
+## 9. Driver / Pengemudi (`/api/drivers`)
 
 ### 9.1 Daftar Driver Tersedia
-Menampilkan daftar driver aktif yang siap bertugas mengantar armada trip sharing.
+Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing.
 
 - **Method**: `GET`
 - **Path**: `/api/drivers`
@@ -956,17 +955,36 @@ Menampilkan daftar driver aktif yang siap bertugas mengantar armada trip sharing
     {
       "id": "d0912384-1234-4bc1-9022-771199aabb01",
       "userId": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+      "fullName": "Pak Joko Santoso",
+      "name": "Pak Joko Santoso",
+      "phoneNumber": "+6281233445566",
+      "phone": "+6281233445566",
+      "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
-      "vehicleType": "Toyota HiAce Premio",
-      "vehiclePlat": "N 1234 XY",
       "experienceYears": 6,
       "rating": 5.0,
       "isAvailable": true,
+      "status": "active",
+      "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
+      "vehicle": {
+        "id": "veh-7711-4bc1-9022-882299aabb01",
+        "name": "Toyota HiAce Premio Luxury",
+        "plateNumber": "N 1234 XY",
+        "vehicleType": "Minivan",
+        "capacity": 6,
+        "status": "active",
+        "isAvailable": true
+      },
+      "vehicleModel": "Toyota HiAce Premio Luxury",
+      "plateNumber": "N 1234 XY",
       "user": {
+        "id": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
         "name": "Pak Joko Santoso",
         "phone": "+6281233445566",
+        "email": "joko@driver.local",
         "profileImageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200"
-      }
+      },
+      "createdAt": "2026-09-01T08:00:00.000Z"
     }
   ],
   "timestamp": "2026-09-03T04:00:00.000Z"
@@ -975,9 +993,103 @@ Menampilkan daftar driver aktif yang siap bertugas mengantar armada trip sharing
 
 ---
 
-## 10. Partisipan Traveler (`/api/participants`)
+## 10. Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)
 
-### 10.1 Data Partisipan Saya
+### 10.1 Daftar Seluruh Armada Tersedia
+Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta status ketersediaan dan driver yang terpasang (*assigned*).
+
+- **Method**: `GET`
+- **Path**: `/api/vehicles` *(atau `/api/armada`)*
+- **Auth**: Public
+- **Query Params**:
+  - `status` *(opsional)*: Filter status (`active`, `maintenance`, `inactive`).
+  - `isAvailable` / `is_available` *(opsional, boolean)*: `true` / `false`.
+  - `vehicleType` / `vehicle_type` *(opsional)*: Tipe armada (misal: `Minivan`, `SUV`, `Bus`).
+  - `search` *(opsional)*: Pencarian nama armada atau nomor plat.
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicles retrieved successfully",
+  "data": [
+    {
+      "id": "veh-7711-4bc1-9022-882299aabb01",
+      "name": "Toyota HiAce Premio Luxury",
+      "plateNumber": "N 1234 XY",
+      "plate_number": "N 1234 XY",
+      "vehicleType": "Minivan",
+      "vehicle_type": "Minivan",
+      "capacity": 6,
+      "transmission": "Manual",
+      "fuelType": "Diesel",
+      "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Luggage Space"],
+      "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+      "status": "active",
+      "isAvailable": true,
+      "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+      "driver": {
+        "id": "d0912384-1234-4bc1-9022-771199aabb01",
+        "userId": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
+        "fullName": "Pak Joko Santoso",
+        "phoneNumber": "+6281233445566",
+        "email": "joko@driver.local",
+        "licenseNumber": "SIM-A-99218201",
+        "rating": 5.0,
+        "isAvailable": true,
+        "status": "active",
+        "photoUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200"
+      },
+      "createdAt": "2026-09-01T08:00:00.000Z",
+      "updatedAt": "2026-09-01T08:00:00.000Z"
+    }
+  ],
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 10.2 Detail Armada Kendaraan
+- **Method**: `GET`
+- **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicle retrieved successfully",
+  "data": {
+    "id": "veh-7711-4bc1-9022-882299aabb01",
+    "name": "Toyota HiAce Premio Luxury",
+    "plateNumber": "N 1234 XY",
+    "vehicleType": "Minivan",
+    "capacity": 6,
+    "transmission": "Manual",
+    "fuelType": "Diesel",
+    "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Luggage Space"],
+    "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+    "status": "active",
+    "isAvailable": true,
+    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+    "driver": {
+      "id": "d0912384-1234-4bc1-9022-771199aabb01",
+      "fullName": "Pak Joko Santoso",
+      "phoneNumber": "+6281233445566",
+      "licenseNumber": "SIM-A-99218201",
+      "rating": 5.0
+    }
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+## 11. Partisipan Traveler (`/api/participants`)
+
+### 11.1 Data Partisipan Saya
 Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 - **Method**: `GET`
@@ -1006,7 +1118,7 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 ---
 
-## 11. Dashboard & Manajemen Admin (`/api/admin`)
+## 12. Dashboard & Manajemen Admin (`/api/admin`)
 
 > **Catatan Keamanan**: Seluruh endpoint admin di bawah ini **WAJIB** menyertakan header `Authorization: Bearer <admin_jwt_token>` dengan akun ber-role `'admin'`.
 
@@ -1707,14 +1819,18 @@ Menghapus artikel secara permanen dari database.
 
 ---
 
-### 10.8 Manajemen Driver & Armada Admin (`CRUD`)
+### 12.8 Manajemen Driver / Personil Pengemudi Admin (`CRUD & Pairing`)
 
-#### 10.8.1 Daftar Seluruh Driver & Armada (`GET /api/admin/drivers`)
-Mengambil semua data driver dan armada kendaraan dalam format standar `camelCase`.
+#### 12.8.1 Daftar Seluruh Driver Admin (`GET /api/admin/drivers`)
+Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta data armada fisik yang saat ini terpasang.
 
 - **Method**: `GET`
 - **Path**: `/api/admin/drivers`
 - **Auth**: `Bearer <admin_jwt_token>`
+- **Query Params**:
+  - `is_available` *(opsional, boolean)*: Filter status ketersediaan.
+  - `status` *(opsional, string)*: Filter status (`active`, `inactive`, `on_trip`).
+  - `search` *(opsional, string)*: Pencarian nama driver, nomor HP, atau nomor SIM.
 
 ##### Response Sukses (`200 OK`)
 ```json
@@ -1731,13 +1847,20 @@ Mengambil semua data driver dan armada kendaraan dalam format standar `camelCase
       "phone": "+6281233445566",
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
-      "vehicleType": "Toyota HiAce Premio",
-      "vehicleModel": "Toyota HiAce Premio",
-      "vehiclePlat": "N 1234 XY",
-      "plateNumber": "N 1234 XY",
       "experienceYears": 6,
       "rating": 5.0,
       "isAvailable": true,
+      "status": "active",
+      "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
+      "vehicle": {
+        "id": "veh-7711-4bc1-9022-882299aabb01",
+        "name": "Toyota HiAce Premio Luxury",
+        "plateNumber": "N 1234 XY",
+        "vehicleType": "Minivan",
+        "capacity": 6,
+        "status": "active",
+        "isAvailable": true
+      },
       "user": {
         "id": "e4b29c62-8e1d-4d7a-b5e1-51283d5a4911",
         "name": "Pak Joko Santoso",
@@ -1754,8 +1877,8 @@ Mengambil semua data driver dan armada kendaraan dalam format standar `camelCase
 
 ---
 
-#### 10.8.2 Daftarkan Driver & Armada Baru (`POST /api/admin/drivers`)
-Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem akan otomatis membuat akun driver.
+#### 12.8.2 Daftarkan Driver Baru (`POST /api/admin/drivers`)
+Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehicleId`) secara opsional. Jika akun user belum ada, sistem otomatis membuatkan akun user ber-role `'driver'`.
 
 - **Method**: `POST`
 - **Path**: `/api/admin/drivers`
@@ -1768,9 +1891,8 @@ Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem ak
   "phoneNumber": "+6281355667788",
   "email": "budi.driver@example.com",
   "licenseNumber": "SIM-A-77889900",
-  "vehicleModel": "Toyota HiAce Commuter",
-  "plateNumber": "N 5678 AB",
   "experienceYears": 5,
+  "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
   "photoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
   "isAvailable": true
 }
@@ -1788,11 +1910,10 @@ Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem ak
     "phoneNumber": "+6281355667788",
     "email": "budi.driver@example.com",
     "licenseNumber": "SIM-A-77889900",
-    "vehicleModel": "Toyota HiAce Commuter",
-    "plateNumber": "N 5678 AB",
     "experienceYears": 5,
     "rating": 5.0,
-    "isAvailable": true
+    "isAvailable": true,
+    "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
   },
   "timestamp": "2026-09-03T04:00:00.000Z"
 }
@@ -1800,7 +1921,7 @@ Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem ak
 
 ---
 
-#### 10.8.3 Detail Driver & Armada (`GET /api/admin/drivers/:id`)
+#### 12.8.3 Detail Driver (`GET /api/admin/drivers/:id`)
 - **Method**: `GET`
 - **Path**: `/api/admin/drivers/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
@@ -1817,14 +1938,14 @@ Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem ak
     "phoneNumber": "+6281233445566",
     "email": "joko@driver.local",
     "licenseNumber": "SIM-A-99218201",
-    "vehicleModel": "Toyota HiAce Premio",
-    "plateNumber": "N 1234 XY",
     "experienceYears": 6,
     "rating": 5.0,
     "isAvailable": true,
-    "user": {
-      "name": "Pak Joko Santoso",
-      "phone": "+6281233445566"
+    "vehicle": {
+      "id": "veh-7711-4bc1-9022-882299aabb01",
+      "name": "Toyota HiAce Premio Luxury",
+      "plateNumber": "N 1234 XY",
+      "vehicleType": "Minivan"
     }
   },
   "timestamp": "2026-09-03T04:00:00.000Z"
@@ -1833,39 +1954,137 @@ Mendaftarkan pengemudi dan armada baru. Jika belum memiliki user akun, sistem ak
 
 ---
 
-#### 10.8.4 Edit / Update Driver & Armada (`PATCH` atau `PUT /api/admin/drivers/:id`)
-Dapat memperbarui data pengemudi, armada kendaraan, nomor plat, serta status ketersediaan.
-
+#### 12.8.4 Edit / Update Driver (`PATCH` atau `PUT /api/admin/drivers/:id`)
 - **Method**: `PATCH` atau `PUT`
 - **Path**: `/api/admin/drivers/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
 
-##### Request Body (Contoh Update Kendaraan, Plat, & Ketersediaan)
+##### Request Body
 ```json
 {
   "fullName": "Pak Joko Santoso, S.Pd",
   "phoneNumber": "+6281233445577",
-  "vehicleModel": "Toyota HiAce Premio VIP (6-Seater)",
-  "plateNumber": "N 1234 VIP",
   "experienceYears": 7,
   "isAvailable": true
 }
 ```
 
+---
+
+#### 12.8.5 Pasangkan / Lepas Armada ke Driver (`POST` atau `PATCH /api/admin/drivers/:id/assign-vehicle`)
+Memasangkan unit kendaraan fisik ke driver, atau melepaskan kendaraan (`vehicleId: null`).
+
+- **Method**: `POST` *(atau `PATCH /api/admin/drivers/:id/vehicle`)*
+- **Path**: `/api/admin/drivers/:id/assign-vehicle`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Memasangkan Armada)
+```json
+{
+  "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
+}
+```
+
+##### Request Body (Melepaskan Armada)
+```json
+{
+  "vehicleId": null
+}
+```
+
+---
+
+#### 12.8.6 Hapus Driver (`DELETE /api/admin/drivers/:id`)
+Menghapus data driver. Otomatis dilindungi jika driver sedang ditugaskan pada jadwal trip atau grup armada aktif.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/drivers/:id`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+---
+
+### 12.9 Manajemen Master Armada / Kendaraan Fisik Admin (`CRUD & Pairing`)
+
+Modul independen untuk mengelola kendaraan fisik (armada bus / minivan / SUV), plat nomor, kapasitas, fasilitas, dan status operasional armada.
+
+#### 12.9.1 Daftar Seluruh Armada Admin (`GET /api/admin/vehicles` atau `GET /api/admin/armada`)
+- **Method**: `GET`
+- **Path**: `/api/admin/vehicles` *(alias `/api/admin/armada`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+- **Query Params**:
+  - `status` *(opsional)*: Filter status (`active`, `maintenance`, `inactive`).
+  - `isAvailable` / `is_available` *(opsional, boolean)*: Filter ketersediaan.
+  - `search` *(opsional, string)*: Pencarian nama armada atau nomor plat.
+
 ##### Response Sukses (`200 OK`)
 ```json
 {
   "success": true,
-  "message": "Driver updated",
+  "message": "Vehicles retrieved successfully",
+  "data": [
+    {
+      "id": "veh-7711-4bc1-9022-882299aabb01",
+      "name": "Toyota HiAce Premio Luxury",
+      "plateNumber": "N 1234 XY",
+      "plate_number": "N 1234 XY",
+      "vehicleType": "Minivan",
+      "capacity": 6,
+      "transmission": "Manual",
+      "fuelType": "Diesel",
+      "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger"],
+      "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+      "status": "active",
+      "isAvailable": true,
+      "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+      "driver": {
+        "id": "d0912384-1234-4bc1-9022-771199aabb01",
+        "fullName": "Pak Joko Santoso",
+        "phoneNumber": "+6281233445566",
+        "rating": 5.0
+      }
+    }
+  ],
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+#### 12.9.2 Tambah Armada Kendaraan Baru (`POST /api/admin/vehicles` atau `POST /api/admin/armada`)
+- **Method**: `POST`
+- **Path**: `/api/admin/vehicles` *(alias `/api/admin/armada`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body
+```json
+{
+  "name": "Toyota HiAce Premio Luxury 2026",
+  "plateNumber": "N 7788 VIP",
+  "vehicleType": "Minivan",
+  "capacity": 6,
+  "transmission": "Manual",
+  "fuelType": "Diesel",
+  "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Luggage Space"],
+  "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+  "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+  "status": "active",
+  "isAvailable": true
+}
+```
+
+##### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Armada berhasil ditambahkan",
   "data": {
-    "id": "d0912384-1234-4bc1-9022-771199aabb01",
-    "fullName": "Pak Joko Santoso, S.Pd",
-    "phoneNumber": "+6281233445577",
-    "vehicleModel": "Toyota HiAce Premio VIP (6-Seater)",
-    "plateNumber": "N 1234 VIP",
-    "experienceYears": 7,
-    "isAvailable": true,
-    "updatedAt": "2026-09-03T05:00:00.000Z"
+    "id": "veh-9901-4bc1-9022-882299aabb99",
+    "name": "Toyota HiAce Premio Luxury 2026",
+    "plateNumber": "N 7788 VIP",
+    "vehicleType": "Minivan",
+    "capacity": 6,
+    "status": "active",
+    "isAvailable": true
   },
   "timestamp": "2026-09-03T04:00:00.000Z"
 }
@@ -1873,46 +2092,74 @@ Dapat memperbarui data pengemudi, armada kendaraan, nomor plat, serta status ket
 
 ---
 
-#### 10.8.5 Hapus Driver & Armada (`DELETE /api/admin/drivers/:id`)
-Menghapus data driver. Otomatis dilindungi jika driver sedang ditugaskan pada jadwal trip aktif.
-
-- **Method**: `DELETE`
-- **Path**: `/api/admin/drivers/:id`
+#### 12.9.3 Detail Armada Admin (`GET /api/admin/vehicles/:id` atau `GET /api/admin/armada/:id`)
+- **Method**: `GET`
+- **Path**: `/api/admin/vehicles/:id` *(alias `/api/admin/armada/:id`)*
 - **Auth**: `Bearer <admin_jwt_token>`
 
-##### Response Sukses (`200 OK`)
-```json
-{
-  "success": true,
-  "message": "Driver deleted",
-  "timestamp": "2026-09-03T04:00:00.000Z"
-}
-```
+---
 
-##### Response Error Jika Driver Sedang Ditugaskan pada Trip Aktif (`400 Bad Request`)
+#### 12.9.4 Update Armada Kendaraan (`PATCH` atau `PUT /api/admin/vehicles/:id`)
+- **Method**: `PATCH` *(alias `PUT`)*
+- **Path**: `/api/admin/vehicles/:id` *(alias `/api/admin/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Contoh Update Status Pemeliharaan)
 ```json
 {
-  "success": false,
-  "message": "Driver tidak dapat dihapus karena sedang ditugaskan pada jadwal trip aktif.",
-  "details": {},
-  "timestamp": "2026-09-03T04:00:00.000Z"
+  "name": "Toyota HiAce Premio Luxury",
+  "status": "maintenance",
+  "isAvailable": false
 }
 ```
 
 ---
 
-### 10.9 Manajemen Grup Armada & Penugasan Driver (`/api/admin/groups`)
+#### 12.9.5 Pasangkan / Lepas Driver ke Armada (`POST` atau `PATCH /api/admin/vehicles/:id/assign-driver`)
+Memasangkan personil pengemudi ke armada, atau melepaskan penugasan pengemudi (`driverId: null`).
 
-Modul ini digunakan oleh admin untuk mengelola unit rombongan/armada mobil (`BookingGroup`), mengatur kapasitas, mengubah status, serta menugaskan (*assign*), memindahkan (*reassign*), atau mencopot (*unassign*) driver dari grup armada tertentu.
+- **Method**: `POST` *(atau `PATCH /api/admin/vehicles/:id/driver`)*
+- **Path**: `/api/admin/vehicles/:id/assign-driver` *(alias `/api/admin/armada/:id/assign-driver`)*
+- **Auth**: `Bearer <admin_jwt_token>`
 
-#### 10.9.1 Daftar Seluruh Grup Armada (`GET /api/admin/groups`)
-Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driver yang ditugaskan, dan daftar partisipan di dalamnya.
+##### Request Body (Memasangkan Driver)
+```json
+{
+  "driverId": "d0912384-1234-4bc1-9022-771199aabb01"
+}
+```
+
+##### Request Body (Melepaskan Driver)
+```json
+{
+  "driverId": null
+}
+```
+
+---
+
+#### 12.9.6 Hapus Armada Kendaraan (`DELETE /api/admin/vehicles/:id`)
+Menghapus unit armada fisik. Dilindungi jika armada sedang terpasang pada grup perjalanan aktif.
+
+- **Method**: `DELETE`
+- **Path**: `/api/admin/vehicles/:id` *(alias `/api/admin/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>`
+
+---
+
+### 12.10 Manajemen Grup Armada & Penugasan Driver/Armada (`/api/admin/groups`)
+
+Modul ini digunakan oleh admin untuk mengelola unit rombongan mobil (`BookingGroup`), mengatur kapasitas, mengubah status, serta memasangkan personil Driver maupun unit Armada Fisik ke grup perjalanan tertentu.
+
+#### 12.10.1 Daftar Seluruh Grup Armada (`GET /api/admin/groups`)
+Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driver yang ditugaskan, data armada fisik, dan daftar partisipan di dalamnya.
 
 - **Method**: `GET`
 - **Path**: `/api/admin/groups`
 - **Query Params**:
   - `tripId` *(opsional)*: Filter berdasarkan ID Trip.
   - `driverId` *(opsional)*: Filter berdasarkan ID Driver.
+  - `vehicleId` *(opsional)*: Filter berdasarkan ID Armada/Vehicle.
   - `status` *(opsional)*: Filter status (`open`, `waiting`, `full`, `confirmed`, `completed`, `cancelled`).
   - `search` *(opsional)*: Pencarian nama destinasi, nama driver, plat nomor, atau tipe kendaraan.
 - **Auth**: `Bearer <admin_jwt_token>`
@@ -1927,6 +2174,7 @@ Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driv
       "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
       "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
       "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+      "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
       "groupNumber": 1,
       "status": "open",
       "currentParticipants": 2,
@@ -1962,29 +2210,23 @@ Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driv
         "email": "joko@driver.local",
         "photoUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200"
       },
+      "vehicle": {
+        "id": "veh-7711-4bc1-9022-882299aabb01",
+        "name": "Toyota HiAce Premio Luxury",
+        "plateNumber": "N 1234 XY",
+        "vehicleType": "Minivan",
+        "capacity": 6,
+        "status": "active",
+        "isAvailable": true
+      },
       "participants": [
         {
           "id": "c19208a1-5512-48ea-9201-7fa112345678",
           "bookingCode": "TRV-8921",
           "fullName": "Siti Rahmawati",
           "phoneNumber": "+6281298765432",
-          "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
-          "pickupLatitude": -7.962145,
-          "pickupLongitude": 112.634125,
-          "pickupNotes": "Lobi timur drop-off point",
           "paymentStatus": "paid",
-          "checkInStatus": "pending",
-          "user": {
-            "id": "u1283a01-4412-4eb2-a102-bcde91230001",
-            "name": "Siti Rahmawati",
-            "email": "siti@example.com",
-            "phone": "+6281298765432"
-          },
-          "payment": {
-            "id": "p9012384-1234-4bc1-9022-771199aabb01",
-            "amount": 850000,
-            "status": "completed"
-          }
+          "checkInStatus": "pending"
         }
       ]
     }
@@ -1995,9 +2237,7 @@ Mengambil semua data grup/armada mobil beserta relasi trip, destinasi, data driv
 
 ---
 
-#### 10.9.2 Buat Grup Armada Baru (`POST /api/admin/groups`)
-Membuat grup mobil baru di bawah suatu jadwal Trip tertentu secara manual.
-
+#### 12.10.2 Buat Grup Armada Baru (`POST /api/admin/groups`)
 - **Method**: `POST`
 - **Path**: `/api/admin/groups`
 - **Auth**: `Bearer <admin_jwt_token>`
@@ -2007,88 +2247,24 @@ Membuat grup mobil baru di bawah suatu jadwal Trip tertentu secara manual.
 {
   "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
   "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+  "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
   "groupNumber": 2,
   "maxParticipants": 6,
   "pricePerPerson": 850000,
   "status": "open"
 }
 ```
-*(Catatan: `driverId` dan `groupNumber` bersifat opsional. Jika `groupNumber` dikosongkan, sistem otomatis memberikan nomor urut berikutnya).*
-
-##### Response Sukses (`201 Created`)
-```json
-{
-  "success": true,
-  "message": "Booking group created successfully",
-  "data": {
-    "id": "f128c9a0-4412-4eb2-a102-bcde91230002",
-    "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
-    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
-    "groupNumber": 2,
-    "status": "open",
-    "currentParticipants": 0,
-    "maxParticipants": 6,
-    "pricePerPerson": 850000,
-    "totalPrice": 5100000,
-    "createdAt": "2026-09-05T13:30:00.000Z",
-    "updatedAt": "2026-09-05T13:30:00.000Z",
-    "driver": {
-      "id": "d0912384-1234-4bc1-9022-771199aabb01",
-      "fullName": "Pak Joko Santoso",
-      "vehicleType": "Toyota HiAce Premio",
-      "plateNumber": "N 1234 XY"
-    }
-  },
-  "timestamp": "2026-09-05T13:30:00.000Z"
-}
-```
 
 ---
 
-#### 10.9.3 Detail Grup Armada (`GET /api/admin/groups/:id`)
+#### 12.10.3 Detail Grup Armada (`GET /api/admin/groups/:id`)
 - **Method**: `GET`
 - **Path**: `/api/admin/groups/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
 
-##### Response Sukses (`200 OK`)
-```json
-{
-  "success": true,
-  "message": "Booking group retrieved successfully",
-  "data": {
-    "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
-    "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
-    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
-    "groupNumber": 1,
-    "status": "open",
-    "currentParticipants": 2,
-    "maxParticipants": 6,
-    "pricePerPerson": 850000,
-    "totalPrice": 5100000,
-    "trip": {
-      "id": "3a09e112-9c44-48f1-9011-8a9d12340001",
-      "destination": {
-        "name": "Bromo Sunrise & Midnight Safari"
-      }
-    },
-    "driver": {
-      "id": "d0912384-1234-4bc1-9022-771199aabb01",
-      "fullName": "Pak Joko Santoso",
-      "phoneNumber": "+6281233445566",
-      "vehicleType": "Toyota HiAce Premio",
-      "plateNumber": "N 1234 XY"
-    },
-    "participants": []
-  },
-  "timestamp": "2026-09-05T13:30:00.000Z"
-}
-```
-
 ---
 
-#### 10.9.4 Update Properti Grup Armada (`PATCH /api/admin/groups/:id`)
-Dapat memperbarui kapasitas maksimal mobil, status grup, harga per orang, nomor urut grup, maupun penugasan driver.
-
+#### 12.10.4 Update Properti Grup Armada (`PATCH /api/admin/groups/:id`)
 - **Method**: `PATCH`
 - **Path**: `/api/admin/groups/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
@@ -2096,49 +2272,47 @@ Dapat memperbarui kapasitas maksimal mobil, status grup, harga per orang, nomor 
 ##### Request Body
 ```json
 {
-  "maxParticipants": 7,
+  "maxParticipants": 6,
   "status": "waiting",
-  "pricePerPerson": 800000
-}
-```
-
-##### Response Sukses (`200 OK`)
-```json
-{
-  "success": true,
-  "message": "Booking group updated successfully",
-  "data": {
-    "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
-    "maxParticipants": 7,
-    "status": "waiting",
-    "pricePerPerson": 800000,
-    "totalPrice": 5600000,
-    "updatedAt": "2026-09-05T13:35:00.000Z"
-  },
-  "timestamp": "2026-09-05T13:35:00.000Z"
+  "pricePerPerson": 800000,
+  "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
 }
 ```
 
 ---
 
-#### 10.9.5 Penugasan / Pemindahan / Pencopotan Driver ke Grup (`PATCH` atau `POST /api/admin/groups/:id/driver`)
-Menugaskan sopir baru ke mobil, memindahkan driver dari mobil lain, atau mencopot penugasan driver (`driverId: null`).
-
+#### 12.10.5 Penugasan / Pemindahan Driver ke Grup (`PATCH` atau `POST /api/admin/groups/:id/driver`)
 - **Method**: `PATCH` *(atau `POST /api/admin/groups/:id/assign-driver`)*
 - **Path**: `/api/admin/groups/:id/driver`
 - **Auth**: `Bearer <admin_jwt_token>`
 
-##### Request Body (Menugaskan / Memindahkan Driver)
+##### Request Body
 ```json
 {
   "driverId": "d0912384-1234-4bc1-9022-771199aabb01"
 }
 ```
 
-##### Request Body (Mencopot Driver dari Grup)
+---
+
+#### 12.10.6 Penugasan / Pemindahan Armada ke Grup (`PATCH` atau `POST /api/admin/groups/:id/vehicle`)
+Menugaskan unit armada kendaraan fisik ke grup, atau melepaskan armada dari grup (`vehicleId: null`).
+
+- **Method**: `PATCH` *(atau `POST /api/admin/groups/:id/assign-vehicle`)*
+- **Path**: `/api/admin/groups/:id/vehicle`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Request Body (Menugaskan Armada)
 ```json
 {
-  "driverId": null
+  "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
+}
+```
+
+##### Request Body (Melepaskan Armada dari Grup)
+```json
+{
+  "vehicleId": null
 }
 ```
 
@@ -2146,17 +2320,18 @@ Menugaskan sopir baru ke mobil, memindahkan driver dari mobil lain, atau mencopo
 ```json
 {
   "success": true,
-  "message": "Driver Pak Joko Santoso successfully assigned to Group #1",
+  "message": "Armada Toyota HiAce Premio Luxury (N 1234 XY) berhasil dipasangkan ke Grup #1",
   "data": {
     "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
-    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+    "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
     "groupNumber": 1,
-    "driver": {
-      "id": "d0912384-1234-4bc1-9022-771199aabb01",
-      "fullName": "Pak Joko Santoso",
-      "phoneNumber": "+6281233445566",
-      "vehicleType": "Toyota HiAce Premio",
+    "vehicle": {
+      "id": "veh-7711-4bc1-9022-882299aabb01",
+      "name": "Toyota HiAce Premio Luxury",
       "plateNumber": "N 1234 XY",
+      "vehicleType": "Minivan",
+      "capacity": 6,
+      "status": "active",
       "isAvailable": true
     }
   },
@@ -2166,41 +2341,18 @@ Menugaskan sopir baru ke mobil, memindahkan driver dari mobil lain, atau mencopo
 
 ---
 
-#### 10.9.6 Hapus Grup Armada Kosong (`DELETE /api/admin/groups/:id`)
+#### 12.10.7 Hapus Grup Armada Kosong (`DELETE /api/admin/groups/:id`)
 Menghapus grup armada mobil. Otomatis dilindungi jika grup masih memiliki peserta aktif (ditolak dengan status `400 Bad Request`).
 
 - **Method**: `DELETE`
 - **Path**: `/api/admin/groups/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
 
-##### Response Sukses (`200 OK`)
-```json
-{
-  "success": true,
-  "message": "Booking group deleted successfully",
-  "data": {
-    "id": "f128c9a0-4412-4eb2-a102-bcde91230002",
-    "deleted": true
-  },
-  "timestamp": "2026-09-05T13:35:00.000Z"
-}
-```
-
-##### Response Error Jika Grup Masih Berpenumpang (`400 Bad Request`)
-```json
-{
-  "success": false,
-  "message": "Cannot delete booking group with existing participants. Please move or cancel participants first.",
-  "details": {},
-  "timestamp": "2026-09-05T13:35:00.000Z"
-}
-```
-
 ---
 
-## 12. Panduan Integrasi Frontend (Next.js Client Example)
+## 13. Panduan Integrasi Frontend (Next.js Client Example)
 
-### 12.1 HTTP Client Helper (`lib/api.ts`)
+### 13.1 HTTP Client Helper (`lib/api.ts`)
 ```typescript
 import axios from 'axios'
 
@@ -2223,7 +2375,7 @@ api.interceptors.request.use((config) => {
 })
 ```
 
-### 11.2 Integrasi Midtrans Snap Popup di Next.js
+### 13.2 Integrasi Midtrans Snap Popup di Next.js
 ```tsx
 'use client'
 

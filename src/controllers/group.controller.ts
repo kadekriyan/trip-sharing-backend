@@ -36,6 +36,14 @@ export class GroupController {
     sendResponse(res, 200, message, group)
   }
 
+  static async assignVehicle(req: Request, res: Response) {
+    const group = await GroupService.assignVehicle(req.params.id, req.body, req.user?.id)
+    const message = group.vehicleId
+      ? `Armada ${group.vehicle?.name || ''} (${group.vehicle?.plateNumber || ''}) berhasil dipasangkan ke Grup #${group.groupNumber}`
+      : `Armada berhasil dilepas dari Grup #${group.groupNumber}`
+    sendResponse(res, 200, message, group)
+  }
+
   static async deleteGroup(req: Request, res: Response) {
     const result = await GroupService.delete(req.params.id, req.user?.id)
     sendResponse(res, 200, 'Booking group deleted successfully', result)

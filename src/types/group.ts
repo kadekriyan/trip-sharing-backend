@@ -3,6 +3,8 @@ export interface CreateGroupInput {
   trip_id?: string
   driverId?: string | null
   driver_id?: string | null
+  vehicleId?: string | null
+  vehicle_id?: string | null
   groupNumber?: number
   group_number?: number
   maxParticipants?: number
@@ -15,6 +17,8 @@ export interface CreateGroupInput {
 export interface UpdateGroupInput {
   driverId?: string | null
   driver_id?: string | null
+  vehicleId?: string | null
+  vehicle_id?: string | null
   groupNumber?: number
   group_number?: number
   maxParticipants?: number
@@ -29,11 +33,18 @@ export interface AssignDriverInput {
   driver_id?: string | null
 }
 
+export interface AssignVehicleInput {
+  vehicleId?: string | null
+  vehicle_id?: string | null
+}
+
 export interface GroupFilterInput {
   tripId?: string
   trip_id?: string
   status?: string
   driverId?: string
   driver_id?: string
+  vehicleId?: string
+  vehicle_id?: string
   search?: string
 }
