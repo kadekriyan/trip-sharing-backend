@@ -106,6 +106,79 @@ describe('BookingService', () => {
         }),
       })
     })
+
+    it('should create a new booking group if existing group has geopolitical conflict with traveler', async () => {
+      const mockGroupWithUkrainian = {
+        id: 'grp-1',
+        trip_id: 'trip-1',
+        group_number: 1,
+        status: 'open',
+        current_participants: 2,
+        max_participants: 6,
+        participants: [
+          { nationality: 'Ukraine', country: 'Ukraine' },
+          { nationality: 'Germany', country: 'Germany' },
+        ],
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue({
+        id: 'trip-1',
+        booking_groups: [mockGroupWithUkrainian],
+      })
+      ;(prisma.bookingGroup.findFirst as jest.Mock).mockResolvedValue({ group_number: 1 })
+      ;(prisma.bookingGroup.create as jest.Mock).mockResolvedValue({
+        id: 'grp-2',
+        trip_id: 'trip-1',
+        group_number: 2,
+        status: 'open',
+        price_per_person: new Prisma.Decimal(500000),
+        total_price: new Prisma.Decimal(3000000),
+      })
+
+      // Russian traveler should NOT join grp-1 because of Ukraine conflict -> creates grp-2
+      const newGroup = await BookingService.getOrCreateBookingGroup(
+        'trip-1',
+        500000,
+        undefined,
+        'Russia',
+        1
+      )
+      expect(newGroup.id).toBe('grp-2')
+      expect(newGroup.group_number).toBe(2)
+      expect(prisma.bookingGroup.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          trip_id: '1',
+          group_number: 2,
+          status: 'open',
+        }),
+      })
+    })
+
+    it('should allow neutral traveler to join existing group with participants', async () => {
+      const mockGroupWithUkrainian = {
+        id: 'grp-1',
+        trip_id: 'trip-1',
+        group_number: 1,
+        status: 'open',
+        current_participants: 2,
+        max_participants: 6,
+        participants: [{ nationality: 'Ukraine', country: 'Ukraine' }],
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue({
+        id: 'trip-1',
+        booking_groups: [mockGroupWithUkrainian],
+      })
+
+      // Indonesian traveler (neutral) can join grp-1
+      const group = await BookingService.getOrCreateBookingGroup(
+        'trip-1',
+        500000,
+        undefined,
+        'Indonesia',
+        1
+      )
+      expect(group.id).toBe('grp-1')
+      expect(prisma.bookingGroup.create).not.toHaveBeenCalled()
+    })
   })
 
   describe('createBooking', () => {

@@ -3,6 +3,10 @@ import { prisma } from '../config/database'
 import { snap } from '../config/midtrans'
 import { BookingItemInput, CreateBulkBookingInput } from '../types/booking'
 import { ApiError } from '../utils/errors'
+import {
+  isGroupCompatibleWithMultipleTravelers,
+  isGroupCompatibleWithTraveler,
+} from '../utils/country-conflict'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
@@ -135,7 +139,9 @@ export class BookingService {
   static async getOrCreateBookingGroup(
     tripId: string,
     destinationPrice: Prisma.Decimal | number,
-    tx?: Prisma.TransactionClient
+    tx?: Prisma.TransactionClient,
+    travelerNationalities?: string | string[],
+    requestedPax: number = 1
   ) {
     const cleanTripId = cleanId(tripId)
     const tripClient = tx?.trip?.findUnique ? tx.trip : prisma.trip
@@ -143,12 +149,36 @@ export class BookingService {
 
     const trip = await tripClient.findUnique({
       where: { id: cleanTripId },
-      include: { booking_groups: { where: { status: 'open' }, orderBy: { group_number: 'asc' } } },
+      include: {
+        booking_groups: {
+          where: { status: 'open' },
+          include: {
+            participants: {
+              select: { nationality: true, country: true },
+            },
+          },
+          orderBy: { group_number: 'asc' },
+        },
+      },
     })
 
     if (!trip) throw new ApiError('Trip not found', 404)
 
-    const openGroup = trip.booking_groups.find((g) => g.current_participants < g.max_participants)
+    const countries = Array.isArray(travelerNationalities)
+      ? travelerNationalities
+      : travelerNationalities !== undefined && travelerNationalities !== null
+      ? [travelerNationalities]
+      : []
+
+    const openGroup = trip.booking_groups.find((g) => {
+      if (g.current_participants + requestedPax > g.max_participants) {
+        return false
+      }
+      if (countries.length > 0 && g.participants && g.participants.length > 0) {
+        return isGroupCompatibleWithMultipleTravelers(g, countries, requestedPax)
+      }
+      return true
+    })
     if (openGroup) return openGroup
 
     const lastGroup = await groupClient.findFirst({
@@ -218,18 +248,30 @@ export class BookingService {
         const cleanGroupId = cleanId(rawGroupId)
         const requestedGroup = await tx.bookingGroup.findUnique({
           where: { id: cleanGroupId },
+          include: {
+            participants: {
+              select: { nationality: true, country: true },
+            },
+          },
         })
         if (
           requestedGroup &&
           requestedGroup.trip_id === tripId &&
-          requestedGroup.current_participants < requestedGroup.max_participants
+          requestedGroup.current_participants < requestedGroup.max_participants &&
+          isGroupCompatibleWithTraveler(requestedGroup, nationality || country, 1)
         ) {
           bookingGroup = requestedGroup
         }
       }
 
       if (!bookingGroup) {
-        bookingGroup = await this.getOrCreateBookingGroup(tripId, pricePerPerson, tx)
+        bookingGroup = await this.getOrCreateBookingGroup(
+          tripId,
+          pricePerPerson,
+          tx,
+          nationality || country,
+          1
+        )
       }
 
       const participant = await tx.participant.create({
@@ -388,18 +430,30 @@ export class BookingService {
           const cleanGroupId = cleanId(rawGroupId)
           const requestedGroup = await tx.bookingGroup.findUnique({
             where: { id: cleanGroupId },
+            include: {
+              participants: {
+                select: { nationality: true, country: true },
+              },
+            },
           })
           if (
             requestedGroup &&
             requestedGroup.trip_id === trip.id &&
-            requestedGroup.current_participants < requestedGroup.max_participants
+            requestedGroup.current_participants < requestedGroup.max_participants &&
+            isGroupCompatibleWithTraveler(requestedGroup, nationality || country, 1)
           ) {
             bookingGroup = requestedGroup
           }
         }
 
         if (!bookingGroup) {
-          bookingGroup = await this.getOrCreateBookingGroup(trip.id, pricePerPerson, tx)
+          bookingGroup = await this.getOrCreateBookingGroup(
+            trip.id,
+            pricePerPerson,
+            tx,
+            nationality || country,
+            1
+          )
         }
 
         const randomDigits = Math.floor(1000 + Math.random() * 9000)

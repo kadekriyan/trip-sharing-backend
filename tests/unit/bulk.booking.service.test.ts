@@ -248,25 +248,110 @@ describe('Bulk / Multi-Booking & Aggregated Payment Gateway', () => {
       expect(result.payment.orderId).toMatch(/^BULK-TRIP-/)
     })
 
-    it('should throw ApiError (409) if requested bulk bookings exceed trip available capacity', async () => {
-      const fullTrip = {
+    it('should auto-segregate conflicting nationalities into separate booking groups during bulk booking', async () => {
+      const tripWithPax = {
         ...mockTrip,
-        current_participants: 5,
-        max_participants: 6,
+        current_participants: 1,
+        max_participants: 12,
+        booking_groups: [
+          {
+            id: 'grp-01',
+            trip_id: 'trip-bromo-01',
+            group_number: 1,
+            status: 'open',
+            current_participants: 1,
+            max_participants: 6,
+            price_per_person: new Prisma.Decimal(850000),
+            participants: [{ nationality: 'India', country: 'India' }],
+          },
+        ],
       }
-      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(fullTrip)
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(tripWithPax)
 
+      const group2 = {
+        id: 'grp-02',
+        trip_id: 'trip-bromo-01',
+        group_number: 2,
+        status: 'open',
+        current_participants: 0,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal(850000),
+        participants: [],
+      }
+
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          trip: {
+            findUnique: jest.fn().mockResolvedValue(tripWithPax),
+            update: jest.fn().mockResolvedValue({ ...tripWithPax, current_participants: 3 }),
+          },
+          destination: {
+            findUnique: jest.fn().mockResolvedValue(mockDestination),
+          },
+          bookingGroup: {
+            findUnique: jest.fn().mockImplementation(({ where }) => {
+              if (where.id === 'grp-01') return tripWithPax.booking_groups[0]
+              return group2
+            }),
+            findFirst: jest.fn().mockResolvedValue({ group_number: 1 }),
+            create: jest.fn().mockResolvedValue(group2),
+            update: jest.fn().mockImplementation(({ where }) => {
+              if (where.id === 'grp-01') {
+                return { ...tripWithPax.booking_groups[0], current_participants: 2 }
+              }
+              return { ...group2, current_participants: 1 }
+            }),
+          },
+          user: {
+            findUnique: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation(({ data }) => ({ id: `usr-${data.email}`, ...data })),
+          },
+          participant: {
+            create: jest.fn().mockImplementation(({ data }) => ({
+              id: `part-${Math.random().toString(36).substr(2, 6)}`,
+              booking_code: data.booking_code,
+              full_name: data.full_name,
+              total_amount: data.total_amount,
+              payment_status: 'pending',
+              booking_group_id: data.booking_group_id,
+              user_id: data.user_id,
+              nationality: data.nationality,
+              user: { email: 'user@example.com' },
+            })),
+          },
+          payment: {
+            create: jest.fn().mockImplementation(({ data }) => ({
+              id: 'pay-bulk-1',
+              ...data,
+            })),
+          },
+        }
+        return callback(tx)
+      })
+
+      // Traveler 1 is Indonesian (can join grp-01 with Indian pax), Traveler 2 is Pakistani (conflicts with Indian pax -> allocated to grp-02)
       const bulkPayload = {
         bookings: [
-          { tripId: 'trip-bromo-01', fullName: 'Pax 1', phoneNumber: '08123456781' },
-          { tripId: 'trip-bromo-01', fullName: 'Pax 2', phoneNumber: '08123456782' },
+          {
+            tripId: 'trip-bromo-01',
+            fullName: 'Indonesian Traveler',
+            phoneNumber: '+6281987654321',
+            nationality: 'Indonesia',
+          },
+          {
+            tripId: 'trip-bromo-01',
+            fullName: 'Pakistani Traveler',
+            phoneNumber: '+923001234567',
+            nationality: 'Pakistan',
+          },
         ],
       }
 
-      await expect(BookingService.createBulkBooking('usr-1', bulkPayload)).rejects.toMatchObject({
-        statusCode: 409,
-        message: expect.stringContaining('tidak mencukupi'),
-      })
+      const result = await BookingService.createBulkBooking('usr-main', bulkPayload)
+
+      expect(result.participants).toHaveLength(2)
+      expect(result.participants[0].bookingGroupId).toBe('grp-01') // Indonesian joined Group 1
+      expect(result.participants[1].bookingGroupId).toBe('grp-02') // Pakistani allocated to Group 2
     })
   })
 

@@ -781,6 +781,39 @@ Authorization: Bearer <jwt_access_token>
 
 ---
 
+### 5.6 Aturan Pemisahan Armada Otomatis Berdasarkan Geopolitik / Kewarganegaraan (Nationality Segregation Logic)
+
+Untuk menjaga keamanan, keharmonisan, dan kenyamanan peserta selama perjalanan wisata bersama (trip sharing), sistem mengimplementasikan **Auto-Segregation Algorithm** yang memisahkan unit armada fisik (Mobil #1, Mobil #2, dst.) bagi traveler dari negara-negara yang memiliki sensitivitas/konflik geopolitik historis.
+
+#### 1. Matriks 9 Aturan Konflik Kewarganegaraan (Simetris / Dwiarah)
+| No | Pasangan Negara A | Pasangan Negara B | Keterangan & Sensitivitas |
+| :---: | :--- | :--- | :--- |
+| 1 | **Armenia** (`AM`) | **Azerbaijan** (`AZ`) | Konflik wilayah Kaukasus |
+| 2 | **India** (`IN`) | **Pakistan** (`PK`) | Sensitivitas perbatasan Asia Selatan |
+| 3 | **Serbia** (`RS`) | **Kosovo** (`XK`) / **Bosnia and Herzegovina** (`BA`) | Sensitivitas wilayah Balkan |
+| 4 | **Morocco / Maroko** (`MA`) | **Algeria / Aljazair** (`DZ`) | Sensitivitas geopolitik Afrika Utara |
+| 5 | **Turkey / Turki** (`TR`) | **Greece / Yunani** (`GR`) / **Cyprus / Siprus** (`CY`) | Sensitivitas Mediterania Timur |
+| 6 | **United Kingdom / Inggris** (`GB`) | **Argentina** (`AR`) | Sensitivitas kedaulatan Kepulauan Falkland |
+| 7 | **Russia / Rusia** (`RU`) | **Ukraine / Ukraina** (`UA`) | Konflik aktif Eropa Timur |
+| 8 | **China / Tiongkok** (`CN`) | **Taiwan** (`TW`) / **Hong Kong** (`HK`) | Sensitivitas politik & kedaulatan |
+| 9 | **China / Tiongkok** (`CN`) | **Japan / Jepang** (`JP`) / **South Korea / Korsel** (`KR`) | Sensitivitas regional Asia Timur |
+
+#### 2. Algoritma Alokasi Armada pada Backend (`POST /api/bookings` & `/bulk`)
+1. **Normalisasi Kewarganegaraan**: Bersihkan input string `nationality` dan petakan ke nama kanonikal ISO/Inggris resmi (misal: `"PK"` / `"pakistan"` $\to$ `"Pakistan"`, `"Inggris"` / `"UK"` $\to$ `"United Kingdom"`, `"Korsel"` $\to$ `"South Korea"`).
+2. **Evaluasi Grup Armada Terbuka (`groups`)**:
+   - Ambil daftar seluruh grup armada yang berstatus `open` pada trip tersebut.
+   - Filter grup yang masih memiliki sisa kapasitas cukup (`capacity - currentParticipants >= requestedSeats`).
+   - Periksa apakah di dalam grup tersebut terdapat peserta dari negara yang berkonflik dengan traveler pendaftar baru (`findConflictingCountriesInGroup`).
+3. **Penetapan Grup**:
+   - **Grup Kompatibel Ditemukan**: Masukkan traveler ke grup tersebut.
+   - **Tidak Ada Grup Kompatibel** (semua grup penuh atau memiliki penumpang berkonflik):
+     - Sistem secara otomatis membuka/membuat grup armada baru (misal: Mobil #2 / Mobil #3) untuk traveler tersebut.
+     - Kapasitas armada baru tersebut tetap dapat diisi oleh traveler dari negara-negara netral lainnya (seperti Indonesia, Malaysia, Jerman, dll.).
+4. **Wewenang Administrator**:
+   - Pada panel admin (`/api/admin/participants/move-group`), admin tetap memiliki wewenang penuh untuk memindahkan peserta antar-armada (*manual override*), dengan sistem menyajikan peringatan dini (*warning badge*).
+
+---
+
 ## 6. Pembayaran & Midtrans Snap Gateway (`/api/payments`)
 
 ### 6.1 Generate Midtrans Snap Token
