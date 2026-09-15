@@ -15,6 +15,8 @@ export class VehicleController {
       status: (req.query.status as string) || undefined,
       isAvailable,
       vehicleType: (req.query.vehicleType as string) || (req.query.vehicle_type as string) || undefined,
+      areaId: (req.query.areaId as string) || (req.query.area_id as string) || undefined,
+      area: (req.query.area as string) || undefined,
       search: (req.query.search as string) || undefined,
     })
 

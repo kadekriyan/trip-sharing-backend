@@ -1,9 +1,10 @@
 import { prisma } from '../config/database'
+import { CreateDriverInput, DriverFilterInput, UpdateDriverInput } from '../types/driver'
 import { ApiError } from '../utils/errors'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|drv-|veh-)/, '')
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|drv-|veh-|area-)/, '')
   }
   return String(val || '')
 }
@@ -12,10 +13,12 @@ export function formatDriver(
   d: Record<string, unknown> & {
     user?: Record<string, unknown> | null
     vehicle?: Record<string, unknown> | null
+    area?: Record<string, unknown> | null
   }
 ) {
   const user = d.user || {}
   const vehicle = d.vehicle || null
+  const area = d.area || null
   const fullName = (user.name as string) || (d.fullName as string) || (d.name as string) || 'Driver'
   const phoneNumber =
     (user.phone as string) || (d.phoneNumber as string) || (d.phone as string) || ''
@@ -37,6 +40,8 @@ export function formatDriver(
     (d.plateNumber as string) ||
     ''
 
+  const areaId = (d.area_id as string) || (d.areaId as string) || (area?.id as string) || null
+
   return {
     id: d.id as string,
     userId: (d.user_id as string) || (d.userId as string) || (user.id as string) || '',
@@ -53,6 +58,17 @@ export function formatDriver(
     isAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
     is_available: d.is_available !== undefined ? (d.is_available as boolean) : true,
     status: (d.status as string) || 'active',
+    areaId,
+    area_id: areaId,
+    area: area
+      ? {
+          id: area.id as string,
+          name: area.name as string,
+          slug: area.slug as string,
+          city: (area.city as string) || null,
+          province: (area.province as string) || null,
+        }
+      : null,
     vehicleId: vehicle ? (vehicle.id as string) : (d.vehicle_id as string) || null,
     vehicle_id: vehicle ? (vehicle.id as string) : (d.vehicle_id as string) || null,
     vehicle: vehicle
@@ -92,31 +108,7 @@ export function formatDriver(
 }
 
 export class DriverService {
-  static async create(data: {
-    user_id?: string
-    userId?: string
-    fullName?: string
-    name?: string
-    phoneNumber?: string
-    phone?: string
-    email?: string
-    license_number?: string
-    licenseNumber?: string
-    experience_years?: number
-    experienceYears?: number
-    is_available?: boolean
-    isAvailable?: boolean
-    status?: string
-    rating?: number
-    vehicle_id?: string | null
-    vehicleId?: string | null
-    vehicle_type?: string
-    vehicleType?: string
-    vehicleModel?: string
-    vehicle_plat?: string
-    vehiclePlat?: string
-    plateNumber?: string
-  }) {
+  static async create(data: CreateDriverInput) {
     let userId = data.user_id || data.userId
     const name = data.fullName || data.name || 'Driver'
     const phone = data.phoneNumber || data.phone
@@ -148,6 +140,17 @@ export class DriverService {
     const isAvailable = data.is_available ?? data.isAvailable ?? true
     const status = data.status || 'active'
 
+    let areaId: string | null = null
+    const rawAreaId = data.areaId || data.area_id
+    if (rawAreaId) {
+      const cleanAreaId = cleanId(rawAreaId)
+      const existingArea = await prisma.area.findFirst({
+        where: { OR: [{ id: cleanAreaId }, { id: rawAreaId }, { slug: rawAreaId.toLowerCase() }] },
+      })
+      if (!existingArea) throw new ApiError('Area / Wilayah operasional tidak ditemukan', 404)
+      areaId = existingArea.id
+    }
+
     const driver = await prisma.driver.create({
       data: {
         user_id: userId,
@@ -155,8 +158,9 @@ export class DriverService {
         experience_years: experienceYears,
         is_available: isAvailable,
         status,
+        area_id: areaId,
       },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
 
     // Handle pairing vehicle if vehicleId or legacy vehicle parameters provided
@@ -183,6 +187,7 @@ export class DriverService {
             vehicle_type: data.vehicleType || data.vehicle_type || 'Minivan',
             capacity: 6,
             driver_id: driver.id,
+            area_id: areaId,
           },
         })
       }
@@ -190,35 +195,56 @@ export class DriverService {
 
     const finalDriver = await prisma.driver.findUnique({
       where: { id: driver.id },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
 
     return formatDriver(finalDriver as never)
   }
 
-  static async list(filters: { is_available?: boolean; status?: string; search?: string } = {}) {
+  static async list(filters: DriverFilterInput = {}) {
     const where: Record<string, unknown> = {}
 
-    if (filters.is_available !== undefined) {
-      where.is_available = filters.is_available
+    if (filters.is_available !== undefined || filters.isAvailable !== undefined) {
+      where.is_available = filters.isAvailable ?? filters.is_available
     }
     if (filters.status) {
       where.status = filters.status
     }
+
+    // Filter by Area
+    const rawArea = filters.areaId || filters.area_id || filters.area
+    if (rawArea) {
+      const cleanAreaId = cleanId(rawArea)
+      where.OR = [
+        { area_id: cleanAreaId },
+        { area_id: rawArea },
+        { area: { slug: rawArea.toLowerCase().trim() } },
+        { area: { name: { contains: rawArea.trim(), mode: 'insensitive' } } },
+      ]
+    }
+
     if (filters.search) {
       const s = filters.search.trim()
-      where.OR = [
+      const searchCondition = [
         { user: { name: { contains: s, mode: 'insensitive' } } },
         { user: { phone: { contains: s, mode: 'insensitive' } } },
         { license_number: { contains: s, mode: 'insensitive' } },
         { vehicle: { plate_number: { contains: s, mode: 'insensitive' } } },
         { vehicle: { name: { contains: s, mode: 'insensitive' } } },
+        { area: { name: { contains: s, mode: 'insensitive' } } },
       ]
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchCondition }]
+        delete where.OR
+      } else {
+        where.OR = searchCondition
+      }
     }
 
     const drivers = await prisma.driver.findMany({
       where: where as never,
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
       orderBy: { created_at: 'desc' },
     })
 
@@ -236,18 +262,18 @@ export class DriverService {
           { license_number: id.toUpperCase() },
         ],
       },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
 
     if (!driver) throw new ApiError('Driver not found', 404)
     return formatDriver(driver as never)
   }
 
-  static async update(id: string, data: Record<string, unknown>) {
+  static async update(id: string, data: UpdateDriverInput) {
     const cleanDrvId = cleanId(id)
     const existing = await prisma.driver.findUnique({
       where: { id: cleanDrvId },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
     if (!existing) throw new ApiError('Driver not found', 404)
 
@@ -286,6 +312,20 @@ export class DriverService {
       driverUpdate.rating = Number(data.rating)
     }
 
+    if (data.areaId !== undefined || data.area_id !== undefined) {
+      const rawAreaId = data.areaId ?? data.area_id
+      if (rawAreaId) {
+        const cleanAreaId = cleanId(rawAreaId)
+        const area = await prisma.area.findFirst({
+          where: { OR: [{ id: cleanAreaId }, { id: rawAreaId }, { slug: rawAreaId.toLowerCase() }] },
+        })
+        if (!area) throw new ApiError('Area / Wilayah operasional tidak ditemukan', 404)
+        driverUpdate.area_id = area.id
+      } else {
+        driverUpdate.area_id = null
+      }
+    }
+
     if (Object.keys(driverUpdate).length > 0) {
       await prisma.driver.update({
         where: { id: cleanDrvId },
@@ -319,7 +359,7 @@ export class DriverService {
 
     const updated = await prisma.driver.findUnique({
       where: { id: cleanDrvId },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
 
     return formatDriver(updated as never)
@@ -356,7 +396,7 @@ export class DriverService {
 
     const updated = await prisma.driver.findUnique({
       where: { id: cleanDrvId },
-      include: { user: true, vehicle: true },
+      include: { user: true, vehicle: true, area: true },
     })
 
     return formatDriver(updated as never)

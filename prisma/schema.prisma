@@ -200,6 +200,24 @@ model Article {
   @@index([slug])
 }
 
+model Area {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  slug        String    @unique
+  city        String?
+  province    String?
+  description String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  drivers     Driver[]
+  vehicles    Vehicle[]
+
+  @@index([is_active])
+  @@index([slug])
+}
+
 model Driver {
   id               String   @id @default(uuid())
   user_id          String   @unique
@@ -208,15 +226,18 @@ model Driver {
   rating           Decimal  @default(0) @db.Decimal(3, 2)
   is_available     Boolean  @default(true)
   status           String   @default("active")
+  area_id          String?
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
   user           User           @relation(fields: [user_id], references: [id])
+  area           Area?          @relation(fields: [area_id], references: [id], onDelete: SetNull)
   vehicle        Vehicle?
   booking_groups BookingGroup[]
 
   @@index([is_available])
   @@index([status])
+  @@index([area_id])
 }
 
 model Vehicle {
@@ -232,15 +253,18 @@ model Vehicle {
   status           String   @default("active")
   is_available     Boolean  @default(true)
   driver_id        String?  @unique
+  area_id          String?
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
   driver         Driver?        @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  area           Area?          @relation(fields: [area_id], references: [id], onDelete: SetNull)
   booking_groups BookingGroup[]
 
   @@index([is_available])
   @@index([status])
   @@index([plate_number])
+  @@index([area_id])
 }
 
 model AuditLog {

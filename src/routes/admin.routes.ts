@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import { AdminController } from '../controllers/admin.controller'
+import { AreaController } from '../controllers/area.controller'
 import { GroupController } from '../controllers/group.controller'
 import { authenticate, authorize } from '../middleware/auth.middleware'
 import { validateRequest } from '../middleware/validation'
 import { asyncHandler } from '../utils/asyncHandler'
+import { areaValidator } from '../validators/area.validator'
 import { articleValidator } from '../validators/article.validator'
 import { destinationValidator } from '../validators/destination.validator'
 import { driverValidator } from '../validators/driver.validator'
@@ -248,5 +250,25 @@ router.patch(
   asyncHandler(AdminController.assignDriverToVehicle)
 )
 router.delete('/armada/:id', asyncHandler(AdminController.deleteVehicle))
+
+// Areas (Wilayah Operasional)
+router.post(
+  '/areas',
+  validateRequest(areaValidator.create),
+  asyncHandler(AreaController.create)
+)
+router.get('/areas', asyncHandler(AreaController.list))
+router.get('/areas/:id', asyncHandler(AreaController.get))
+router.patch(
+  '/areas/:id',
+  validateRequest(areaValidator.update),
+  asyncHandler(AreaController.update)
+)
+router.put(
+  '/areas/:id',
+  validateRequest(areaValidator.update),
+  asyncHandler(AreaController.update)
+)
+router.delete('/areas/:id', asyncHandler(AreaController.delete))
 
 export default router

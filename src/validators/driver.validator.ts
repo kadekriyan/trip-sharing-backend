@@ -29,6 +29,8 @@ export const driverValidator = {
     isAvailable: Joi.boolean().optional(),
     is_available: Joi.boolean().optional(),
     status: Joi.string().trim().valid('active', 'on_duty', 'off_duty', 'inactive').optional(),
+    areaId: Joi.string().trim().max(100).allow('', null).optional(),
+    area_id: Joi.string().trim().max(100).allow('', null).optional(),
     vehicleId: Joi.string().trim().max(100).allow('', null).optional(),
     vehicle_id: Joi.string().trim().max(100).allow('', null).optional(),
     // Optional legacy vehicle parameters (auto-creates or maps to vehicle if provided)
@@ -67,6 +69,8 @@ export const driverValidator = {
     isAvailable: Joi.boolean().optional(),
     is_available: Joi.boolean().optional(),
     status: Joi.string().trim().valid('active', 'on_duty', 'off_duty', 'inactive').optional(),
+    areaId: Joi.string().trim().max(100).allow('', null).optional(),
+    area_id: Joi.string().trim().max(100).allow('', null).optional(),
     vehicleId: Joi.string().trim().max(100).allow('', null).optional(),
     vehicle_id: Joi.string().trim().max(100).allow('', null).optional(),
     vehicleType: Joi.string().trim().max(100).optional(),

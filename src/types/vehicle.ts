@@ -14,6 +14,8 @@ export interface CreateVehicleInput {
   status?: string
   isAvailable?: boolean
   is_available?: boolean
+  areaId?: string | null
+  area_id?: string | null
   driverId?: string | null
   driver_id?: string | null
 }
@@ -34,6 +36,8 @@ export interface UpdateVehicleInput {
   status?: string
   isAvailable?: boolean
   is_available?: boolean
+  areaId?: string | null
+  area_id?: string | null
   driverId?: string | null
   driver_id?: string | null
 }
@@ -49,5 +53,8 @@ export interface VehicleFilterInput {
   is_available?: boolean
   vehicleType?: string
   vehicle_type?: string
+  areaId?: string
+  area_id?: string
+  area?: string
   search?: string
 }

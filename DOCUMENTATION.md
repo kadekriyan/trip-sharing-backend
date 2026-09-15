@@ -18,11 +18,12 @@
 6. [Pembayaran & Midtrans Snap Gateway (`/api/payments`)](#6-pembayaran--midtrans-snap-gateway-apipayments)
 7. [Layanan Unggah Berkas & Gambar (`/api/upload`)](#7-layanan-unggah-berkas--gambar-apiupload)
 8. [Blog & Artikel Wisata (`/api/blogs`)](#8-blog--artikel-wisata-apiblogs)
-9. [Driver / Pengemudi (`/api/drivers`)](#9-driver--pengemudi-apidrivers)
-10. [Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)](#10-armada--kendaraan-fisik-apivehicles--apiarmada)
-11. [Partisipan Traveler (`/api/participants`)](#11-partisipan-traveler-apiparticipants)
-12. [Dashboard & Manajemen Admin (`/api/admin`)](#12-dashboard--manajemen-admin-apiadmin)
-13. [Panduan Integrasi Frontend (Next.js Client Example)](#13-panduan-integrasi-frontend-nextjs-client-example)
+9. [Wilayah Operasional / Area (`/api/areas`)](#9-wilayah-operasional--area-apiareas)
+10. [Driver / Pengemudi (`/api/drivers`)](#10-driver--pengemudi-apidrivers)
+11. [Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)](#11-armada--kendaraan-fisik-apivehicles--apiarmada)
+12. [Partisipan Traveler (`/api/participants`)](#12-partisipan-traveler-apiparticipants)
+13. [Dashboard & Manajemen Admin (`/api/admin`)](#13-dashboard--manajemen-admin-apiadmin)
+14. [Panduan Integrasi Frontend (Next.js Client Example)](#14-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -487,7 +488,123 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 
 ---
 
-### 5.3 Riwayat Pemesanan Saya (`My Bookings`)
+### 5.3 Pemesanan Rombongan / Bulk Multi-Booking & Agregasi Pembayaran
+Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACID Transaction), dengan 1 kali verifikasi Captcha dan 1 token pembayaran agregat Midtrans Snap.
+
+- **Method**: `POST`
+- **Path**: `/api/bookings/bulk` *(atau `/api/bookings/batch`)*
+- **Auth**: Opsional (`Bearer <token>` jika login)
+- **Bot Protection**: Menyertakan `captchaToken` atau `g-recaptcha-response` di root payload (1x per request).
+
+#### Parameter Body
+| Parameter | Tipe | Wajib | Keterangan & Validasi |
+| :--- | :--- | :--- | :--- |
+| `captchaToken` | `string` | Opsional | Token reCAPTCHA / hCaptcha |
+| `bookings` | `array<object>` | Ya | Array daftar data booking peserta (min: 1, max: 20 peserta) |
+| `bookings[i].tripId` / `destinationId` | `string` | Ya | UUID Trip atau Destinasi (mendukung format id maupun slug) |
+| `bookings[i].bookingGroupId` | `string` | Opsional | ID Grup tertentu yang ingin dituju (opsional) |
+| `bookings[i].fullName` | `string` | Ya | Nama lengkap traveler (min: 2, max: 100 karakter) |
+| `bookings[i].phoneNumber` | `string` | Ya | Nomor telepon/WhatsApp aktif (7–20 karakter) |
+| `bookings[i].email` | `string` | Opsional | Email traveler (format valid RFC, max: 255) |
+| `bookings[i].dateOfBirth` | `string (ISO)` | Opsional | Tanggal lahir `YYYY-MM-DD` (`<= now`, `>= 1900-01-01`) |
+| `bookings[i].gender` | `string` | Opsional | `'male'`, `'female'`, atau `'other'` |
+| `bookings[i].nationality` | `string` | Opsional | Kewarganegaraan / negara asal |
+| `bookings[i].healthNotes` | `string` | Opsional | Catatan kesehatan khusus atau riwayat alergi |
+| `bookings[i].pickupLocation` | `string` | Opsional | Titik/alamat penjemputan spesifik |
+| `bookings[i].pickupLatitude` | `number` | Opsional | Latitude jemput (`-90` s.d `90`) |
+| `bookings[i].pickupLongitude` | `number` | Opsional | Longitude jemput (`-180` s.d `180`) |
+| `bookings[i].pickupNotes` | `string` | Opsional | Catatan khusus penjemputan |
+
+#### Request Body
+```json
+{
+  "captchaToken": "03AFcWeA7...",
+  "bookings": [
+    {
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "fullName": "Siti Rahmawati",
+      "email": "siti.rahma@example.com",
+      "phoneNumber": "+6281987654321",
+      "dateOfBirth": "1998-07-20",
+      "gender": "female",
+      "nationality": "Indonesia",
+      "healthNotes": "Alergi makanan laut",
+      "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+      "pickupLatitude": -7.962145,
+      "pickupLongitude": 112.634125,
+      "pickupNotes": "Lobi depan"
+    },
+    {
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "fullName": "Budi Santoso",
+      "email": "budi.santoso@example.com",
+      "phoneNumber": "+6281233445566",
+      "dateOfBirth": "1995-03-15",
+      "gender": "male",
+      "nationality": "Indonesia",
+      "pickupLocation": "Stasiun Malang Kota Baru",
+      "pickupNotes": "Pintu Timur"
+    }
+  ]
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Pemesanan berhasil dibuat untuk 2 peserta.",
+  "data": {
+    "bulkBookingId": "blk-9a812345-bcde-4123-8901-abcdef123456",
+    "totalAmount": 1700000,
+    "paymentStatus": "pending",
+    "participants": [
+      {
+        "id": "c19208a1-5512-48ea-9201-7fa112345678",
+        "bookingCode": "TRV-8921",
+        "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+        "groupNumber": 1,
+        "fullName": "Siti Rahmawati",
+        "email": "siti.rahma@example.com",
+        "price": 850000
+      },
+      {
+        "id": "d29319b2-6623-49fb-8312-8ab223456789",
+        "bookingCode": "TRV-8922",
+        "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+        "groupNumber": 1,
+        "fullName": "Budi Santoso",
+        "email": "budi.santoso@example.com",
+        "price": 850000
+      }
+    ],
+    "payment": {
+      "id": "pay-bulk-9a812345",
+      "amount": 1700000,
+      "snapToken": "d4a1b029-4412-4212-8811-abcdef012345",
+      "redirectUrl": "https://app.sandbox.midtrans.com/snap/v2/vtweb/d4a1b029-4412-4212-8811-abcdef012345",
+      "orderId": "BULK-TRIP-1756872000000-8812"
+    }
+  },
+  "timestamp": "2026-09-15T04:00:00.000Z"
+}
+```
+
+#### Response Error Kuota Kursi Kurang (`409 Conflict`)
+```json
+{
+  "success": false,
+  "message": "Kapasitas kursi trip \"Bromo Midnight Safari\" tidak mencukupi untuk 4 peserta rombongan ini (Sisa kursi: 2).",
+  "details": {},
+  "timestamp": "2026-09-15T04:00:00.000Z"
+}
+```
+
+---
+
+### 5.4 Riwayat Pemesanan Saya (`My Bookings`)
 Mengambil tiket dan e-voucher traveler.
 
 - **Method**: `GET`
@@ -549,7 +666,7 @@ GET /api/bookings/my-bookings?email=siti.rahma@example.com&bookingCode=TRV-8921
 
 ---
 
-### 5.4 Unduh / Tampilkan Faktur Resmi & Invoice Detail (`/api/bookings/:identifier/invoice`)
+### 5.5 Unduh / Tampilkan Faktur Resmi & Invoice Detail (`/api/bookings/:identifier/invoice`)
 Mengambil data faktur/invoice resmi yang komprehensif untuk bukti transaksi, laporan keuangan traveler, e-invoice PDF generator, atau rekonsiliasi pembayaran. Mendukung query fleksibel menggunakan `bookingCode`, `participantId`, `paymentId`, maupun `midtransOrderId`.
 
 - **Method**: `GET`
@@ -937,14 +1054,208 @@ Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`)
 }
 ```
 
-## 9. Driver / Pengemudi (`/api/drivers`)
+---
 
-### 9.1 Daftar Driver Tersedia
-Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing.
+## 9. Wilayah Operasional / Area (`/api/areas`)
+
+Modul Area digunakan untuk mengelompokkan Driver dan Armada berdasarkan wilayah operasional (seperti *Malang*, *Banyuwangi*, *Surabaya*, *Bali*, *Jogja*). Driver dan Armada dapat dikaitkan dengan Area, dan endpoint Driver serta Armada dapat difilter berdasarkan Area.
+
+### 9.1 Daftar Seluruh Area (`GET /api/areas`)
+Menampilkan daftar seluruh wilayah operasional aktif maupun non-aktif beserta ringkasan jumlah driver (`driversCount`) dan armada (`vehiclesCount`) yang terhubung.
+
+- **Method**: `GET`
+- **Path**: `/api/areas`
+- **Auth**: Public (Tanpa token)
+- **Query Params**:
+  - `isActive` / `is_active` *(opsional, boolean)*: `true` / `false`.
+  - `city` *(opsional, string)*: Filter nama kota (contoh: `"Malang"`).
+  - `province` *(opsional, string)*: Filter nama provinsi (contoh: `"Jawa Timur"`).
+  - `search` *(opsional, string)*: Pencarian nama area, slug, kota, atau provinsi.
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Daftar area berhasil diambil",
+  "data": [
+    {
+      "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+      "name": "Malang Raya",
+      "slug": "malang-raya",
+      "city": "Malang",
+      "province": "Jawa Timur",
+      "description": "Wilayah operasional Kota Malang, Kabupaten Malang, dan Kota Batu.",
+      "isActive": true,
+      "is_active": true,
+      "driversCount": 8,
+      "vehiclesCount": 6,
+      "createdAt": "2026-09-15T08:00:00.000Z",
+      "updatedAt": "2026-09-15T08:00:00.000Z"
+    },
+    {
+      "id": "a1b2c3d4-0002-48ea-9201-7fa112340002",
+      "name": "Banyuwangi",
+      "slug": "banyuwangi",
+      "city": "Banyuwangi",
+      "province": "Jawa Timur",
+      "description": "Wilayah operasional Banyuwangi, Ijen, dan Baluran.",
+      "isActive": true,
+      "is_active": true,
+      "driversCount": 4,
+      "vehiclesCount": 3,
+      "createdAt": "2026-09-15T08:00:00.000Z",
+      "updatedAt": "2026-09-15T08:00:00.000Z"
+    }
+  ],
+  "timestamp": "2026-09-15T08:00:00.000Z"
+}
+```
+
+---
+
+### 9.2 Detail Area (`GET /api/areas/:id`)
+Mengambil detail wilayah operasional berdasarkan UUID atau Slug.
+
+- **Method**: `GET`
+- **Path**: `/api/areas/:id` *(contoh: `/api/areas/malang-raya` atau `/api/areas/a1b2c3d4-0001-48ea-9201-7fa112340001`)*
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Detail area berhasil diambil",
+  "data": {
+    "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+    "name": "Malang Raya",
+    "slug": "malang-raya",
+    "city": "Malang",
+    "province": "Jawa Timur",
+    "description": "Wilayah operasional Kota Malang, Kabupaten Malang, dan Kota Batu.",
+    "isActive": true,
+    "is_active": true,
+    "driversCount": 8,
+    "vehiclesCount": 6,
+    "createdAt": "2026-09-15T08:00:00.000Z",
+    "updatedAt": "2026-09-15T08:00:00.000Z"
+  },
+  "timestamp": "2026-09-15T08:00:00.000Z"
+}
+```
+
+---
+
+### 9.3 Tambah Area Baru (`POST /api/areas`)
+- **Method**: `POST`
+- **Path**: `/api/areas` *(atau `/api/admin/areas`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "name": "Bali Selatan",
+  "slug": "bali-selatan",
+  "city": "Denpasar",
+  "province": "Bali",
+  "description": "Area operasional Denpasar, Kuta, Jimbaran, dan Nusa Dua.",
+  "isActive": true
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Area berhasil ditambahkan",
+  "data": {
+    "id": "a1b2c3d4-0003-48ea-9201-7fa112340003",
+    "name": "Bali Selatan",
+    "slug": "bali-selatan",
+    "city": "Denpasar",
+    "province": "Bali",
+    "description": "Area operasional Denpasar, Kuta, Jimbaran, dan Nusa Dua.",
+    "isActive": true,
+    "is_active": true,
+    "driversCount": 0,
+    "vehiclesCount": 0,
+    "createdAt": "2026-09-15T08:30:00.000Z",
+    "updatedAt": "2026-09-15T08:30:00.000Z"
+  },
+  "timestamp": "2026-09-15T08:30:00.000Z"
+}
+```
+
+---
+
+### 9.4 Edit Area (`PATCH` atau `PUT /api/areas/:id`)
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/areas/:id` *(atau `/api/admin/areas/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "name": "Bali Raya & Nusa Penida",
+  "city": "Denpasar",
+  "isActive": true
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Area berhasil diperbarui",
+  "data": {
+    "id": "a1b2c3d4-0003-48ea-9201-7fa112340003",
+    "name": "Bali Raya & Nusa Penida",
+    "slug": "bali-raya-nusa-penida",
+    "city": "Denpasar",
+    "province": "Bali",
+    "isActive": true,
+    "is_active": true,
+    "updatedAt": "2026-09-15T08:45:00.000Z"
+  },
+  "timestamp": "2026-09-15T08:45:00.000Z"
+}
+```
+
+---
+
+### 9.5 Hapus Area (`DELETE /api/areas/:id`)
+- **Method**: `DELETE`
+- **Path**: `/api/areas/:id` *(atau `/api/admin/areas/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Area berhasil dihapus",
+  "data": {
+    "id": "a1b2c3d4-0003-48ea-9201-7fa112340003",
+    "deleted": true
+  },
+  "timestamp": "2026-09-15T08:50:00.000Z"
+}
+```
+
+---
+
+## 10. Driver / Pengemudi (`/api/drivers`)
+
+### 10.1 Daftar Driver Tersedia
+Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing. Dapat difilter berdasarkan wilayah operasional (`areaId` atau `area`).
 
 - **Method**: `GET`
 - **Path**: `/api/drivers`
 - **Auth**: Public
+- **Query Params**:
+  - `is_available` / `isAvailable` *(opsional, boolean)*: `true` / `false`.
+  - `status` *(opsional, string)*: Filter status driver (`active`, `on_duty`, `off_duty`, `inactive`).
+  - `areaId` / `area_id` *(opsional, string)*: Filter berdasarkan ID area operasional.
+  - `area` *(opsional, string)*: Filter berdasarkan nama atau slug area (contoh: `?area=malang-raya` atau `?area=Malang`).
+  - `search` *(opsional, string)*: Pencarian nama driver, nomor HP, SIM, plat armada, atau nama area.
 
 #### Response Sukses (`200 OK`)
 ```json
@@ -965,6 +1276,14 @@ Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjala
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
+      "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+      "area": {
+        "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+        "name": "Malang Raya",
+        "slug": "malang-raya",
+        "city": "Malang",
+        "province": "Jawa Timur"
+      },
       "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
       "vehicle": {
         "id": "veh-7711-4bc1-9022-882299aabb01",
@@ -993,10 +1312,10 @@ Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjala
 
 ---
 
-## 10. Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)
+## 11. Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)
 
-### 10.1 Daftar Seluruh Armada Tersedia
-Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta status ketersediaan dan driver yang terpasang (*assigned*).
+### 11.1 Daftar Seluruh Armada Tersedia
+Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta status ketersediaan, driver yang terpasang (*assigned*), dan wilayah operasional (`area`).
 
 - **Method**: `GET`
 - **Path**: `/api/vehicles` *(atau `/api/armada`)*
@@ -1005,7 +1324,9 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
   - `status` *(opsional)*: Filter status (`active`, `maintenance`, `inactive`).
   - `isAvailable` / `is_available` *(opsional, boolean)*: `true` / `false`.
   - `vehicleType` / `vehicle_type` *(opsional)*: Tipe armada (misal: `Minivan`, `SUV`, `Bus`).
-  - `search` *(opsional)*: Pencarian nama armada atau nomor plat.
+  - `areaId` / `area_id` *(opsional, string)*: Filter berdasarkan ID area operasional.
+  - `area` *(opsional, string)*: Filter berdasarkan nama atau slug area (contoh: `?area=malang-raya` atau `?area=Malang`).
+  - `search` *(opsional)*: Pencarian nama armada, nomor plat, atau nama area.
 
 #### Response Sukses (`200 OK`)
 ```json
@@ -1027,6 +1348,14 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
       "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
       "status": "active",
       "isAvailable": true,
+      "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+      "area": {
+        "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+        "name": "Malang Raya",
+        "slug": "malang-raya",
+        "city": "Malang",
+        "province": "Jawa Timur"
+      },
       "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
       "driver": {
         "id": "d0912384-1234-4bc1-9022-771199aabb01",
@@ -1050,7 +1379,7 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
 
 ---
 
-### 10.2 Detail Armada Kendaraan
+### 11.2 Detail Armada Kendaraan
 - **Method**: `GET`
 - **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
 - **Auth**: Public
@@ -1072,6 +1401,14 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
     "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
     "status": "active",
     "isAvailable": true,
+    "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+    "area": {
+      "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+      "name": "Malang Raya",
+      "slug": "malang-raya",
+      "city": "Malang",
+      "province": "Jawa Timur"
+    },
     "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
     "driver": {
       "id": "d0912384-1234-4bc1-9022-771199aabb01",
@@ -1087,9 +1424,179 @@ Menampilkan katalog kendaraan fisik (armada) yang terdaftar dalam sistem beserta
 
 ---
 
-## 11. Partisipan Traveler (`/api/participants`)
+### 11.3 Tambah Armada Baru (`POST /api/vehicles` atau `POST /api/armada`)
+Mendaftarkan armada baru ke dalam sistem, termasuk penentuan jumlah kursi/seat (`capacity`) dan wilayah operasional (`areaId`).
 
-### 11.1 Data Partisipan Saya
+- **Method**: `POST`
+- **Path**: `/api/vehicles` *(atau `/api/armada`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Parameter Body
+| Parameter | Tipe | Wajib | Keterangan |
+| :--- | :--- | :--- | :--- |
+| `name` | `string` | Ya | Nama kendaraan/armada (contoh: `"Toyota HiAce Premio Luxury"`) |
+| `plateNumber` / `plate_number` | `string` | Ya | Nomor plat polisi unik (contoh: `"N 1234 XY"`) |
+| `capacity` | `number (integer)` | Opsional | **Jumlah kursi / seat armada** (range: `1`–`60`, default: `6`) |
+| `vehicleType` / `vehicle_type` | `string` | Opsional | Tipe kendaraan (contoh: `"Minivan"`, `"SUV"`, `"Bus"`, default: `"Minivan"`) |
+| `transmission` | `string` | Opsional | Transmisi (contoh: `"Manual"`, `"Automatic"`) |
+| `fuelType` / `fuel_type` | `string` | Opsional | Jenis bahan bakar (contoh: `"Diesel"`, `"Bensin"`) |
+| `facility` | `array<string>` | Opsional | Daftar fasilitas (contoh: `["AC", "Audio/Radio", "Reclining Seat"]`) |
+| `coverImage` / `cover_image` | `string (URL)` | Opsional | URL foto armada |
+| `status` | `string` | Opsional | Status (`"active"`, `"maintenance"`, `"inactive"`) |
+| `isAvailable` / `is_available` | `boolean` | Opsional | Status ketersediaan (`true`/`false`) |
+| `areaId` / `area_id` | `string (UUID)` | Opsional | ID Wilayah Operasional (Area) |
+| `driverId` / `driver_id` | `string (UUID)` | Opsional | ID Driver yang langsung dipasangkan (opsional) |
+
+#### Request Body
+```json
+{
+  "name": "Isuzu Elf Long Giga",
+  "plateNumber": "DK 7890 AB",
+  "capacity": 14,
+  "vehicleType": "Minibus",
+  "transmission": "Manual",
+  "fuelType": "Diesel",
+  "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Karaoke Mic"],
+  "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+  "status": "active",
+  "isAvailable": true,
+  "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001"
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Vehicle created successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "name": "Isuzu Elf Long Giga",
+    "plateNumber": "DK 7890 AB",
+    "capacity": 14,
+    "vehicleType": "Minibus",
+    "transmission": "Manual",
+    "fuelType": "Diesel",
+    "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "Karaoke Mic"],
+    "coverImage": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=800",
+    "status": "active",
+    "isAvailable": true,
+    "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+    "area": {
+      "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+      "name": "Malang Raya",
+      "slug": "malang-raya"
+    },
+    "driverId": null,
+    "driver": null,
+    "createdAt": "2026-09-14T08:00:00.000Z",
+    "updatedAt": "2026-09-14T08:00:00.000Z"
+  },
+  "timestamp": "2026-09-14T08:00:00.000Z"
+}
+```
+
+---
+
+### 11.4 Edit Armada & Ubah Jumlah Kursi (`PATCH` atau `PUT /api/vehicles/:id`)
+Mengubah data armada, termasuk memperbarui kapasitas seat (`capacity`), area operasional (`areaId`), fasilitas, tipe, nama, plat nomor, atau status armada.
+
+- **Method**: `PATCH` atau `PUT`
+- **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body (Contoh Ubah Kapasitas Seat Menjadi 12)
+```json
+{
+  "capacity": 12,
+  "facility": ["AC", "Audio/Radio", "Reclining Seat", "USB Charger", "WiFi"],
+  "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+  "status": "active"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicle updated successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "name": "Isuzu Elf Long Giga",
+    "plateNumber": "DK 7890 AB",
+    "capacity": 12,
+    "vehicleType": "Minibus",
+    "status": "active",
+    "isAvailable": true,
+    "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
+    "updatedAt": "2026-09-14T08:15:00.000Z"
+  },
+  "timestamp": "2026-09-14T08:15:00.000Z"
+}
+```
+
+---
+
+### 11.5 Pasang / Ubah Driver Armada (`POST /api/vehicles/:id/assign-driver`)
+Memasangkan driver ke armada tertentu (atau melepas driver dengan mengirimkan `driverId: null`).
+
+- **Method**: `POST` *(atau `PATCH /api/vehicles/:id/driver`)*
+- **Path**: `/api/vehicles/:id/assign-driver`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "driverId": "d0912384-1234-4bc1-9022-771199aabb01"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Driver assigned to vehicle successfully",
+  "data": {
+    "id": "veh-7711-4bc1-9022-882299aabb01",
+    "name": "Toyota HiAce Premio Luxury",
+    "driverId": "d0912384-1234-4bc1-9022-771199aabb01",
+    "driver": {
+      "id": "d0912384-1234-4bc1-9022-771199aabb01",
+      "fullName": "Pak Joko Santoso",
+      "phoneNumber": "+6281233445566"
+    }
+  },
+  "timestamp": "2026-09-14T08:10:00.000Z"
+}
+```
+
+---
+
+### 11.6 Hapus Armada (`DELETE /api/vehicles/:id`)
+Menghapus armada dari sistem. Sistem akan otomatis menolak penghapusan jika armada masih ditugaskan pada grup perjalanan yang aktif (`open`, `waiting`, `confirmed`).
+
+- **Method**: `DELETE`
+- **Path**: `/api/vehicles/:id` *(atau `/api/armada/:id`)*
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Vehicle deleted successfully",
+  "data": {
+    "id": "veh-8822-4bc1-9022-771199aabb02",
+    "deleted": true
+  },
+  "timestamp": "2026-09-14T08:20:00.000Z"
+}
+```
+
+---
+
+## 12. Partisipan Traveler (`/api/participants`)
+
+### 12.1 Data Partisipan Saya
 Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 - **Method**: `GET`
@@ -1118,13 +1625,13 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
 
 ---
 
-## 12. Dashboard & Manajemen Admin (`/api/admin`)
+## 13. Dashboard & Manajemen Admin (`/api/admin`)
 
 > **Catatan Keamanan**: Seluruh endpoint admin di bawah ini **WAJIB** menyertakan header `Authorization: Bearer <admin_jwt_token>` dengan akun ber-role `'admin'`.
 
 ---
 
-### 11.1 Analytics & Metrik Dashboard
+### 13.1 Analytics & Metrik Dashboard
 - **Method**: `GET`
 - **Path**: `/api/admin/metrics`
 

@@ -4,14 +4,21 @@ import { ApiError } from '../utils/errors'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    return val.replace(/^(veh-|drv-|grp-|trip-|usr-)/, '')
+    return val.replace(/^(veh-|drv-|grp-|trip-|usr-|area-)/, '')
   }
   return String(val || '')
 }
 
-export function formatVehicle(v: Record<string, unknown> & { driver?: Record<string, unknown> | null }) {
+export function formatVehicle(
+  v: Record<string, unknown> & {
+    driver?: Record<string, unknown> | null
+    area?: Record<string, unknown> | null
+  }
+) {
   const driver = v.driver || null
   const driverUser = driver && typeof driver === 'object' ? (driver.user as Record<string, unknown> | null) : null
+  const area = v.area || null
+  const areaId = (v.area_id as string) || (v.areaId as string) || (area?.id as string) || null
 
   return {
     id: v.id as string,
@@ -30,6 +37,17 @@ export function formatVehicle(v: Record<string, unknown> & { driver?: Record<str
     status: (v.status as string) || 'active',
     isAvailable: v.is_available !== undefined ? (v.is_available as boolean) : true,
     is_available: v.is_available !== undefined ? (v.is_available as boolean) : true,
+    areaId,
+    area_id: areaId,
+    area: area
+      ? {
+          id: area.id as string,
+          name: area.name as string,
+          slug: area.slug as string,
+          city: (area.city as string) || null,
+          province: (area.province as string) || null,
+        }
+      : null,
     driverId: (v.driver_id as string) || null,
     driver_id: (v.driver_id as string) || null,
     driver: driver
@@ -78,6 +96,17 @@ export class VehicleService {
       driverId = cleanDriverId
     }
 
+    let areaId: string | null = null
+    const rawAreaId = data.areaId || data.area_id
+    if (rawAreaId) {
+      const cleanAreaId = cleanId(rawAreaId)
+      const existingArea = await prisma.area.findFirst({
+        where: { OR: [{ id: cleanAreaId }, { id: rawAreaId }, { slug: rawAreaId.toLowerCase() }] },
+      })
+      if (!existingArea) throw new ApiError('Area / Wilayah operasional tidak ditemukan', 404)
+      areaId = existingArea.id
+    }
+
     const vehicleType = data.vehicleType || data.vehicle_type || 'Minivan'
     const capacity = data.capacity || 6
     const transmission = data.transmission || 'Manual'
@@ -100,11 +129,13 @@ export class VehicleService {
         status,
         is_available: isAvailable,
         driver_id: driverId,
+        area_id: areaId,
       },
       include: {
         driver: {
           include: { user: true },
         },
+        area: true,
       },
     })
 
@@ -123,14 +154,35 @@ export class VehicleService {
     if (filters.vehicleType || filters.vehicle_type) {
       where.vehicle_type = filters.vehicleType || filters.vehicle_type
     }
+
+    // Filter by Area
+    const rawArea = filters.areaId || filters.area_id || filters.area
+    if (rawArea) {
+      const cleanAreaId = cleanId(rawArea)
+      where.OR = [
+        { area_id: cleanAreaId },
+        { area_id: rawArea },
+        { area: { slug: rawArea.toLowerCase().trim() } },
+        { area: { name: { contains: rawArea.trim(), mode: 'insensitive' } } },
+      ]
+    }
+
     if (filters.search) {
       const s = filters.search.trim()
-      where.OR = [
+      const searchCondition = [
         { name: { contains: s, mode: 'insensitive' } },
         { plate_number: { contains: s, mode: 'insensitive' } },
         { vehicle_type: { contains: s, mode: 'insensitive' } },
         { driver: { user: { name: { contains: s, mode: 'insensitive' } } } },
+        { area: { name: { contains: s, mode: 'insensitive' } } },
       ]
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchCondition }]
+        delete where.OR
+      } else {
+        where.OR = searchCondition
+      }
     }
 
     const vehicles = await prisma.vehicle.findMany({
@@ -139,6 +191,7 @@ export class VehicleService {
         driver: {
           include: { user: true },
         },
+        area: true,
       },
       orderBy: { created_at: 'desc' },
     })
@@ -161,6 +214,7 @@ export class VehicleService {
         driver: {
           include: { user: true },
         },
+        area: true,
         booking_groups: {
           include: {
             trip: {
@@ -179,7 +233,7 @@ export class VehicleService {
     const cleanVehId = cleanId(id)
     const existing = await prisma.vehicle.findUnique({
       where: { id: cleanVehId },
-      include: { driver: true },
+      include: { driver: true, area: true },
     })
     if (!existing) throw new ApiError('Armada / Kendaraan tidak ditemukan', 404)
 
@@ -221,6 +275,20 @@ export class VehicleService {
       updateData.is_available = Boolean(data.isAvailable ?? data.is_available)
     }
 
+    if (data.areaId !== undefined || data.area_id !== undefined) {
+      const rawAreaId = data.areaId ?? data.area_id
+      if (rawAreaId) {
+        const cleanAreaId = cleanId(rawAreaId)
+        const area = await prisma.area.findFirst({
+          where: { OR: [{ id: cleanAreaId }, { id: rawAreaId }, { slug: rawAreaId.toLowerCase() }] },
+        })
+        if (!area) throw new ApiError('Area / Wilayah operasional tidak ditemukan', 404)
+        updateData.area_id = area.id
+      } else {
+        updateData.area_id = null
+      }
+    }
+
     if (data.driverId !== undefined || data.driver_id !== undefined) {
       const rawDriverId = data.driverId ?? data.driver_id
       if (rawDriverId) {
@@ -240,6 +308,7 @@ export class VehicleService {
         driver: {
           include: { user: true },
         },
+        area: true,
       },
     })
 
@@ -250,7 +319,7 @@ export class VehicleService {
     const cleanVehId = cleanId(vehicleId)
     const existing = await prisma.vehicle.findUnique({
       where: { id: cleanVehId },
-      include: { driver: { include: { user: true } } },
+      include: { driver: { include: { user: true } }, area: true },
     })
     if (!existing) throw new ApiError('Armada / Kendaraan tidak ditemukan', 404)
 
@@ -278,6 +347,7 @@ export class VehicleService {
         driver: {
           include: { user: true },
         },
+        area: true,
       },
     })
 

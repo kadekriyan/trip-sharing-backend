@@ -19,6 +19,9 @@ jest.mock('../../src/config/database', () => ({
     bookingGroup: {
       findMany: jest.fn(),
     },
+    area: {
+      findFirst: jest.fn(),
+    },
   },
 }))
 
@@ -142,6 +145,39 @@ describe('VehicleService', () => {
       expect(result[0].name).toBe('Toyota HiAce Premio')
       expect(result[0].driver?.fullName).toBe('Pak Budi')
       expect(result[0].driver?.phoneNumber).toBe('+62812345678')
+    })
+
+    it('should filter vehicles by area', async () => {
+      ;(prisma.vehicle.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'veh-2',
+          name: 'Isuzu Elf Long',
+          plate_number: 'N 9999 ZZ',
+          vehicle_type: 'Minibus',
+          capacity: 12,
+          status: 'active',
+          is_available: true,
+          area_id: 'area-malang',
+          driver_id: null,
+          driver: null,
+          area: { id: 'area-malang', name: 'Malang', slug: 'malang', city: 'Malang', province: 'Jawa Timur' },
+        },
+      ])
+
+      const result = await VehicleService.list({ area: 'malang' })
+
+      expect(prisma.vehicle.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { area: { slug: 'malang' } },
+            ]),
+          }),
+        })
+      )
+      expect(result).toHaveLength(1)
+      expect(result[0].area?.name).toBe('Malang')
+      expect(result[0].areaId).toBe('area-malang')
     })
   })
 

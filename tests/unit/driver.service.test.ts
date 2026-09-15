@@ -26,6 +26,9 @@ jest.mock('../../src/config/database', () => ({
     trip: {
       findMany: jest.fn(),
     },
+    area: {
+      findFirst: jest.fn(),
+    },
   },
 }))
 
@@ -118,6 +121,37 @@ describe('DriverService', () => {
       expect(result[0].fullName).toBe('Pak Budi')
       expect(result[0].vehicleType).toBe('Toyota HiAce Premio')
       expect(result[0].plateNumber).toBe('N 1234 XY')
+    })
+
+    it('should filter drivers by area', async () => {
+      ;(prisma.driver.findMany as jest.Mock).mockResolvedValue([
+        {
+          id: 'drv-2',
+          user_id: 'usr-2',
+          license_number: 'SIM-A-5678',
+          experience_years: 3,
+          is_available: true,
+          area_id: 'area-malang',
+          user: { id: 'usr-2', name: 'Pak Samsul', phone: '+628999' },
+          vehicle: null,
+          area: { id: 'area-malang', name: 'Malang', slug: 'malang', city: 'Malang', province: 'Jawa Timur' },
+        },
+      ])
+
+      const result = await DriverService.list({ area: 'malang' })
+
+      expect(prisma.driver.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: expect.arrayContaining([
+              { area: { slug: 'malang' } },
+            ]),
+          }),
+        })
+      )
+      expect(result).toHaveLength(1)
+      expect(result[0].area?.name).toBe('Malang')
+      expect(result[0].areaId).toBe('area-malang')
     })
   })
 

@@ -166,6 +166,8 @@ export class AdminController {
       is_available:
         req.query.is_available !== undefined ? req.query.is_available === 'true' : undefined,
       status: req.query.status as string | undefined,
+      areaId: (req.query.areaId as string) || (req.query.area_id as string) || undefined,
+      area: (req.query.area as string) || undefined,
       search: req.query.search as string | undefined,
     })
     sendResponse(res, 200, 'Drivers retrieved', drivers)
@@ -213,6 +215,8 @@ export class AdminController {
       status: (req.query.status as string) || undefined,
       isAvailable,
       vehicleType: (req.query.vehicleType as string) || (req.query.vehicle_type as string) || undefined,
+      areaId: (req.query.areaId as string) || (req.query.area_id as string) || undefined,
+      area: (req.query.area as string) || undefined,
       search: (req.query.search as string) || undefined,
     })
     sendResponse(res, 200, 'Vehicles retrieved successfully', vehicles)

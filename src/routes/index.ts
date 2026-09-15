@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import adminRoutes from './admin.routes'
+import areaRoutes from './areas.routes'
 import articleRoutes from './articles.routes'
 import authRoutes from './auth.routes'
 import blogRoutes from './blogs.routes'
@@ -23,6 +24,7 @@ routes.use('/payments', paymentRoutes)
 routes.use('/participants', participantRoutes)
 routes.use('/articles', articleRoutes)
 routes.use('/blogs', blogRoutes)
+routes.use('/areas', areaRoutes)
 routes.use('/drivers', driverRoutes)
 routes.use('/vehicles', vehicleRoutes)
 routes.use('/armada', vehicleRoutes)
