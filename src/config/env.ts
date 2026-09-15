@@ -8,6 +8,7 @@ const envSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'test', 'production').default('development'),
   PORT: Joi.number().default(3001),
   DATABASE_URL: Joi.string().required(),
+  DIRECT_URL: Joi.string().allow('').optional(),
   JWT_SECRET: Joi.string().min(32).required(),
   JWT_EXPIRES_IN: Joi.string().default('7d'),
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('30d'),
