@@ -85,7 +85,7 @@ export class ParticipantService {
     const randomDigits = Math.floor(1000 + Math.random() * 9000)
     const bookingCode = `TRV-${randomDigits}`
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       let user = await tx.user.findUnique({ where: { email: userEmail } })
 
       if (!user) {
@@ -165,20 +165,33 @@ export class ParticipantService {
         },
       })
 
-      await EmailService.sendParticipantCreated(user.email, {
-        participant_name: fullName,
-        trip: group.trip.id,
-        payment_status: paymentStatus,
-      })
-
       return {
         id: participant.id,
         bookingCode: participant.booking_code,
         fullName: participant.full_name,
         bookingGroupId: groupId,
         paymentStatus: participant.payment_status,
+        userEmail: user.email,
+        tripId: group.trip.id,
       }
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
     })
+
+    await EmailService.sendParticipantCreated(result.userEmail, {
+      participant_name: result.fullName,
+      trip: result.tripId,
+      payment_status: result.paymentStatus,
+    })
+
+    return {
+      id: result.id,
+      bookingCode: result.bookingCode,
+      fullName: result.fullName,
+      bookingGroupId: result.bookingGroupId,
+      paymentStatus: result.paymentStatus,
+    }
   }
 
   static async getParticipants(filters: {
@@ -439,6 +452,9 @@ export class ParticipantService {
       })
 
       return updated
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
     })
 
     await EmailService.sendParticipantMoved(participant.user.email, {

@@ -462,6 +462,9 @@ export class DestinationService {
       await tx.destination.delete({
         where: { id },
       })
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
     })
   }
 }

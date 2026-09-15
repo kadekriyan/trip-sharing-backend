@@ -333,6 +333,9 @@ export class BookingService {
         },
         bookingGroup: updatedGroup,
       }
+    }, {
+      maxWait: 10000,
+      timeout: 30000,
     })
   }
 
@@ -542,6 +545,9 @@ export class BookingService {
         createdItems,
         payment,
       }
+    }, {
+      maxWait: 15000,
+      timeout: 60000,
     })
 
     // 3. Generate Aggregated Midtrans Snap Token
