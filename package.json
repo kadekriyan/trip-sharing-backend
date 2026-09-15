@@ -7,7 +7,7 @@
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "prisma generate && prisma db push --accept-data-loss && tsc",
     "start": "node dist/server.js",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && prisma db push --accept-data-loss",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
