@@ -8,6 +8,7 @@ jest.mock('../../src/config/database', () => ({
     participant: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     payment: {
       findUnique: jest.fn(),

@@ -487,7 +487,123 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 
 ---
 
-### 5.3 Riwayat Pemesanan Saya (`My Bookings`)
+### 5.3 Pemesanan Rombongan / Bulk Multi-Booking & Agregasi Pembayaran
+Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACID Transaction), dengan 1 kali verifikasi Captcha dan 1 token pembayaran agregat Midtrans Snap.
+
+- **Method**: `POST`
+- **Path**: `/api/bookings/bulk` *(atau `/api/bookings/batch`)*
+- **Auth**: Opsional (`Bearer <token>` jika login)
+- **Bot Protection**: Menyertakan `captchaToken` atau `g-recaptcha-response` di root payload (1x per request).
+
+#### Parameter Body
+| Parameter | Tipe | Wajib | Keterangan & Validasi |
+| :--- | :--- | :--- | :--- |
+| `captchaToken` | `string` | Opsional | Token reCAPTCHA / hCaptcha |
+| `bookings` | `array<object>` | Ya | Array daftar data booking peserta (min: 1, max: 20 peserta) |
+| `bookings[i].tripId` / `destinationId` | `string` | Ya | UUID Trip atau Destinasi (mendukung format id maupun slug) |
+| `bookings[i].bookingGroupId` | `string` | Opsional | ID Grup tertentu yang ingin dituju (opsional) |
+| `bookings[i].fullName` | `string` | Ya | Nama lengkap traveler (min: 2, max: 100 karakter) |
+| `bookings[i].phoneNumber` | `string` | Ya | Nomor telepon/WhatsApp aktif (7–20 karakter) |
+| `bookings[i].email` | `string` | Opsional | Email traveler (format valid RFC, max: 255) |
+| `bookings[i].dateOfBirth` | `string (ISO)` | Opsional | Tanggal lahir `YYYY-MM-DD` (`<= now`, `>= 1900-01-01`) |
+| `bookings[i].gender` | `string` | Opsional | `'male'`, `'female'`, atau `'other'` |
+| `bookings[i].nationality` | `string` | Opsional | Kewarganegaraan / negara asal |
+| `bookings[i].healthNotes` | `string` | Opsional | Catatan kesehatan khusus atau riwayat alergi |
+| `bookings[i].pickupLocation` | `string` | Opsional | Titik/alamat penjemputan spesifik |
+| `bookings[i].pickupLatitude` | `number` | Opsional | Latitude jemput (`-90` s.d `90`) |
+| `bookings[i].pickupLongitude` | `number` | Opsional | Longitude jemput (`-180` s.d `180`) |
+| `bookings[i].pickupNotes` | `string` | Opsional | Catatan khusus penjemputan |
+
+#### Request Body
+```json
+{
+  "captchaToken": "03AFcWeA7...",
+  "bookings": [
+    {
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "fullName": "Siti Rahmawati",
+      "email": "siti.rahma@example.com",
+      "phoneNumber": "+6281987654321",
+      "dateOfBirth": "1998-07-20",
+      "gender": "female",
+      "nationality": "Indonesia",
+      "healthNotes": "Alergi makanan laut",
+      "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
+      "pickupLatitude": -7.962145,
+      "pickupLongitude": 112.634125,
+      "pickupNotes": "Lobi depan"
+    },
+    {
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "fullName": "Budi Santoso",
+      "email": "budi.santoso@example.com",
+      "phoneNumber": "+6281233445566",
+      "dateOfBirth": "1995-03-15",
+      "gender": "male",
+      "nationality": "Indonesia",
+      "pickupLocation": "Stasiun Malang Kota Baru",
+      "pickupNotes": "Pintu Timur"
+    }
+  ]
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Pemesanan berhasil dibuat untuk 2 peserta.",
+  "data": {
+    "bulkBookingId": "blk-9a812345-bcde-4123-8901-abcdef123456",
+    "totalAmount": 1700000,
+    "paymentStatus": "pending",
+    "participants": [
+      {
+        "id": "c19208a1-5512-48ea-9201-7fa112345678",
+        "bookingCode": "TRV-8921",
+        "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+        "groupNumber": 1,
+        "fullName": "Siti Rahmawati",
+        "email": "siti.rahma@example.com",
+        "price": 850000
+      },
+      {
+        "id": "d29319b2-6623-49fb-8312-8ab223456789",
+        "bookingCode": "TRV-8922",
+        "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+        "groupNumber": 1,
+        "fullName": "Budi Santoso",
+        "email": "budi.santoso@example.com",
+        "price": 850000
+      }
+    ],
+    "payment": {
+      "id": "pay-bulk-9a812345",
+      "amount": 1700000,
+      "snapToken": "d4a1b029-4412-4212-8811-abcdef012345",
+      "redirectUrl": "https://app.sandbox.midtrans.com/snap/v2/vtweb/d4a1b029-4412-4212-8811-abcdef012345",
+      "orderId": "BULK-TRIP-1756872000000-8812"
+    }
+  },
+  "timestamp": "2026-09-15T04:00:00.000Z"
+}
+```
+
+#### Response Error Kuota Kursi Kurang (`409 Conflict`)
+```json
+{
+  "success": false,
+  "message": "Kapasitas kursi trip \"Bromo Midnight Safari\" tidak mencukupi untuk 4 peserta rombongan ini (Sisa kursi: 2).",
+  "details": {},
+  "timestamp": "2026-09-15T04:00:00.000Z"
+}
+```
+
+---
+
+### 5.4 Riwayat Pemesanan Saya (`My Bookings`)
 Mengambil tiket dan e-voucher traveler.
 
 - **Method**: `GET`
@@ -549,7 +665,7 @@ GET /api/bookings/my-bookings?email=siti.rahma@example.com&bookingCode=TRV-8921
 
 ---
 
-### 5.4 Unduh / Tampilkan Faktur Resmi & Invoice Detail (`/api/bookings/:identifier/invoice`)
+### 5.5 Unduh / Tampilkan Faktur Resmi & Invoice Detail (`/api/bookings/:identifier/invoice`)
 Mengambil data faktur/invoice resmi yang komprehensif untuk bukti transaksi, laporan keuangan traveler, e-invoice PDF generator, atau rekonsiliasi pembayaran. Mendukung query fleksibel menggunakan `bookingCode`, `participantId`, `paymentId`, maupun `midtransOrderId`.
 
 - **Method**: `GET`

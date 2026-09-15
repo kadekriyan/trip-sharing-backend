@@ -1,46 +1,18 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database'
+import { snap } from '../config/midtrans'
+import { BookingItemInput, CreateBulkBookingInput } from '../types/booking'
 import { ApiError } from '../utils/errors'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
-    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-)/, '')
+    return val.replace(/^(part-|grp-|trip-|dest-|usr-|pay-|blk-)/, '')
   }
   return String(val || '')
 }
 
 export class BookingService {
-  static async getOrCreateBookingGroup(tripId: string, destinationPrice: Prisma.Decimal | number) {
-    const cleanTripId = cleanId(tripId)
-    const trip = await prisma.trip.findUnique({
-      where: { id: cleanTripId },
-      include: { booking_groups: { where: { status: 'open' }, orderBy: { group_number: 'asc' } } },
-    })
-
-    if (!trip) throw new ApiError('Trip not found', 404)
-
-    const openGroup = trip.booking_groups[0]
-    if (openGroup && openGroup.current_participants < openGroup.max_participants) return openGroup
-
-    const lastGroup = await prisma.bookingGroup.findFirst({
-      where: { trip_id: cleanTripId },
-      orderBy: { group_number: 'desc' },
-      select: { group_number: true },
-    })
-
-    return prisma.bookingGroup.create({
-      data: {
-        trip_id: cleanTripId,
-        group_number: (lastGroup?.group_number || 0) + 1,
-        status: 'open',
-        price_per_person: destinationPrice,
-        total_price: new Prisma.Decimal(destinationPrice.toString()).mul(6),
-      },
-    })
-  }
-
-  static async createBooking(
-    userId: string | number | undefined,
+  static async resolveTrip(
     bookingData: {
       trip_id?: string
       tripId?: string
@@ -50,41 +22,15 @@ export class BookingService {
       departureDate?: Date | string
       return_date?: Date | string
       returnDate?: Date | string
-      price_per_pax?: number
-      pricePerPax?: number
       duration_days?: number
       durationDays?: number
-      full_name?: string
-      fullName?: string
-      name?: string
-      email?: string
-      phone_number?: string
-      phoneNumber?: string
-      phone?: string
-      country?: string
-      nationality?: string
-      date_of_birth?: Date | string
-      dateOfBirth?: Date | string
-      gender?: string
-      health_notes?: string
-      healthNotes?: string
-      preferred_language?: string
-      preferredLanguage?: string
-      pickup_location?: string
-      pickupLocation?: string
-      pickup_latitude?: number
-      pickupLatitude?: number
-      pickup_longitude?: number
-      pickupLongitude?: number
-      pickup_notes?: string
-      pickupNotes?: string
-    }
+    },
+    tx: Prisma.TransactionClient = prisma
   ) {
     const rawTripId = bookingData.trip_id || bookingData.tripId
     const rawDestId = bookingData.destination_id || bookingData.destinationId
     const customDepartureDate = bookingData.departure_date || bookingData.departureDate
     const customReturnDate = bookingData.return_date || bookingData.returnDate
-    const customPrice = bookingData.price_per_pax ?? bookingData.pricePerPax
 
     if (!rawTripId && !rawDestId) {
       throw new ApiError('Trip ID or Destination ID is required', 400)
@@ -94,7 +40,7 @@ export class BookingService {
 
     // 1. Try finding by trip ID if provided and not a synthetic custom prefix
     if (rawTripId && !rawTripId.startsWith('custom-') && !rawTripId.startsWith('trip-custom-')) {
-      trip = await prisma.trip.findUnique({
+      trip = await tx.trip.findUnique({
         where: { id: cleanId(rawTripId) },
         include: { destination: true },
       })
@@ -111,7 +57,7 @@ export class BookingService {
       let destination = null
 
       if (destIdToSearch) {
-        destination = await prisma.destination.findUnique({
+        destination = await tx.destination.findUnique({
           where: { id: cleanId(destIdToSearch) },
         })
       }
@@ -121,7 +67,7 @@ export class BookingService {
         const cleanedSlug = rawTripId
           .replace(/^(custom-|trip-custom-|trip-)/, '')
           .replace(/-\d{8,}$/, '')
-        destination = await prisma.destination.findFirst({
+        destination = await tx.destination.findFirst({
           where: {
             OR: [
               { id: cleanId(rawTripId) },
@@ -140,7 +86,7 @@ export class BookingService {
           startOfDay.setHours(0, 0, 0, 0)
           const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000)
 
-          trip = await prisma.trip.findFirst({
+          trip = await tx.trip.findFirst({
             where: {
               destination_id: destination.id,
               departure_date: { gte: startOfDay, lt: endOfDay },
@@ -167,7 +113,7 @@ export class BookingService {
             returnDate.setDate(returnDate.getDate() + durationDays)
           }
 
-          trip = await prisma.trip.create({
+          trip = await tx.trip.create({
             data: {
               destination_id: destination.id,
               departure_date: departureDate,
@@ -183,7 +129,50 @@ export class BookingService {
     }
 
     if (!trip) throw new ApiError('Trip or destination not found', 404)
+    return trip
+  }
 
+  static async getOrCreateBookingGroup(
+    tripId: string,
+    destinationPrice: Prisma.Decimal | number,
+    tx?: Prisma.TransactionClient
+  ) {
+    const cleanTripId = cleanId(tripId)
+    const tripClient = tx?.trip?.findUnique ? tx.trip : prisma.trip
+    const groupClient = tx?.bookingGroup?.findFirst ? tx.bookingGroup : prisma.bookingGroup
+
+    const trip = await tripClient.findUnique({
+      where: { id: cleanTripId },
+      include: { booking_groups: { where: { status: 'open' }, orderBy: { group_number: 'asc' } } },
+    })
+
+    if (!trip) throw new ApiError('Trip not found', 404)
+
+    const openGroup = trip.booking_groups.find((g) => g.current_participants < g.max_participants)
+    if (openGroup) return openGroup
+
+    const lastGroup = await groupClient.findFirst({
+      where: { trip_id: cleanTripId },
+      orderBy: { group_number: 'desc' },
+      select: { group_number: true },
+    })
+
+    return groupClient.create({
+      data: {
+        trip_id: cleanTripId,
+        group_number: (lastGroup?.group_number || 0) + 1,
+        status: 'open',
+        price_per_person: destinationPrice,
+        total_price: new Prisma.Decimal(destinationPrice.toString()).mul(6),
+      },
+    })
+  }
+
+  static async createBooking(
+    userId: string | number | undefined,
+    bookingData: BookingItemInput
+  ) {
+    const trip = await this.resolveTrip(bookingData)
     const tripId = trip.id
     const fullName = bookingData.full_name || bookingData.fullName || bookingData.name || 'Traveler'
     const phoneNumber =
@@ -195,13 +184,13 @@ export class BookingService {
     const userEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
 
+    const customPrice = bookingData.price_per_pax ?? bookingData.pricePerPax
     const pricePerPerson =
       customPrice !== undefined && customPrice !== null
         ? Number(customPrice)
         : Number(trip.destination.price_per_person)
 
     const totalAmount = pricePerPerson
-
     const randomDigits = Math.floor(1000 + Math.random() * 9000)
     const bookingCode = `TRV-${randomDigits}`
 
@@ -223,7 +212,25 @@ export class BookingService {
         resolvedUserId = user.id
       }
 
-      const bookingGroup = await this.getOrCreateBookingGroup(tripId, pricePerPerson)
+      let bookingGroup = null
+      const rawGroupId = bookingData.booking_group_id || bookingData.bookingGroupId
+      if (rawGroupId) {
+        const cleanGroupId = cleanId(rawGroupId)
+        const requestedGroup = await tx.bookingGroup.findUnique({
+          where: { id: cleanGroupId },
+        })
+        if (
+          requestedGroup &&
+          requestedGroup.trip_id === tripId &&
+          requestedGroup.current_participants < requestedGroup.max_participants
+        ) {
+          bookingGroup = requestedGroup
+        }
+      }
+
+      if (!bookingGroup) {
+        bookingGroup = await this.getOrCreateBookingGroup(tripId, pricePerPerson, tx)
+      }
 
       const participant = await tx.participant.create({
         data: {
@@ -285,6 +292,258 @@ export class BookingService {
         bookingGroup: updatedGroup,
       }
     })
+  }
+
+  static async createBulkBooking(
+    userId: string | number | undefined,
+    input: CreateBulkBookingInput
+  ) {
+    const bookings = input.bookings || []
+    if (!Array.isArray(bookings) || bookings.length === 0) {
+      throw new ApiError('Daftar pemesanan tidak boleh kosong', 400)
+    }
+
+    // 1. Resolve trips & validate capacity beforehand
+    const tripBookingCountMap = new Map<string, number>()
+    for (let i = 0; i < bookings.length; i++) {
+      const b = bookings[i]
+      const trip = await this.resolveTrip(b)
+      const currentCount = tripBookingCountMap.get(trip.id) || 0
+      tripBookingCountMap.set(trip.id, currentCount + 1)
+    }
+
+    // Check capacity for each trip
+    for (const [tripId, count] of tripBookingCountMap.entries()) {
+      const trip = await prisma.trip.findUnique({
+        where: { id: tripId },
+        include: { destination: true },
+      })
+      if (!trip) throw new ApiError('Trip not found', 404)
+      const maxCap = trip.max_participants || trip.destination.max_group_capacity || 6
+      if (maxCap > 0 && trip.current_participants + count > maxCap) {
+        throw new ApiError(
+          `Kapasitas kursi trip "${trip.destination.name}" tidak mencukupi untuk ${count} peserta rombongan ini (Sisa kursi: ${Math.max(0, maxCap - trip.current_participants)}).`,
+          409
+        )
+      }
+    }
+
+    const randomSuffix = Math.random().toString(36).substring(2, 10)
+    const bulkBookingId = `blk-${Date.now().toString(36)}-${randomSuffix}`
+    const orderId = `BULK-TRIP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`
+
+    // 2. Run Database Transaction
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      const createdItems: Array<{
+        participant: Prisma.ParticipantGetPayload<{ include: { user: true } }>
+        group: { id: string; group_number: number; trip_id: string }
+        trip: Prisma.TripGetPayload<{ include: { destination: true } }>
+        price: number
+        email: string
+      }> = []
+
+      let totalAmount = 0
+
+      for (let idx = 0; idx < bookings.length; idx++) {
+        const b = bookings[idx]
+        const trip = await this.resolveTrip(b, tx)
+
+        const fullName = b.full_name || b.fullName || b.name || `Traveler ${idx + 1}`
+        const phoneNumber = b.phone_number || b.phoneNumber || b.phone || ''
+        const country = b.country || b.nationality || 'Indonesia'
+        const nationality = b.nationality || b.country || 'Indonesia'
+        const gender = b.gender || null
+        const healthNotes = b.healthNotes || b.health_notes || null
+        const userEmail =
+          b.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now() + '-' + idx}@booking.local`
+
+        const customPrice = b.price_per_pax ?? b.pricePerPax
+        const pricePerPerson =
+          customPrice !== undefined && customPrice !== null
+            ? Number(customPrice)
+            : Number(trip.destination.price_per_person)
+
+        totalAmount += pricePerPerson
+
+        let resolvedUserId = typeof userId === 'string' && userId ? cleanId(userId) : undefined
+        if (!resolvedUserId || resolvedUserId === '0') {
+          let user = await tx.user.findUnique({ where: { email: userEmail } })
+          if (!user) {
+            user = await tx.user.create({
+              data: {
+                email: userEmail,
+                password: 'guest_booking',
+                name: fullName,
+                phone: phoneNumber,
+                role: 'participant',
+              },
+            })
+          }
+          resolvedUserId = user.id
+        }
+
+        let bookingGroup = null
+        const rawGroupId = b.booking_group_id || b.bookingGroupId
+        if (rawGroupId) {
+          const cleanGroupId = cleanId(rawGroupId)
+          const requestedGroup = await tx.bookingGroup.findUnique({
+            where: { id: cleanGroupId },
+          })
+          if (
+            requestedGroup &&
+            requestedGroup.trip_id === trip.id &&
+            requestedGroup.current_participants < requestedGroup.max_participants
+          ) {
+            bookingGroup = requestedGroup
+          }
+        }
+
+        if (!bookingGroup) {
+          bookingGroup = await this.getOrCreateBookingGroup(trip.id, pricePerPerson, tx)
+        }
+
+        const randomDigits = Math.floor(1000 + Math.random() * 9000)
+        const bookingCode = `TRV-${randomDigits}`
+
+        const participant = await tx.participant.create({
+          data: {
+            booking_group_id: bookingGroup.id,
+            user_id: resolvedUserId,
+            booking_code: bookingCode,
+            full_name: fullName,
+            phone_number: phoneNumber,
+            country,
+            nationality,
+            gender,
+            date_of_birth:
+              b.date_of_birth || b.dateOfBirth
+                ? new Date(b.date_of_birth || b.dateOfBirth!)
+                : null,
+            health_notes: healthNotes,
+            preferred_language: b.preferred_language || b.preferredLanguage,
+            pickup_location: b.pickup_location || b.pickupLocation || null,
+            pickup_latitude:
+              b.pickup_latitude !== undefined && b.pickup_latitude !== null
+                ? new Prisma.Decimal(b.pickup_latitude.toString())
+                : b.pickupLatitude !== undefined && b.pickupLatitude !== null
+                ? new Prisma.Decimal(b.pickupLatitude.toString())
+                : null,
+            pickup_longitude:
+              b.pickup_longitude !== undefined && b.pickup_longitude !== null
+                ? new Prisma.Decimal(b.pickup_longitude.toString())
+                : b.pickupLongitude !== undefined && b.pickupLongitude !== null
+                ? new Prisma.Decimal(b.pickupLongitude.toString())
+                : null,
+            pickup_notes: b.pickup_notes || b.pickupNotes || null,
+            total_amount: new Prisma.Decimal(pricePerPerson.toString()),
+            payment_status: 'pending',
+            check_in_status: 'pending',
+          },
+          include: { user: true },
+        })
+
+        const updatedGroup = await tx.bookingGroup.update({
+          where: { id: bookingGroup.id },
+          data: { current_participants: { increment: 1 } },
+        })
+
+        if (updatedGroup.current_participants >= updatedGroup.max_participants) {
+          await tx.bookingGroup.update({ where: { id: bookingGroup.id }, data: { status: 'full' } })
+        }
+
+        await tx.trip.update({
+          where: { id: trip.id },
+          data: { current_participants: { increment: 1 } },
+        })
+
+        createdItems.push({
+          participant,
+          group: { id: updatedGroup.id, group_number: updatedGroup.group_number, trip_id: trip.id },
+          trip,
+          price: pricePerPerson,
+          email: userEmail,
+        })
+      }
+
+      const firstItem = createdItems[0]
+
+      const payment = await tx.payment.create({
+        data: {
+          participant_id: firstItem.participant.id,
+          booking_group_id: firstItem.group.id,
+          amount: new Prisma.Decimal(totalAmount.toString()),
+          midtrans_order_id: orderId,
+          status: 'pending',
+          notes: JSON.stringify({
+            bulkBookingId,
+            participantIds: createdItems.map((c) => c.participant.id),
+          }),
+        },
+      })
+
+      return {
+        bulkBookingId,
+        orderId,
+        totalAmount,
+        createdItems,
+        payment,
+      }
+    })
+
+    // 3. Generate Aggregated Midtrans Snap Token
+    let snapToken = `snap-token-${bulkBookingId}`
+    let redirectUrl = `https://app.sandbox.midtrans.com/snap/v2/vtweb/${snapToken}`
+
+    try {
+      const firstItem = transactionResult.createdItems[0]
+      const snapTx = await snap.createTransaction({
+        transaction_details: {
+          order_id: transactionResult.orderId,
+          gross_amount: Math.ceil(transactionResult.totalAmount),
+        },
+        customer_details: {
+          first_name: firstItem.participant.full_name,
+          email: firstItem.email,
+          phone: firstItem.participant.phone_number,
+        },
+        item_details: transactionResult.createdItems.map((c, i) => ({
+          id: `${c.trip.destination.id}-${i + 1}`,
+          price: Math.ceil(c.price),
+          quantity: 1,
+          name: `${c.trip.destination.name} - ${c.participant.full_name}`.slice(0, 50),
+        })),
+      })
+
+      if (snapTx && snapTx.token) {
+        snapToken = snapTx.token
+        redirectUrl = snapTx.redirect_url
+      }
+    } catch (snapErr) {
+      console.warn('Midtrans snap transaction generation notice:', (snapErr as Error).message)
+    }
+
+    return {
+      bulkBookingId: transactionResult.bulkBookingId,
+      totalAmount: transactionResult.totalAmount,
+      paymentStatus: 'pending',
+      participants: transactionResult.createdItems.map((c) => ({
+        id: c.participant.id,
+        bookingCode: c.participant.booking_code,
+        tripId: c.trip.id,
+        bookingGroupId: c.group.id,
+        groupNumber: c.group.group_number,
+        fullName: c.participant.full_name,
+        email: c.email,
+        price: c.price,
+      })),
+      payment: {
+        id: transactionResult.payment.id,
+        amount: transactionResult.totalAmount,
+        snapToken,
+        redirectUrl,
+        orderId: transactionResult.orderId,
+      },
+    }
   }
 
   static async getAvailableGroups(destinationId: string, departureDate: string) {
@@ -646,4 +905,3 @@ export class BookingService {
     }
   }
 }
-

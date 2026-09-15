@@ -5,6 +5,19 @@ import { MidtransNotification } from '../types/payment'
 import { ApiError } from '../utils/errors'
 import { EmailService } from './email.service'
 
+function parseBulkParticipantIds(notes?: string | null): string[] {
+  if (!notes) return []
+  try {
+    const parsed = JSON.parse(notes)
+    if (parsed && Array.isArray(parsed.participantIds)) {
+      return parsed.participantIds.map(String)
+    }
+  } catch {
+    // Not a JSON notes
+  }
+  return []
+}
+
 export class PaymentService {
   static async createTransaction(participantId: string) {
     const cleanPartId = participantId.replace(/^part-/, '')
@@ -95,27 +108,57 @@ export class PaymentService {
       },
     })
 
+    const bulkParticipantIds = parseBulkParticipantIds(payment.notes)
+    const allParticipantIds = Array.from(new Set([payment.participant_id, ...bulkParticipantIds]))
+
     if (completed) {
-      await prisma.participant.update({
-        where: { id: payment.participant_id },
-        data: { payment_status: 'paid' },
-      })
-      await EmailService.sendPaymentReceipt(payment.participant.user.email, {
-        participant_name: payment.participant.full_name,
-        amount: payment.amount,
-      })
+      if (bulkParticipantIds.length > 0) {
+        await prisma.participant.updateMany({
+          where: { id: { in: allParticipantIds } },
+          data: { payment_status: 'paid' },
+        })
+      } else {
+        await prisma.participant.update({
+          where: { id: payment.participant_id },
+          data: { payment_status: 'paid' },
+        })
+      }
+
+      if (payment.participant?.user?.email) {
+        await EmailService.sendPaymentReceipt(payment.participant.user.email, {
+          participant_name: payment.participant.full_name,
+          amount: payment.amount,
+        })
+      }
+    } else if (failed) {
+      if (bulkParticipantIds.length > 0) {
+        await prisma.participant.updateMany({
+          where: { id: { in: allParticipantIds } },
+          data: { payment_status: 'cancelled' },
+        })
+      } else {
+        await prisma.participant.update({
+          where: { id: payment.participant_id },
+          data: { payment_status: 'cancelled' },
+        })
+      }
     }
 
     return { status: 'ok', payment: updated }
   }
 
   static async simulatePayment(id: string, action = 'settle') {
-    const cleanId = id.replace(/^part-/, '').replace(/^pay-/, '')
+    const cleanId = id.replace(/^part-/, '').replace(/^pay-/, '').replace(/^blk-/, '')
     const act = (action || 'settle').toLowerCase()
 
     let payment = await prisma.payment.findFirst({
       where: {
-        OR: [{ id: cleanId }, { participant_id: cleanId }, { midtrans_order_id: cleanId }],
+        OR: [
+          { id: cleanId },
+          { participant_id: cleanId },
+          { midtrans_order_id: cleanId },
+          { notes: { contains: cleanId } },
+        ],
       },
       include: {
         participant: { include: { user: true } },
@@ -173,11 +216,22 @@ export class PaymentService {
       },
     })
 
+    const bulkParticipantIds = parseBulkParticipantIds(payment.notes)
+    const allParticipantIds = Array.from(new Set([payment.participant_id, ...bulkParticipantIds]))
+
     if (completed) {
-      await prisma.participant.update({
-        where: { id: payment.participant_id },
-        data: { payment_status: 'paid' },
-      })
+      if (bulkParticipantIds.length > 0) {
+        await prisma.participant.updateMany({
+          where: { id: { in: allParticipantIds } },
+          data: { payment_status: 'paid' },
+        })
+      } else {
+        await prisma.participant.update({
+          where: { id: payment.participant_id },
+          data: { payment_status: 'paid' },
+        })
+      }
+
       if (payment.participant?.user?.email) {
         await EmailService.sendPaymentReceipt(payment.participant.user.email, {
           participant_name: payment.participant.full_name,
@@ -185,10 +239,17 @@ export class PaymentService {
         })
       }
     } else if (failed) {
-      await prisma.participant.update({
-        where: { id: payment.participant_id },
-        data: { payment_status: 'cancelled' },
-      })
+      if (bulkParticipantIds.length > 0) {
+        await prisma.participant.updateMany({
+          where: { id: { in: allParticipantIds } },
+          data: { payment_status: 'cancelled' },
+        })
+      } else {
+        await prisma.participant.update({
+          where: { id: payment.participant_id },
+          data: { payment_status: 'cancelled' },
+        })
+      }
     }
 
     return {

@@ -33,9 +33,24 @@ router.post(
   asyncHandler(BookingController.createBooking)
 )
 
+router.post(
+  '/bulk',
+  optionalAuth,
+  verifyCaptcha,
+  validateRequest(bookingValidator.bulkCreate),
+  asyncHandler(BookingController.createBulkBooking)
+)
+
+router.post(
+  '/batch',
+  optionalAuth,
+  verifyCaptcha,
+  validateRequest(bookingValidator.bulkCreate),
+  asyncHandler(BookingController.createBulkBooking)
+)
+
 router.get('/my-bookings', optionalAuth, asyncHandler(BookingController.getUserBookings))
 router.get('/invoice/:identifier', optionalAuth, asyncHandler(BookingController.getInvoice))
 router.get('/:identifier/invoice', optionalAuth, asyncHandler(BookingController.getInvoice))
 
 export default router
-

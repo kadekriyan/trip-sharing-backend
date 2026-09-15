@@ -44,6 +44,16 @@ export class BookingController {
     )
   }
 
+  static async createBulkBooking(req: Request, res: Response) {
+    const result = await BookingService.createBulkBooking(req.user?.id, req.body)
+    sendResponse(
+      res,
+      201,
+      `Pemesanan berhasil dibuat untuk ${result.participants.length} peserta.`,
+      result
+    )
+  }
+
   static async getUserBookings(req: Request, res: Response) {
     const userId = req.user?.id
     const email = req.query.email as string | undefined
