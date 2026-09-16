@@ -23,7 +23,8 @@
 11. [Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)](#11-armada--kendaraan-fisik-apivehicles--apiarmada)
 12. [Partisipan Traveler (`/api/participants`)](#12-partisipan-traveler-apiparticipants)
 13. [Dashboard & Manajemen Admin (`/api/admin`)](#13-dashboard--manajemen-admin-apiadmin)
-14. [Panduan Integrasi Frontend (Next.js Client Example)](#14-panduan-integrasi-frontend-nextjs-client-example)
+14. [Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)](#14-pengaturan-sistem--dynamic-seo-apisettings--apiadminsettings)
+15. [Panduan Integrasi Frontend (Next.js Client Example)](#15-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -2890,7 +2891,116 @@ Menghapus grup armada mobil. Otomatis dilindungi jika grup masih memiliki pesert
 
 ---
 
-## 13. Panduan Integrasi Frontend (Next.js Client Example)
+## 14. Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)
+
+Layanan pengelolaan metadata SEO terpusat (singleton) dan Schema.org JSON-LD untuk integrasi frontend Next.js App Router (SSR `layout.tsx` dan `sitemap.ts`).
+
+### 14.1 Mengambil Pengaturan SEO Global (Public SSR / Frontend)
+Digunakan oleh frontend SSR (`layout.tsx`, `sitemap.ts`) untuk mengambil metadata default situs. Jika pengaturan di database belum ada, backend otomatis mengembalikan default object anti-crash.
+
+- **Method**: `GET`
+- **Path**: `/api/settings/seo`
+- **Auth**: Public (Tanpa token)
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "SEO settings retrieved successfully",
+  "data": {
+    "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    "siteTitleDefault": "Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours",
+    "siteTitleTemplate": "%s | Share Tour Jogja",
+    "metaDescription": "Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.",
+    "keywords": [
+      "Share Tour Jogja",
+      "Open Trip Jogja",
+      "Sharing Tour Yogyakarta",
+      "Trip Sharing Jogja",
+      "Small Group Travel Indonesia"
+    ],
+    "defaultOgImage": "/images/hero-bromo.png",
+    "googleVerificationTag": "google-site-verification-code-xyz",
+    "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\",\"url\":\"https://sharetourjogja.com\"}",
+    "robotsIndex": true,
+    "createdAt": "2026-09-16T09:00:00.000Z",
+    "updatedAt": "2026-09-16T09:00:00.000Z"
+  },
+  "timestamp": "2026-09-16T09:00:00.000Z"
+}
+```
+
+---
+
+### 14.2 Mengambil Pengaturan SEO Global (Admin Panel)
+Mengambil konfigurasi SEO global saat ini untuk ditampilkan pada form admin setting.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/settings/seo`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Response Sukses (`200 OK`)
+Format data identik dengan endpoint publik di atas.
+
+---
+
+### 14.3 Memperbarui Pengaturan SEO Global (Admin Panel)
+Menyimpan dan memperbarui konfigurasi SEO global dan Schema.org JSON-LD.
+
+- **Method**: `PUT` *(atau `PATCH /api/admin/settings/seo`)*
+- **Path**: `/api/admin/settings/seo`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "siteTitleDefault": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+  "siteTitleTemplate": "%s | Share Tour Jogja",
+  "metaDescription": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya.",
+  "keywords": [
+    "Share Tour Jogja",
+    "Open Trip Jogja",
+    "Wisata Hemat Jogja"
+  ],
+  "defaultOgImage": "/images/og-share-tour.jpg",
+  "googleVerificationTag": "google-site-verification-code-updated",
+  "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
+  "robotsIndex": true
+}
+```
+
+#### Validasi Khusus:
+- `organizationSchemaJson`: Jika diisi string non-kosong, wajib berupa string JSON yang valid (lolos `JSON.parse`).
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "SEO settings updated successfully",
+  "data": {
+    "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    "siteTitleDefault": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+    "siteTitleTemplate": "%s | Share Tour Jogja",
+    "metaDescription": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya.",
+    "keywords": [
+      "Share Tour Jogja",
+      "Open Trip Jogja",
+      "Wisata Hemat Jogja"
+    ],
+    "defaultOgImage": "/images/og-share-tour.jpg",
+    "googleVerificationTag": "google-site-verification-code-updated",
+    "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
+    "robotsIndex": true,
+    "createdAt": "2026-09-16T09:00:00.000Z",
+    "updatedAt": "2026-09-16T09:15:00.000Z"
+  },
+  "timestamp": "2026-09-16T09:15:00.000Z"
+}
+```
+
+---
+
+## 15. Panduan Integrasi Frontend (Next.js Client Example)
 
 ### 13.1 HTTP Client Helper (`lib/api.ts`)
 ```typescript
