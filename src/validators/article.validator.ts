@@ -26,8 +26,18 @@ export const articleValidator = {
     seoTitle: Joi.string().allow('', null).optional(),
     seo_description: Joi.string().allow('', null).optional(),
     seoDescription: Joi.string().allow('', null).optional(),
-    seo_keywords: Joi.string().allow('', null).optional(),
-    seoKeywords: Joi.string().allow('', null).optional(),
+    seo_keywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow('', null))
+      .optional(),
+    seoKeywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow('', null))
+      .optional(),
+    seo_og_image: Joi.string().max(500).allow('', null).optional(),
+    seoOgImage: Joi.string().max(500).allow('', null).optional(),
+    custom_schema_json: Joi.string().allow('', null).optional(),
+    customSchemaJson: Joi.string().allow('', null).optional(),
+    no_index: Joi.boolean().optional(),
+    noIndex: Joi.boolean().optional(),
     is_published: Joi.boolean().optional(),
     isPublished: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),
@@ -58,8 +68,18 @@ export const articleValidator = {
     seoTitle: Joi.string().allow('', null).optional(),
     seo_description: Joi.string().allow('', null).optional(),
     seoDescription: Joi.string().allow('', null).optional(),
-    seo_keywords: Joi.string().allow('', null).optional(),
-    seoKeywords: Joi.string().allow('', null).optional(),
+    seo_keywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow('', null))
+      .optional(),
+    seoKeywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow('', null))
+      .optional(),
+    seo_og_image: Joi.string().max(500).allow('', null).optional(),
+    seoOgImage: Joi.string().max(500).allow('', null).optional(),
+    custom_schema_json: Joi.string().allow('', null).optional(),
+    customSchemaJson: Joi.string().allow('', null).optional(),
+    no_index: Joi.boolean().optional(),
+    noIndex: Joi.boolean().optional(),
     is_published: Joi.boolean().optional(),
     isPublished: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),

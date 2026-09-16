@@ -16,6 +16,27 @@ async function main() {
       role: 'admin',
     },
   })
+
+  const existingSeo = await prisma.seoSetting.findFirst()
+  if (!existingSeo) {
+    await prisma.seoSetting.create({
+      data: {
+        site_title_default: 'Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours',
+        site_title_template: '%s | Share Tour Jogja',
+        meta_description:
+          'Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.',
+        keywords: [
+          'Share Tour Jogja',
+          'Open Trip Jogja',
+          'Sharing Tour Yogyakarta',
+          'Trip Sharing Jogja',
+          'Small Group Travel Indonesia',
+        ],
+        default_og_image: '/images/hero-bromo.png',
+        robots_index: true,
+      },
+    })
+  }
 }
 
 main()

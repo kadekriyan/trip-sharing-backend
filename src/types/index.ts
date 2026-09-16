@@ -3,4 +3,4 @@ export * from './captcha'
 export * from './payment'
 export * from './express'
 export * from './group'
-
+export * from './seo'
