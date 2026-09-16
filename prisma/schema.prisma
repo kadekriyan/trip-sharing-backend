@@ -53,6 +53,12 @@ model Destination {
   meeting_point      String?
   max_group_capacity Int      @default(6)
   itinerary          Json?
+  seo_title          String?
+  seo_description    String?  @db.Text
+  seo_keywords       Json?
+  seo_og_image       String?
+  custom_schema_json String?  @db.Text
+  no_index           Boolean  @default(false)
   is_active          Boolean  @default(true)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
@@ -188,6 +194,9 @@ model Article {
   seo_title          String?
   seo_description    String?
   seo_keywords       String?
+  seo_og_image       String?
+  custom_schema_json String?   @db.Text
+  no_index           Boolean   @default(false)
   is_published       Boolean   @default(false)
   published_at       DateTime?
   view_count         Int       @default(0)
@@ -284,4 +293,20 @@ model AuditLog {
 
   @@index([user_id])
   @@index([entity_type])
+}
+
+model SeoSetting {
+  id                       String   @id @default(uuid())
+  site_title_default       String   @default("Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours")
+  site_title_template      String   @default("%s | Share Tour Jogja")
+  meta_description         String   @default("Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.") @db.Text
+  keywords                 Json?    @default("[\"Share Tour Jogja\", \"Open Trip Jogja\", \"Sharing Tour Yogyakarta\", \"Trip Sharing Jogja\", \"Small Group Travel Indonesia\"]")
+  default_og_image         String   @default("/images/hero-bromo.png")
+  google_verification_tag  String?
+  organization_schema_json String?  @db.Text
+  robots_index             Boolean  @default(true)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  @@map("seo_settings")
 }

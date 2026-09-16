@@ -32,6 +32,22 @@ export const destinationValidator = {
     maxGroupCapacity: Joi.number().integer().positive().optional(),
     max_group_capacity: Joi.number().integer().positive().optional(),
     itinerary: Joi.alternatives().try(Joi.object(), Joi.array()).optional(),
+    seo_title: Joi.string().max(255).allow('', null).optional(),
+    seoTitle: Joi.string().max(255).allow('', null).optional(),
+    seo_description: Joi.string().allow('', null).optional(),
+    seoDescription: Joi.string().allow('', null).optional(),
+    seo_keywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow(null))
+      .optional(),
+    seoKeywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow(null))
+      .optional(),
+    seo_og_image: Joi.string().max(500).allow('', null).optional(),
+    seoOgImage: Joi.string().max(500).allow('', null).optional(),
+    custom_schema_json: Joi.string().allow('', null).optional(),
+    customSchemaJson: Joi.string().allow('', null).optional(),
+    no_index: Joi.boolean().optional(),
+    noIndex: Joi.boolean().optional(),
     is_active: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),
   }).or('name', 'title'),
@@ -67,6 +83,22 @@ export const destinationValidator = {
     maxGroupCapacity: Joi.number().integer().positive().optional(),
     max_group_capacity: Joi.number().integer().positive().optional(),
     itinerary: Joi.alternatives().try(Joi.object(), Joi.array(), Joi.allow(null)).optional(),
+    seo_title: Joi.string().max(255).allow('', null).optional(),
+    seoTitle: Joi.string().max(255).allow('', null).optional(),
+    seo_description: Joi.string().allow('', null).optional(),
+    seoDescription: Joi.string().allow('', null).optional(),
+    seo_keywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow(null))
+      .optional(),
+    seoKeywords: Joi.alternatives()
+      .try(Joi.array().items(Joi.string()), Joi.string(), Joi.allow(null))
+      .optional(),
+    seo_og_image: Joi.string().max(500).allow('', null).optional(),
+    seoOgImage: Joi.string().max(500).allow('', null).optional(),
+    custom_schema_json: Joi.string().allow('', null).optional(),
+    customSchemaJson: Joi.string().allow('', null).optional(),
+    no_index: Joi.boolean().optional(),
+    noIndex: Joi.boolean().optional(),
     is_active: Joi.boolean().optional(),
     isActive: Joi.boolean().optional(),
   }).min(1),

@@ -37,6 +37,20 @@ function formatDestination(dest: Record<string, unknown>) {
     meetingPoint: (dest.meeting_point as string) || '',
     maxGroupCapacity: (dest.max_group_capacity as number) || 6,
     itinerary: (dest.itinerary as unknown[]) || [],
+    seoTitle: (dest.seo_title as string) || (dest.seoTitle as string) || '',
+    seo_title: (dest.seo_title as string) || (dest.seoTitle as string) || '',
+    seoDescription: (dest.seo_description as string) || (dest.seoDescription as string) || '',
+    seo_description: (dest.seo_description as string) || (dest.seoDescription as string) || '',
+    seoKeywords: dest.seo_keywords || dest.seoKeywords || [],
+    seo_keywords: dest.seo_keywords || dest.seoKeywords || [],
+    seoOgImage: (dest.seo_og_image as string) || (dest.seoOgImage as string) || '',
+    seo_og_image: (dest.seo_og_image as string) || (dest.seoOgImage as string) || '',
+    customSchemaJson:
+      (dest.custom_schema_json as string) || (dest.customSchemaJson as string) || null,
+    custom_schema_json:
+      (dest.custom_schema_json as string) || (dest.customSchemaJson as string) || null,
+    noIndex: dest.no_index !== undefined ? Boolean(dest.no_index) : Boolean(dest.noIndex),
+    no_index: dest.no_index !== undefined ? Boolean(dest.no_index) : Boolean(dest.noIndex),
     isActive: dest.is_active !== undefined ? (dest.is_active as boolean) : true,
     createdAt: dest.created_at,
     updatedAt: dest.updated_at,
@@ -104,6 +118,18 @@ export class DestinationService {
     maxGroupCapacity?: number
     max_group_capacity?: number
     itinerary?: Prisma.InputJsonValue
+    seo_title?: string
+    seoTitle?: string
+    seo_description?: string
+    seoDescription?: string
+    seo_keywords?: Prisma.InputJsonValue
+    seoKeywords?: Prisma.InputJsonValue
+    seo_og_image?: string
+    seoOgImage?: string
+    custom_schema_json?: string
+    customSchemaJson?: string
+    no_index?: boolean
+    noIndex?: boolean
     is_active?: boolean
   }) {
     const name = data.name || data.title || 'Untitled Destination'
@@ -111,6 +137,21 @@ export class DestinationService {
     const slug = await this.generateUniqueSlug(candidateSlug)
     const price = data.price_per_person ?? data.pricePerPax ?? 0
     const coverImage = data.cover_image || data.coverImage || data.image_url || null
+
+    const seoKeywords = data.seo_keywords ?? data.seoKeywords
+    let parsedKeywords: Prisma.InputJsonValue | undefined = undefined
+    if (seoKeywords !== undefined) {
+      if (Array.isArray(seoKeywords)) {
+        parsedKeywords = seoKeywords as Prisma.InputJsonValue
+      } else if (typeof seoKeywords === 'string') {
+        try {
+          const parsed = JSON.parse(seoKeywords)
+          parsedKeywords = (Array.isArray(parsed) ? parsed : [seoKeywords]) as Prisma.InputJsonValue
+        } catch {
+          parsedKeywords = [seoKeywords] as Prisma.InputJsonValue
+        }
+      }
+    }
 
     const created = await prisma.destination.create({
       data: {
@@ -136,6 +177,12 @@ export class DestinationService {
         meeting_point: data.meeting_point ?? data.meetingPoint ?? null,
         max_group_capacity: data.max_group_capacity ?? data.maxGroupCapacity ?? 6,
         itinerary: (data.itinerary ?? []) as Prisma.InputJsonValue,
+        seo_title: data.seo_title || data.seoTitle || null,
+        seo_description: data.seo_description || data.seoDescription || null,
+        seo_keywords: parsedKeywords ?? ([] as Prisma.InputJsonValue),
+        seo_og_image: data.seo_og_image || data.seoOgImage || null,
+        custom_schema_json: data.custom_schema_json || data.customSchemaJson || null,
+        no_index: Boolean(data.no_index ?? data.noIndex ?? false),
         is_active: data.is_active ?? true,
       },
     })
@@ -289,7 +336,9 @@ export class DestinationService {
       status: t.status,
       groups: (t.booking_groups || []).map((g) => {
         const resolvedVehicle = g.vehicle || g.driver?.vehicle || t.guide?.driver?.vehicle || null
-        const driverObj = g.driver || (t.guide?.driver ? { id: t.guide.driver.id, user: { name: t.guide.name } } : null)
+        const driverObj =
+          g.driver ||
+          (t.guide?.driver ? { id: t.guide.driver.id, user: { name: t.guide.name } } : null)
 
         return {
           id: g.id,
@@ -302,7 +351,8 @@ export class DestinationService {
             ? {
                 id: driverObj.id,
                 fullName: g.driver?.user?.name || t.guide?.name || 'Driver',
-                vehicleModel: resolvedVehicle?.name || resolvedVehicle?.vehicle_type || 'Toyota HiAce Premio',
+                vehicleModel:
+                  resolvedVehicle?.name || resolvedVehicle?.vehicle_type || 'Toyota HiAce Premio',
                 plateNumber: resolvedVehicle?.plate_number || 'N 1234 XY',
                 vehicle: resolvedVehicle
                   ? {
@@ -406,6 +456,36 @@ export class DestinationService {
       updateData.max_group_capacity = Number(data.maxGroupCapacity ?? data.max_group_capacity)
     }
     if (data.itinerary !== undefined) updateData.itinerary = data.itinerary as Prisma.InputJsonValue
+    if (data.seoTitle !== undefined || data.seo_title !== undefined) {
+      updateData.seo_title = (data.seoTitle ?? data.seo_title) as string
+    }
+    if (data.seoDescription !== undefined || data.seo_description !== undefined) {
+      updateData.seo_description = (data.seoDescription ?? data.seo_description) as string
+    }
+    if (data.seoKeywords !== undefined || data.seo_keywords !== undefined) {
+      const kws = data.seoKeywords ?? data.seo_keywords
+      if (Array.isArray(kws)) {
+        updateData.seo_keywords = kws as Prisma.InputJsonValue
+      } else if (typeof kws === 'string') {
+        try {
+          const parsed = JSON.parse(kws)
+          updateData.seo_keywords = (
+            Array.isArray(parsed) ? parsed : [kws]
+          ) as Prisma.InputJsonValue
+        } catch {
+          updateData.seo_keywords = [kws] as Prisma.InputJsonValue
+        }
+      }
+    }
+    if (data.seoOgImage !== undefined || data.seo_og_image !== undefined) {
+      updateData.seo_og_image = (data.seoOgImage ?? data.seo_og_image) as string
+    }
+    if (data.customSchemaJson !== undefined || data.custom_schema_json !== undefined) {
+      updateData.custom_schema_json = (data.customSchemaJson ?? data.custom_schema_json) as string
+    }
+    if (data.noIndex !== undefined || data.no_index !== undefined) {
+      updateData.no_index = Boolean(data.noIndex ?? data.no_index)
+    }
     if (data.isActive !== undefined || data.is_active !== undefined) {
       updateData.is_active = Boolean(data.isActive ?? data.is_active)
     }
@@ -447,24 +527,27 @@ export class DestinationService {
     }
 
     // Cascade delete empty booking groups and trips before deleting destination
-    await prisma.$transaction(async (tx) => {
-      for (const trip of destination.trips) {
-        await tx.payment.deleteMany({
-          where: { booking_group: { trip_id: trip.id } },
+    await prisma.$transaction(
+      async (tx) => {
+        for (const trip of destination.trips) {
+          await tx.payment.deleteMany({
+            where: { booking_group: { trip_id: trip.id } },
+          })
+          await tx.bookingGroup.deleteMany({
+            where: { trip_id: trip.id },
+          })
+        }
+        await tx.trip.deleteMany({
+          where: { destination_id: id },
         })
-        await tx.bookingGroup.deleteMany({
-          where: { trip_id: trip.id },
+        await tx.destination.delete({
+          where: { id },
         })
+      },
+      {
+        maxWait: 10000,
+        timeout: 30000,
       }
-      await tx.trip.deleteMany({
-        where: { destination_id: id },
-      })
-      await tx.destination.delete({
-        where: { id },
-      })
-    }, {
-      maxWait: 10000,
-      timeout: 30000,
-    })
+    )
   }
 }

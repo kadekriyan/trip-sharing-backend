@@ -47,10 +47,20 @@ function formatArticle(art: Record<string, unknown>) {
     isPublished,
     is_published: isPublished,
     isActive: isPublished,
-    is_active: isPublished,
-    seoTitle: (art.seo_title as string) || '',
-    seoDescription: (art.seo_description as string) || '',
-    seoKeywords: (art.seo_keywords as string) || '',
+    seoTitle: (art.seo_title as string) || (art.seoTitle as string) || '',
+    seo_title: (art.seo_title as string) || (art.seoTitle as string) || '',
+    seoDescription: (art.seo_description as string) || (art.seoDescription as string) || '',
+    seo_description: (art.seo_description as string) || (art.seoDescription as string) || '',
+    seoKeywords: (art.seo_keywords as string) || (art.seoKeywords as string) || '',
+    seo_keywords: (art.seo_keywords as string) || (art.seoKeywords as string) || '',
+    seoOgImage: (art.seo_og_image as string) || (art.seoOgImage as string) || '',
+    seo_og_image: (art.seo_og_image as string) || (art.seoOgImage as string) || '',
+    customSchemaJson:
+      (art.custom_schema_json as string) || (art.customSchemaJson as string) || null,
+    custom_schema_json:
+      (art.custom_schema_json as string) || (art.customSchemaJson as string) || null,
+    noIndex: art.no_index !== undefined ? Boolean(art.no_index) : Boolean(art.noIndex),
+    no_index: art.no_index !== undefined ? Boolean(art.no_index) : Boolean(art.noIndex),
     createdAt: art.created_at,
     updatedAt: art.updated_at,
   }
@@ -112,8 +122,14 @@ export class ArticleService {
     seoTitle?: string
     seo_description?: string
     seoDescription?: string
-    seo_keywords?: string
-    seoKeywords?: string
+    seo_keywords?: string | string[]
+    seoKeywords?: string | string[]
+    seo_og_image?: string
+    seoOgImage?: string
+    custom_schema_json?: string
+    customSchemaJson?: string
+    no_index?: boolean
+    noIndex?: boolean
     is_published?: boolean
     isPublished?: boolean
     isActive?: boolean
@@ -148,6 +164,9 @@ export class ArticleService {
     const isPublished =
       data.is_published ?? data.isPublished ?? data.isActive ?? data.is_active ?? true
 
+    const rawKeywords = data.seo_keywords ?? data.seoKeywords
+    const seoKeywords = Array.isArray(rawKeywords) ? rawKeywords.join(', ') : rawKeywords || null
+
     const created = await prisma.article.create({
       data: {
         title: data.title,
@@ -163,9 +182,12 @@ export class ArticleService {
         read_time_minutes: readTimeMinutes,
         tags: (data.tags ?? []) as Prisma.InputJsonValue,
         category: data.category || 'Travel Tips',
-        seo_title: data.seo_title || data.seoTitle,
-        seo_description: data.seo_description || data.seoDescription,
-        seo_keywords: data.seo_keywords || data.seoKeywords,
+        seo_title: data.seo_title || data.seoTitle || null,
+        seo_description: data.seo_description || data.seoDescription || null,
+        seo_keywords: seoKeywords,
+        seo_og_image: data.seo_og_image || data.seoOgImage || null,
+        custom_schema_json: data.custom_schema_json || data.customSchemaJson || null,
+        no_index: Boolean(data.no_index ?? data.noIndex ?? false),
         is_published: isPublished,
         published_at: isPublished ? new Date() : null,
       },
@@ -304,7 +326,17 @@ export class ArticleService {
       updateData.seo_description = (data.seoDescription ?? data.seo_description) as string
     }
     if (data.seoKeywords !== undefined || data.seo_keywords !== undefined) {
-      updateData.seo_keywords = (data.seoKeywords ?? data.seo_keywords) as string
+      const rawKws = data.seoKeywords ?? data.seo_keywords
+      updateData.seo_keywords = Array.isArray(rawKws) ? rawKws.join(', ') : (rawKws as string)
+    }
+    if (data.seoOgImage !== undefined || data.seo_og_image !== undefined) {
+      updateData.seo_og_image = (data.seoOgImage ?? data.seo_og_image) as string
+    }
+    if (data.customSchemaJson !== undefined || data.custom_schema_json !== undefined) {
+      updateData.custom_schema_json = (data.customSchemaJson ?? data.custom_schema_json) as string
+    }
+    if (data.noIndex !== undefined || data.no_index !== undefined) {
+      updateData.no_index = Boolean(data.noIndex ?? data.no_index)
     }
 
     // Handle is_published / isActive flag and published_at timestamp

@@ -13,6 +13,8 @@ import { groupValidator } from '../validators/group.validator'
 import { participantValidator } from '../validators/participant.validator'
 import { tripValidator } from '../validators/trip.validator'
 import { vehicleValidator } from '../validators/vehicle.validator'
+import { seoValidator } from '../validators/seo.validator'
+import { SeoController } from '../controllers/seo.controller'
 
 const router = Router()
 
@@ -56,7 +58,6 @@ router.post(
   asyncHandler(GroupController.assignVehicle)
 )
 router.delete('/groups/:id', asyncHandler(GroupController.deleteGroup))
-
 
 // Participants
 router.post(
@@ -252,11 +253,7 @@ router.patch(
 router.delete('/armada/:id', asyncHandler(AdminController.deleteVehicle))
 
 // Areas (Wilayah Operasional)
-router.post(
-  '/areas',
-  validateRequest(areaValidator.create),
-  asyncHandler(AreaController.create)
-)
+router.post('/areas', validateRequest(areaValidator.create), asyncHandler(AreaController.create))
 router.get('/areas', asyncHandler(AreaController.list))
 router.get('/areas/:id', asyncHandler(AreaController.get))
 router.patch(
@@ -264,11 +261,20 @@ router.patch(
   validateRequest(areaValidator.update),
   asyncHandler(AreaController.update)
 )
-router.put(
-  '/areas/:id',
-  validateRequest(areaValidator.update),
-  asyncHandler(AreaController.update)
-)
+router.put('/areas/:id', validateRequest(areaValidator.update), asyncHandler(AreaController.update))
 router.delete('/areas/:id', asyncHandler(AreaController.delete))
+
+// Global SEO Settings
+router.get('/settings/seo', asyncHandler(SeoController.getAdminSeoSettings))
+router.put(
+  '/settings/seo',
+  validateRequest(seoValidator.update),
+  asyncHandler(SeoController.updateAdminSeoSettings)
+)
+router.patch(
+  '/settings/seo',
+  validateRequest(seoValidator.update),
+  asyncHandler(SeoController.updateAdminSeoSettings)
+)
 
 export default router
