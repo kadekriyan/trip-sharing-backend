@@ -2398,13 +2398,14 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
   "phoneNumber": "+6281355667788",
   "email": "budi.driver@example.com",
   "licenseNumber": "SIM-A-77889900",
-  "experienceYears": 5,
+  "licenseExpiryDate": "2029-08-30",
   "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
   "photoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
   "isAvailable": true
 }
 ```
 
+##### Response Sukses (`21- Created` -> `201 Created`)
 ##### Response Sukses (`201 Created`)
 ```json
 {
@@ -2417,7 +2418,7 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
     "phoneNumber": "+6281355667788",
     "email": "budi.driver@example.com",
     "licenseNumber": "SIM-A-77889900",
-    "experienceYears": 5,
+    "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
     "rating": 5.0,
     "isAvailable": true,
     "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
@@ -2445,7 +2446,7 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
     "phoneNumber": "+6281233445566",
     "email": "joko@driver.local",
     "licenseNumber": "SIM-A-99218201",
-    "experienceYears": 6,
+    "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
     "rating": 5.0,
     "isAvailable": true,
     "vehicle": {
@@ -2471,7 +2472,7 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
 {
   "fullName": "Pak Joko Santoso, S.Pd",
   "phoneNumber": "+6281233445577",
-  "experienceYears": 7,
+  "licenseExpiryDate": "2030-05-15",
   "isAvailable": true
 }
 ```

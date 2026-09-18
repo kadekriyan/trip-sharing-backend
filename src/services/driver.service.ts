@@ -52,8 +52,14 @@ export function formatDriver(
     email,
     licenseNumber,
     license_number: licenseNumber,
-    experienceYears: (d.experience_years as number) || (d.experienceYears as number) || 1,
-    experience_years: (d.experience_years as number) || (d.experienceYears as number) || 1,
+    licenseExpiryDate:
+      (d.license_expiry_date as string | Date) ||
+      (d.licenseExpiryDate as string | Date) ||
+      null,
+    license_expiry_date:
+      (d.license_expiry_date as string | Date) ||
+      (d.licenseExpiryDate as string | Date) ||
+      null,
     rating: d.rating ? Number(d.rating) : 5.0,
     isAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
     is_available: d.is_available !== undefined ? (d.is_available as boolean) : true,
@@ -136,7 +142,8 @@ export class DriverService {
 
     const licenseNumber =
       data.license_number || data.licenseNumber || `SIM-${Math.floor(10000000 + Math.random() * 90000000)}`
-    const experienceYears = Number(data.experience_years ?? data.experienceYears ?? 3)
+    const rawExpiry = data.licenseExpiryDate ?? data.license_expiry_date
+    const licenseExpiryDate = rawExpiry ? new Date(rawExpiry) : null
     const isAvailable = data.is_available ?? data.isAvailable ?? true
     const status = data.status || 'active'
 
@@ -155,7 +162,7 @@ export class DriverService {
       data: {
         user_id: userId,
         license_number: licenseNumber,
-        experience_years: experienceYears,
+        license_expiry_date: licenseExpiryDate,
         is_available: isAvailable,
         status,
         area_id: areaId,
@@ -299,8 +306,9 @@ export class DriverService {
     if (data.licenseNumber !== undefined || data.license_number !== undefined) {
       driverUpdate.license_number = data.licenseNumber ?? data.license_number
     }
-    if (data.experienceYears !== undefined || data.experience_years !== undefined) {
-      driverUpdate.experience_years = Number(data.experienceYears ?? data.experience_years)
+    if (data.licenseExpiryDate !== undefined || data.license_expiry_date !== undefined) {
+      const rawExpiry = data.licenseExpiryDate ?? data.license_expiry_date
+      driverUpdate.license_expiry_date = rawExpiry ? new Date(rawExpiry) : null
     }
     if (data.isAvailable !== undefined || data.is_available !== undefined) {
       driverUpdate.is_available = Boolean(data.isAvailable ?? data.is_available)

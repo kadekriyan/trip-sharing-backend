@@ -418,8 +418,7 @@ model Driver {
   user_id            Int                @unique
   license_number     String             @unique
   vehicle_type       String
-  vehicle_plat       String             @unique
-  experience_years   Int
+  license_expiry_date DateTime?
   rating             Decimal            @default(0) @db.Decimal(3, 2)
   is_available       Boolean            @default(true)
   created_at         DateTime           @default(now())
@@ -1857,8 +1856,7 @@ Request body for create:
   "user_id": 2,
   "license_number": "SIM-A-123456",
   "vehicle_type": "Toyota HiAce",
-  "vehicle_plat": "DK 1234 ABC",
-  "experience_years": 5,
+  "license_expiry_date": "2029-08-30",
   "is_available": true
 }
 ```

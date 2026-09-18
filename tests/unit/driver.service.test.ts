@@ -50,7 +50,7 @@ describe('DriverService', () => {
         id: 'drv-1',
         user_id: 'usr-1',
         license_number: 'SIM-A-1234',
-        experience_years: 5,
+        license_expiry_date: new Date('2028-12-31'),
         is_available: true,
         user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
         vehicle: null,
@@ -66,7 +66,7 @@ describe('DriverService', () => {
         id: 'drv-1',
         user_id: 'usr-1',
         license_number: 'SIM-A-1234',
-        experience_years: 5,
+        license_expiry_date: new Date('2028-12-31'),
         is_available: true,
         user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
         vehicle: {
@@ -83,6 +83,7 @@ describe('DriverService', () => {
       const result = await DriverService.create({
         fullName: 'Pak Budi',
         phoneNumber: '+62812345678',
+        licenseExpiryDate: '2028-12-31',
         vehicleModel: 'Toyota HiAce Premio',
         plateNumber: 'N 1234 XY',
       })
@@ -90,6 +91,7 @@ describe('DriverService', () => {
       expect(result.fullName).toBe('Pak Budi')
       expect(result.vehicleModel).toBe('Toyota HiAce Premio')
       expect(result.plateNumber).toBe('N 1234 XY')
+      expect(result.licenseExpiryDate).toEqual(new Date('2028-12-31'))
     })
   })
 
@@ -100,7 +102,7 @@ describe('DriverService', () => {
           id: 'drv-1',
           user_id: 'usr-1',
           license_number: 'SIM-A-1234',
-          experience_years: 5,
+          license_expiry_date: new Date('2028-12-31'),
           is_available: true,
           user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
           vehicle: {
@@ -121,6 +123,7 @@ describe('DriverService', () => {
       expect(result[0].fullName).toBe('Pak Budi')
       expect(result[0].vehicleType).toBe('Toyota HiAce Premio')
       expect(result[0].plateNumber).toBe('N 1234 XY')
+      expect(result[0].licenseExpiryDate).toEqual(new Date('2028-12-31'))
     })
 
     it('should filter drivers by area', async () => {
@@ -129,7 +132,7 @@ describe('DriverService', () => {
           id: 'drv-2',
           user_id: 'usr-2',
           license_number: 'SIM-A-5678',
-          experience_years: 3,
+          license_expiry_date: new Date('2027-06-15'),
           is_available: true,
           area_id: 'area-malang',
           user: { id: 'usr-2', name: 'Pak Samsul', phone: '+628999' },
@@ -152,6 +155,47 @@ describe('DriverService', () => {
       expect(result).toHaveLength(1)
       expect(result[0].area?.name).toBe('Malang')
       expect(result[0].areaId).toBe('area-malang')
+    })
+  })
+
+  describe('update', () => {
+    it('should update driver license expiry date and name', async () => {
+      const mockDriver = {
+        id: 'drv-1',
+        user_id: 'usr-1',
+        license_number: 'SIM-A-1234',
+        license_expiry_date: new Date('2027-01-01'),
+        is_available: true,
+        user: { id: 'usr-1', name: 'Pak Budi', phone: '+62812345678' },
+        vehicle: null,
+      }
+
+      ;(prisma.driver.findUnique as jest.Mock)
+        .mockResolvedValueOnce(mockDriver)
+        .mockResolvedValueOnce({
+          ...mockDriver,
+          license_expiry_date: new Date('2029-05-20'),
+          user: { id: 'usr-1', name: 'Pak Budi Santoso', phone: '+62812345678' },
+        })
+      ;(prisma.user.update as jest.Mock).mockResolvedValue({ id: 'usr-1', name: 'Pak Budi Santoso' })
+      ;(prisma.driver.update as jest.Mock).mockResolvedValue({
+        ...mockDriver,
+        license_expiry_date: new Date('2029-05-20'),
+      })
+
+      const result = await DriverService.update('drv-1', {
+        fullName: 'Pak Budi Santoso',
+        licenseExpiryDate: '2029-05-20',
+      })
+
+      expect(prisma.driver.update).toHaveBeenCalledWith({
+        where: { id: '1' },
+        data: expect.objectContaining({
+          license_expiry_date: new Date('2029-05-20'),
+        }),
+      })
+      expect(result.fullName).toBe('Pak Budi Santoso')
+      expect(result.licenseExpiryDate).toEqual(new Date('2029-05-20'))
     })
   })
 

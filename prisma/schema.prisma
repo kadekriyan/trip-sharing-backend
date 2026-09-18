@@ -232,7 +232,7 @@ model Driver {
   id               String   @id @default(uuid())
   user_id          String   @unique
   license_number   String   @unique
-  experience_years Int      @default(1)
+  license_expiry_date DateTime?
   rating           Decimal  @default(0) @db.Decimal(3, 2)
   is_available     Boolean  @default(true)
   status           String   @default("active")

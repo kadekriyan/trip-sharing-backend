@@ -8,6 +8,8 @@ export interface CreateDriverInput {
   email?: string
   licenseNumber?: string
   license_number?: string
+  licenseExpiryDate?: string | Date | null
+  license_expiry_date?: string | Date | null
   experienceYears?: number
   experience_years?: number
   rating?: number
@@ -35,6 +37,8 @@ export interface UpdateDriverInput {
   photoUrl?: string
   licenseNumber?: string
   license_number?: string
+  licenseExpiryDate?: string | Date | null
+  license_expiry_date?: string | Date | null
   experienceYears?: number
   experience_years?: number
   rating?: number
