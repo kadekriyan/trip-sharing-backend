@@ -226,6 +226,7 @@ GET /api/destinations?search=bromo&sortBy=price_asc&page=1&limit=6
       "durationDays": 2,
       "durationNights": 1,
       "pricePerPax": 850000,
+      "priceTransportOnly": 550000,
       "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
       "galleryImages": [
         "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800",
@@ -286,6 +287,7 @@ GET /api/destinations/bromo-sunrise-midnight-safari
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 850000,
+    "priceTransportOnly": 550000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
     "galleryImages": [
       "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800"
@@ -433,6 +435,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 | `pickupLatitude` | `number` | Opsional | Koordinat latitude jemput (range: `-90` s.d `90`) |
 | `pickupLongitude` | `number` | Opsional | Koordinat longitude jemput (range: `-180` s.d `180`) |
 | `pickupNotes` | `string` | Opsional | Instruksi penjemputan (max: 1000 karakter) |
+| `packageType` / `package_type` | `string` | Opsional | Tipe paket: `'ALL_IN'` (All-Inclusive) atau `'TRANSPORT_ONLY'` (Hanya Transportasi). Default: `'ALL_IN'`. |
 | `captchaToken` | `string` | Opsional | Token bot verification reCAPTCHA / hCaptcha |
 
 #### Request Body
@@ -445,6 +448,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
   "dateOfBirth": "1998-07-20",
   "nationality": "Indonesia",
   "gender": "female",
+  "packageType": "ALL_IN",
   "healthNotes": "Alergi seafood ringan",
   "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
   "pickupLatitude": -7.962145,
@@ -515,6 +519,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
 | `bookings[i].pickupLatitude` | `number` | Opsional | Latitude jemput (`-90` s.d `90`) |
 | `bookings[i].pickupLongitude` | `number` | Opsional | Longitude jemput (`-180` s.d `180`) |
 | `bookings[i].pickupNotes` | `string` | Opsional | Catatan khusus penjemputan |
+| `bookings[i].packageType` / `package_type` | `string` | Opsional | Tipe paket: `'ALL_IN'` atau `'TRANSPORT_ONLY'`. Default: `'ALL_IN'`. |
 
 #### Request Body
 ```json
@@ -529,6 +534,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
       "dateOfBirth": "1998-07-20",
       "gender": "female",
       "nationality": "Indonesia",
+      "packageType": "ALL_IN",
       "healthNotes": "Alergi makanan laut",
       "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
       "pickupLatitude": -7.962145,
@@ -543,6 +549,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
       "dateOfBirth": "1995-03-15",
       "gender": "male",
       "nationality": "Indonesia",
+      "packageType": "TRANSPORT_ONLY",
       "pickupLocation": "Stasiun Malang Kota Baru",
       "pickupNotes": "Pintu Timur"
     }
@@ -1872,6 +1879,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
   "durationDays": 2,
   "durationNights": 1,
   "pricePerPax": 750000,
+  "priceTransportOnly": 450000,
   "coverImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200",
   "galleryImages": [
     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800"
@@ -1896,6 +1904,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
     "slug": "kawah-ijen-blue-fire-experience",
     "location": "Banyuwangi, Jawa Timur",
     "pricePerPax": 750000,
+    "priceTransportOnly": 450000,
     "durationDays": 2,
     "isActive": true
   },
@@ -1925,6 +1934,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 850000,
+    "priceTransportOnly": 550000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
     "galleryImages": [],
     "inclusions": ["Tiket Masuk Bromo", "Jeep 4x4"],
@@ -1953,6 +1963,7 @@ Dapat mengirimkan sebagian (parsial) atau seluruh field destinasi.
 {
   "title": "Bromo Sunrise & Midnight Safari (VIP Edition)",
   "pricePerPax": 900000,
+  "priceTransportOnly": 600000,
   "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
   "location": "Probolinggo & Pasuruan, Jawa Timur",
   "isPopular": true,
@@ -1973,6 +1984,7 @@ Dapat mengirimkan sebagian (parsial) atau seluruh field destinasi.
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 900000,
+    "priceTransportOnly": 600000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
     "isPopular": true,
     "isActive": true,
@@ -2888,6 +2900,90 @@ Menghapus grup armada mobil. Otomatis dilindungi jika grup masih memiliki pesert
 - **Method**: `DELETE`
 - **Path**: `/api/admin/groups/:id`
 - **Auth**: `Bearer <admin_jwt_token>`
+
+---
+
+#### 12.10.8 Manifes Penumpang Grup Armada (`GET /api/admin/groups/:id/manifest`)
+Mengambil manifes resmi penumpang untuk grup armada tertentu, mencakup rincian trip, destinasi, armada kendaraan, driver, nomor manifes, dan daftar seluruh penumpang beserta `packageType` (`ALL_IN` vs `TRANSPORT_ONLY`), status pembayaran, dan titik penjemputan.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/groups/:id/manifest`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Passenger manifest retrieved successfully",
+  "data": {
+    "manifestNumber": "MNF-BROMO-SUNRISE-MIDNIGHT-SAFARI-GRP1-F128C9",
+    "generatedAt": "2026-09-18T07:30:00.000Z",
+    "group": {
+      "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "groupNumber": 1,
+      "status": "confirmed",
+      "currentParticipants": 2,
+      "maxParticipants": 6,
+      "pricePerPerson": 850000,
+      "totalPrice": 5100000,
+      "trip": {
+        "id": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "destinationId": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+        "departureDate": "2026-10-01T00:00:00.000Z",
+        "returnDate": "2026-10-03T00:00:00.000Z",
+        "status": "scheduled",
+        "destination": {
+          "id": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+          "name": "Bromo Sunrise & Midnight Safari",
+          "slug": "bromo-sunrise-midnight-safari",
+          "location": "Probolinggo, Jawa Timur"
+        }
+      },
+      "driver": {
+        "id": "d0912384-1234-4bc1-9022-771199aabb01",
+        "fullName": "Pak Joko Santoso",
+        "phoneNumber": "+6281233445566",
+        "vehicleType": "Toyota HiAce Premio",
+        "plateNumber": "N 1234 XY"
+      },
+      "vehicle": {
+        "id": "veh-7711-4bc1-9022-882299aabb01",
+        "name": "Toyota HiAce Premio Luxury",
+        "plateNumber": "N 1234 XY",
+        "capacity": 6
+      },
+      "participants": [
+        {
+          "id": "c19208a1-5512-48ea-9201-7fa112345678",
+          "bookingCode": "TRV-8921",
+          "fullName": "Siti Rahmawati",
+          "phoneNumber": "+6281298765432",
+          "packageType": "ALL_IN",
+          "paymentStatus": "paid",
+          "totalAmount": 850000,
+          "pickupLocation": "Hotel Santika Premiere Malang",
+          "pickupNotes": "Lobi depan",
+          "checkInStatus": "checked_in"
+        },
+        {
+          "id": "d29319b2-6623-49fb-8312-8ab223456789",
+          "bookingCode": "TRV-8922",
+          "fullName": "Budi Santoso",
+          "phoneNumber": "+6281233445566",
+          "packageType": "TRANSPORT_ONLY",
+          "paymentStatus": "paid",
+          "totalAmount": 550000,
+          "pickupLocation": "Stasiun Malang Kota Baru",
+          "pickupNotes": "Pintu Timur",
+          "checkInStatus": "pending"
+        }
+      ]
+    }
+  },
+  "timestamp": "2026-09-18T07:30:00.000Z"
+}
+```
 
 ---
 

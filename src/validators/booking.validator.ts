@@ -49,6 +49,8 @@ const bookingItemSchema = Joi.object({
   pickup_longitude: Joi.number().min(-180).max(180).allow(null).optional(),
   pickupNotes: Joi.string().trim().max(1000).allow('', null).optional(),
   pickup_notes: Joi.string().trim().max(1000).allow('', null).optional(),
+  packageType: Joi.string().trim().valid('ALL_IN', 'TRANSPORT_ONLY', 'all_in', 'transport_only').optional(),
+  package_type: Joi.string().trim().valid('ALL_IN', 'TRANSPORT_ONLY', 'all_in', 'transport_only').optional(),
   departure_date: Joi.date().iso().optional(),
   departureDate: Joi.date().iso().optional(),
   return_date: Joi.date().iso().optional(),

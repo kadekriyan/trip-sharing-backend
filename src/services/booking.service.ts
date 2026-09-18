@@ -213,12 +213,19 @@ export class BookingService {
     const healthNotes = bookingData.healthNotes || bookingData.health_notes || null
     const userEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
+    const rawPackageType = (bookingData.packageType || bookingData.package_type || 'ALL_IN').toUpperCase()
+    const packageType = rawPackageType === 'TRANSPORT_ONLY' ? 'TRANSPORT_ONLY' : 'ALL_IN'
 
     const customPrice = bookingData.price_per_pax ?? bookingData.pricePerPax
-    const pricePerPerson =
-      customPrice !== undefined && customPrice !== null
-        ? Number(customPrice)
-        : Number(trip.destination.price_per_person)
+    let pricePerPerson: number
+    if (customPrice !== undefined && customPrice !== null) {
+      pricePerPerson = Number(customPrice)
+    } else if (packageType === 'TRANSPORT_ONLY') {
+      const transportPrice = trip.destination.price_transport_only ? Number(trip.destination.price_transport_only) : 0
+      pricePerPerson = transportPrice > 0 ? transportPrice : Number(trip.destination.price_per_person)
+    } else {
+      pricePerPerson = Number(trip.destination.price_per_person)
+    }
 
     const totalAmount = pricePerPerson
     const randomDigits = Math.floor(1000 + Math.random() * 9000)
@@ -304,6 +311,7 @@ export class BookingService {
               ? new Prisma.Decimal(bookingData.pickupLongitude.toString())
               : null,
           pickup_notes: bookingData.pickup_notes || bookingData.pickupNotes || null,
+          package_type: packageType,
           total_amount: new Prisma.Decimal(totalAmount.toString()),
           payment_status: 'pending',
           check_in_status: 'pending',
@@ -402,11 +410,19 @@ export class BookingService {
         const userEmail =
           b.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now() + '-' + idx}@booking.local`
 
+        const rawPackageType = (b.packageType || b.package_type || 'ALL_IN').toUpperCase()
+        const packageType = rawPackageType === 'TRANSPORT_ONLY' ? 'TRANSPORT_ONLY' : 'ALL_IN'
+
         const customPrice = b.price_per_pax ?? b.pricePerPax
-        const pricePerPerson =
-          customPrice !== undefined && customPrice !== null
-            ? Number(customPrice)
-            : Number(trip.destination.price_per_person)
+        let pricePerPerson: number
+        if (customPrice !== undefined && customPrice !== null) {
+          pricePerPerson = Number(customPrice)
+        } else if (packageType === 'TRANSPORT_ONLY') {
+          const transportPrice = trip.destination.price_transport_only ? Number(trip.destination.price_transport_only) : 0
+          pricePerPerson = transportPrice > 0 ? transportPrice : Number(trip.destination.price_per_person)
+        } else {
+          pricePerPerson = Number(trip.destination.price_per_person)
+        }
 
         totalAmount += pricePerPerson
 
@@ -492,6 +508,7 @@ export class BookingService {
                 ? new Prisma.Decimal(b.pickupLongitude.toString())
                 : null,
             pickup_notes: b.pickup_notes || b.pickupNotes || null,
+            package_type: packageType,
             total_amount: new Prisma.Decimal(pricePerPerson.toString()),
             payment_status: 'pending',
             check_in_status: 'pending',
@@ -734,6 +751,8 @@ export class BookingService {
               }
             : null,
         },
+        packageType: p.package_type || 'ALL_IN',
+        package_type: p.package_type || 'ALL_IN',
         totalAmount: p.total_amount
           ? Number(p.total_amount)
           : Number(p.booking_group.price_per_person),
@@ -892,6 +911,8 @@ export class BookingService {
         paymentStatus: participant.payment_status,
         checkInStatus: participant.check_in_status || (participant.checked_in ? 'checked_in' : 'pending'),
         bookingCode,
+        packageType: participant.package_type || 'ALL_IN',
+        package_type: participant.package_type || 'ALL_IN',
         participantId: participant.id,
         bookingGroupId: group.id,
         tripId: trip.id,

@@ -479,7 +479,44 @@ export class GroupService {
       })
     }
 
-    return { id: cleanGroupId, deleted: true }
+    return { deleted: true }
+  }
+
+  static async getManifest(id: string) {
+    const cleanGroupId = cleanId(id)
+    const group = await prisma.bookingGroup.findUnique({
+      where: { id: cleanGroupId },
+      include: {
+        trip: {
+          include: {
+            destination: true,
+          },
+        },
+        driver: {
+          include: {
+            user: true,
+            vehicle: true,
+          },
+        },
+        vehicle: true,
+        participants: {
+          include: {
+            user: true,
+            payment: true,
+          },
+          orderBy: { created_at: 'asc' },
+        },
+      },
+    })
+
+    if (!group) throw new ApiError('Booking group not found', 404)
+
+    const formatted = this.formatGroup(group as unknown as Record<string, unknown>)
+    return {
+      manifestNumber: `MNF-${group.trip?.destination?.slug ? group.trip.destination.slug.toUpperCase() : 'TRIP'}-GRP${group.group_number}-${group.id.slice(0, 6).toUpperCase()}`,
+      generatedAt: new Date(),
+      group: formatted,
+    }
   }
 
   private static formatGroup(g: Record<string, unknown>) {
@@ -573,6 +610,10 @@ export class GroupService {
         bookingCode: p.booking_code,
         fullName: p.full_name,
         phoneNumber: p.phone_number,
+        packageType: (p.package_type as string) || (p.packageType as string) || 'ALL_IN',
+        package_type: (p.package_type as string) || (p.packageType as string) || 'ALL_IN',
+        totalAmount: p.total_amount ? Number(p.total_amount) : Number(g.price_per_person || 0),
+        pickupLocation: (p.pickup_location as string) || (p.pickupLocation as string) || null,
         paymentStatus: p.payment_status,
         checkInStatus: p.check_in_status || 'pending',
         user: p.user || null,

@@ -29,6 +29,8 @@ export interface BookingItemInput {
   pickupLongitude?: number
   pickup_notes?: string
   pickupNotes?: string
+  packageType?: 'ALL_IN' | 'TRANSPORT_ONLY' | string
+  package_type?: 'ALL_IN' | 'TRANSPORT_ONLY' | string
   departure_date?: string | Date
   departureDate?: string | Date
   return_date?: string | Date

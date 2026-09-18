@@ -25,6 +25,8 @@ function formatDestination(dest: Record<string, unknown>) {
     durationNights: (dest.duration_nights as number) || 0,
     pricePerPax: dest.price_per_person ? Number(dest.price_per_person) : 0,
     price_per_person: dest.price_per_person,
+    priceTransportOnly: dest.price_transport_only ? Number(dest.price_transport_only) : 0,
+    price_transport_only: dest.price_transport_only !== undefined ? dest.price_transport_only : 0,
     coverImage: (dest.cover_image as string) || (dest.image_url as string) || '',
     imageUrl: (dest.image_url as string) || (dest.cover_image as string) || '',
     galleryImages: (dest.gallery_images as string[]) || [],
@@ -100,30 +102,32 @@ export class DestinationService {
     location?: string
     price_per_person?: number
     pricePerPax?: number
+    price_transport_only?: number
+    priceTransportOnly?: number
     duration_days?: number
     durationDays?: number
     duration_nights?: number
     durationNights?: number
-    galleryImages?: Prisma.InputJsonValue
-    gallery_images?: Prisma.InputJsonValue
-    inclusions?: Prisma.InputJsonValue
-    exclusions?: Prisma.InputJsonValue
-    highlights?: Prisma.InputJsonValue
+    gallery_images?: string[]
+    galleryImages?: string[]
+    inclusions?: string[]
+    exclusions?: string[]
+    highlights?: string[]
     rating?: number
     totalReviews?: number
-    isPopular?: boolean
     is_popular?: boolean
-    meetingPoint?: string
+    isPopular?: boolean
     meeting_point?: string
-    maxGroupCapacity?: number
+    meetingPoint?: string
     max_group_capacity?: number
-    itinerary?: Prisma.InputJsonValue
+    maxGroupCapacity?: number
+    itinerary?: unknown
     seo_title?: string
     seoTitle?: string
     seo_description?: string
     seoDescription?: string
-    seo_keywords?: Prisma.InputJsonValue
-    seoKeywords?: Prisma.InputJsonValue
+    seo_keywords?: string[] | string
+    seoKeywords?: string[] | string
     seo_og_image?: string
     seoOgImage?: string
     custom_schema_json?: string
@@ -136,6 +140,7 @@ export class DestinationService {
     const candidateSlug = (data.slug as string) || name
     const slug = await this.generateUniqueSlug(candidateSlug)
     const price = data.price_per_person ?? data.pricePerPax ?? 0
+    const priceTransportOnly = data.price_transport_only ?? data.priceTransportOnly ?? 0
     const coverImage = data.cover_image || data.coverImage || data.image_url || null
 
     const seoKeywords = data.seo_keywords ?? data.seoKeywords
@@ -163,6 +168,7 @@ export class DestinationService {
         cover_image: coverImage,
         location: data.location,
         price_per_person: new Prisma.Decimal(price.toString()),
+        price_transport_only: new Prisma.Decimal(priceTransportOnly.toString()),
         duration_days: data.duration_days ?? data.durationDays ?? 1,
         duration_nights: data.duration_nights ?? data.durationNights ?? 0,
         gallery_images: (data.gallery_images ?? data.galleryImages ?? []) as Prisma.InputJsonValue,
@@ -423,6 +429,10 @@ export class DestinationService {
     if (data.pricePerPax !== undefined || data.price_per_person !== undefined) {
       const price = Number(data.pricePerPax ?? data.price_per_person)
       updateData.price_per_person = new Prisma.Decimal(price.toString())
+    }
+    if (data.priceTransportOnly !== undefined || data.price_transport_only !== undefined) {
+      const transportPrice = Number(data.priceTransportOnly ?? data.price_transport_only)
+      updateData.price_transport_only = new Prisma.Decimal(transportPrice.toString())
     }
     if (data.durationDays !== undefined || data.duration_days !== undefined) {
       updateData.duration_days = Number(data.durationDays ?? data.duration_days)

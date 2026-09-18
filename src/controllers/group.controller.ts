@@ -48,4 +48,9 @@ export class GroupController {
     const result = await GroupService.delete(req.params.id, req.user?.id)
     sendResponse(res, 200, 'Booking group deleted successfully', result)
   }
+
+  static async getManifest(req: Request, res: Response) {
+    const manifest = await GroupService.getManifest(req.params.id)
+    sendResponse(res, 200, 'Passenger manifest retrieved successfully', manifest)
+  }
 }

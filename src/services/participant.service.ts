@@ -40,6 +40,8 @@ export class ParticipantService {
     pickupLongitude?: number
     pickup_notes?: string
     pickupNotes?: string
+    packageType?: string
+    package_type?: string
     admin_id?: string
   }) {
     const rawTripId = data.trip_id || data.tripId
@@ -51,6 +53,7 @@ export class ParticipantService {
     const country = data.country || data.nationality || 'Indonesia'
     const nationality = data.nationality || data.country || 'Indonesia'
     const gender = data.gender || null
+    const packageType = (data.packageType || data.package_type || 'ALL_IN').toUpperCase()
     const totalAmount = data.totalAmount ?? data.total_amount ?? 0
     const paymentStatus = data.payment_status || data.paymentStatus || 'paid'
     const healthNotes = data.healthNotes || data.health_notes || null
@@ -110,6 +113,7 @@ export class ParticipantService {
           country,
           nationality,
           gender,
+          package_type: packageType,
           date_of_birth:
             data.date_of_birth || data.dateOfBirth
               ? new Date(data.date_of_birth || data.dateOfBirth!)
@@ -271,6 +275,8 @@ export class ParticipantService {
       pickupNotes?: string
       total_amount?: number | string
       totalAmount?: number | string
+      package_type?: string
+      packageType?: string
       [key: string]: unknown
     }
   ) {
@@ -282,6 +288,11 @@ export class ParticipantService {
     if (!existing) throw new ApiError('Participant not found', 404)
 
     const updateData: Record<string, unknown> = {}
+
+    if (data.package_type !== undefined || data.packageType !== undefined) {
+      const pkg = data.package_type ?? data.packageType
+      updateData.package_type = pkg ? pkg.toString().toUpperCase() : 'ALL_IN'
+    }
 
     if (data.full_name !== undefined || data.fullName !== undefined) {
       updateData.full_name = data.full_name ?? data.fullName

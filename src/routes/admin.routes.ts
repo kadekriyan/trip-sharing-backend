@@ -32,6 +32,7 @@ router.post(
 )
 router.get('/groups', asyncHandler(GroupController.listGroups))
 router.get('/groups/:id', asyncHandler(GroupController.getGroup))
+router.get('/groups/:id/manifest', asyncHandler(GroupController.getManifest))
 router.patch(
   '/groups/:id',
   validateRequest(groupValidator.update),

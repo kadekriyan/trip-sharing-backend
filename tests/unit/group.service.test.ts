@@ -421,4 +421,85 @@ describe('GroupService', () => {
       )
     })
   })
+
+  describe('getManifest', () => {
+    it('should throw 404 if booking group not found', async () => {
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(null)
+
+      await expect(GroupService.getManifest('grp-non-existent')).rejects.toMatchObject({
+        statusCode: 404,
+        message: 'Booking group not found',
+      })
+    })
+
+    it('should return passenger manifest with formatted group and participants including packageType', async () => {
+      const mockManifestGroup = {
+        id: 'grp-manifest-1',
+        group_number: 1,
+        trip_id: 'trip-1',
+        status: 'open',
+        current_participants: 2,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal(500000),
+        total_price: new Prisma.Decimal(3000000),
+        departure_date: new Date('2026-10-10'),
+        return_date: new Date('2026-10-12'),
+        created_at: new Date('2026-09-01'),
+        updated_at: new Date('2026-09-01'),
+        trip: {
+          id: 'trip-1',
+          departure_date: new Date('2026-10-10'),
+          return_date: new Date('2026-10-12'),
+          destination: {
+            id: 'dest-bromo',
+            name: 'Bromo Sunrise Tour',
+            slug: 'bromo-sunrise-tour',
+            location: 'East Java',
+          },
+        },
+        driver: {
+          id: 'drv-1',
+          user: { name: 'Pak Supir', phone: '08123456789' },
+          vehicle: { brand: 'Toyota', model: 'HiAce', plate_number: 'N 1234 AB' },
+        },
+        vehicle: { id: 'veh-1', name: 'HiAce Commuter', plate_number: 'N 1234 AB' },
+        participants: [
+          {
+            id: 'part-1',
+            booking_code: 'TRV-1001',
+            full_name: 'Traveler All In',
+            phone_number: '0811111111',
+            package_type: 'ALL_IN',
+            payment_status: 'paid',
+            total_amount: new Prisma.Decimal(500000),
+            created_at: new Date('2026-09-02'),
+            user: { email: 'allin@example.com' },
+            payment: { id: 'pay-1', status: 'completed', amount: new Prisma.Decimal(500000) },
+          },
+          {
+            id: 'part-2',
+            booking_code: 'TRV-1002',
+            full_name: 'Traveler Transport Only',
+            phone_number: '0822222222',
+            package_type: 'TRANSPORT_ONLY',
+            payment_status: 'paid',
+            total_amount: new Prisma.Decimal(300000),
+            created_at: new Date('2026-09-03'),
+            user: { email: 'transport@example.com' },
+            payment: { id: 'pay-2', status: 'completed', amount: new Prisma.Decimal(300000) },
+          },
+        ],
+      }
+
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockManifestGroup)
+
+      const result = await GroupService.getManifest('grp-manifest-1')
+
+      expect(result.manifestNumber).toContain('MNF-BROMO-SUNRISE-TOUR-GRP1')
+      expect(result.generatedAt).toBeDefined()
+      expect(result.group.participants).toHaveLength(2)
+      expect(result.group.participants[0].packageType).toBe('ALL_IN')
+      expect(result.group.participants[1].packageType).toBe('TRANSPORT_ONLY')
+    })
+  })
 })

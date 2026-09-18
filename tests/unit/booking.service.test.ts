@@ -455,6 +455,114 @@ describe('BookingService', () => {
       expect(capturedParticipantData.pickup_longitude).toEqual(new Prisma.Decimal('112.634125'))
       expect(capturedParticipantData.pickup_notes).toBe('Tunggu di lobi timur')
     })
+
+    it('should use destination.price_transport_only and save package_type when packageType is TRANSPORT_ONLY', async () => {
+      const mockTrip = {
+        id: 'trip-1',
+        destination: {
+          price_per_person: new Prisma.Decimal(500000),
+          price_transport_only: new Prisma.Decimal(300000),
+        },
+        booking_groups: [
+          {
+            id: 'grp-10',
+            trip_id: 'trip-1',
+            group_number: 1,
+            status: 'open',
+            current_participants: 1,
+            max_participants: 6,
+          },
+        ],
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockTrip)
+
+      let capturedParticipantData: any = null
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
+          participant: {
+            create: jest.fn().mockImplementation(({ data }) => {
+              capturedParticipantData = data
+              return { id: 'part-transport-1', ...data }
+            }),
+          },
+          bookingGroup: {
+            update: jest.fn().mockResolvedValue({
+              id: 'grp-10',
+              current_participants: 2,
+              max_participants: 6,
+            }),
+          },
+          trip: { update: jest.fn().mockResolvedValue({ id: 'trip-1', current_participants: 2 }) },
+        }
+        return callback(tx)
+      })
+
+      const result = await BookingService.createBooking('usr-1', {
+        tripId: 'trip-1',
+        fullName: 'Transport Only Traveler',
+        phoneNumber: '081234567890',
+        packageType: 'TRANSPORT_ONLY',
+      })
+
+      expect(result.participant.id).toBe('part-transport-1')
+      expect(capturedParticipantData.package_type).toBe('TRANSPORT_ONLY')
+      expect(capturedParticipantData.total_amount).toEqual(new Prisma.Decimal(300000))
+    })
+
+    it('should fallback to price_per_person if packageType is TRANSPORT_ONLY but price_transport_only is 0', async () => {
+      const mockTrip = {
+        id: 'trip-1',
+        destination: {
+          price_per_person: new Prisma.Decimal(500000),
+          price_transport_only: new Prisma.Decimal(0),
+        },
+        booking_groups: [
+          {
+            id: 'grp-10',
+            trip_id: 'trip-1',
+            group_number: 1,
+            status: 'open',
+            current_participants: 1,
+            max_participants: 6,
+          },
+        ],
+      }
+      ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(mockTrip)
+
+      let capturedParticipantData: any = null
+      ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback) => {
+        const tx = {
+          user: { findUnique: jest.fn().mockResolvedValue({ id: 'usr-1' }) },
+          participant: {
+            create: jest.fn().mockImplementation(({ data }) => {
+              capturedParticipantData = data
+              return { id: 'part-fallback-1', ...data }
+            }),
+          },
+          bookingGroup: {
+            update: jest.fn().mockResolvedValue({
+              id: 'grp-10',
+              current_participants: 2,
+              max_participants: 6,
+            }),
+          },
+          trip: { update: jest.fn().mockResolvedValue({ id: 'trip-1', current_participants: 2 }) },
+        }
+        return callback(tx)
+      })
+
+      const result = await BookingService.createBooking('usr-1', {
+        tripId: 'trip-1',
+        fullName: 'Fallback Traveler',
+        phoneNumber: '081234567890',
+        packageType: 'TRANSPORT_ONLY',
+      })
+
+      expect(result.participant.id).toBe('part-fallback-1')
+      expect(capturedParticipantData.package_type).toBe('TRANSPORT_ONLY')
+      expect(capturedParticipantData.total_amount).toEqual(new Prisma.Decimal(500000))
+    })
   })
 
   describe('getInvoice', () => {

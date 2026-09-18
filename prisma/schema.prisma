@@ -40,8 +40,9 @@ model Destination {
   image_url          String?
   cover_image        String?
   location           String?
-  price_per_person   Decimal  @db.Decimal(10, 2)
-  duration_days      Int?
+  price_per_person     Decimal  @db.Decimal(10, 2)
+  price_transport_only Decimal  @default(0) @db.Decimal(10, 2)
+  duration_days        Int?
   duration_nights    Int?
   gallery_images     Json?
   inclusions         Json?
@@ -139,6 +140,7 @@ model Participant {
   payment_status     String   @default("pending")
   check_in_status    String   @default("pending")
   checked_in         Boolean  @default(false)
+  package_type       String   @default("ALL_IN")
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
