@@ -23,7 +23,8 @@
 11. [Armada / Kendaraan Fisik (`/api/vehicles` & `/api/armada`)](#11-armada--kendaraan-fisik-apivehicles--apiarmada)
 12. [Partisipan Traveler (`/api/participants`)](#12-partisipan-traveler-apiparticipants)
 13. [Dashboard & Manajemen Admin (`/api/admin`)](#13-dashboard--manajemen-admin-apiadmin)
-14. [Panduan Integrasi Frontend (Next.js Client Example)](#14-panduan-integrasi-frontend-nextjs-client-example)
+14. [Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)](#14-pengaturan-sistem--dynamic-seo-apisettings--apiadminsettings)
+15. [Panduan Integrasi Frontend (Next.js Client Example)](#15-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -184,7 +185,122 @@ Mengambil data profil lengkap traveler atau admin aktif.
 
 ---
 
+### 2.4 Permintaan Lupa Kata Sandi (`Forgot Password`)
+Mengirim tautan token reset kata sandi ke email terdaftar.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/forgot-password`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "email": "budi@example.com"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Jika email terdaftar, tautan pengaturan ulang kata sandi telah dikirim ke email Anda.",
+  "data": {
+    "message": "Jika email terdaftar, tautan pengaturan ulang kata sandi telah dikirim ke email Anda."
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 2.5 Verifikasi Token Reset Password
+Memeriksa apakah token reset yang diklik dari email masih valid dan belum kedaluwarsa.
+
+- **Method**: `GET`
+- **Path**: `/api/auth/reset-password/verify?token=<token_hex>`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Token valid",
+  "data": {
+    "valid": true,
+    "email": "budi@example.com",
+    "name": "Budi Traveler"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 2.6 Atur Ulang Kata Sandi Baru (`Reset Password`)
+Memperbarui kata sandi akun menggunakan token reset valid.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/reset-password`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "token": "7f8b9a1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+  "password": "NewSecurePassword123!"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Kata sandi berhasil diperbarui. Silakan masuk kembali dengan kata sandi baru Anda.",
+  "data": {
+    "message": "Kata sandi berhasil diperbarui. Silakan masuk kembali dengan kata sandi baru Anda."
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 2.7 Ganti Kata Sandi Akun (`Change Password`)
+Memperbarui kata sandi akun untuk pengguna (Admin / Traveler) yang sedang login dengan memverifikasi kata sandi saat ini.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/change-password`
+- **Auth**: `Bearer <jwt_token>` (Wajib login)
+
+#### Request Body
+```json
+{
+  "currentPassword": "OldSecurePassword123!",
+  "newPassword": "NewSecurePassword456!",
+  "confirmPassword": "NewSecurePassword456!"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Kata sandi berhasil diperbarui.",
+  "data": {
+    "message": "Kata sandi berhasil diperbarui."
+  },
+  "timestamp": "2026-09-20T03:00:00.000Z"
+}
+```
+
+#### Response Error Umum
+- `400 Bad Request`: Validasi gagal (misal: panjang kata sandi baru < 6 karakter, konfirmasi tidak cocok, atau kata sandi baru sama dengan yang lama).
+- `401 Unauthorized`: Token hilang / kedaluwarsa, atau kata sandi saat ini (`currentPassword`) salah.
+
+---
+
 ## 3. Katalog Destinasi Wisata (`/api/destinations`)
+
 
 ### 3.1 Daftar Katalog Destinasi (Filter & Paginasi)
 Menampilkan daftar destinasi wisata aktif dengan filter dan pengurutan.
@@ -225,6 +341,7 @@ GET /api/destinations?search=bromo&sortBy=price_asc&page=1&limit=6
       "durationDays": 2,
       "durationNights": 1,
       "pricePerPax": 850000,
+      "priceTransportOnly": 550000,
       "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
       "galleryImages": [
         "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800",
@@ -285,6 +402,7 @@ GET /api/destinations/bromo-sunrise-midnight-safari
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 850000,
+    "priceTransportOnly": 550000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
     "galleryImages": [
       "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800"
@@ -432,6 +550,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
 | `pickupLatitude` | `number` | Opsional | Koordinat latitude jemput (range: `-90` s.d `90`) |
 | `pickupLongitude` | `number` | Opsional | Koordinat longitude jemput (range: `-180` s.d `180`) |
 | `pickupNotes` | `string` | Opsional | Instruksi penjemputan (max: 1000 karakter) |
+| `packageType` / `package_type` | `string` | Opsional | Tipe paket: `'ALL_IN'` (All-Inclusive) atau `'TRANSPORT_ONLY'` (Hanya Transportasi). Default: `'ALL_IN'`. |
 | `captchaToken` | `string` | Opsional | Token bot verification reCAPTCHA / hCaptcha |
 
 #### Request Body
@@ -444,6 +563,7 @@ Dapat dipanggil oleh traveler yang login maupun guest traveler (tanpa login).
   "dateOfBirth": "1998-07-20",
   "nationality": "Indonesia",
   "gender": "female",
+  "packageType": "ALL_IN",
   "healthNotes": "Alergi seafood ringan",
   "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
   "pickupLatitude": -7.962145,
@@ -514,6 +634,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
 | `bookings[i].pickupLatitude` | `number` | Opsional | Latitude jemput (`-90` s.d `90`) |
 | `bookings[i].pickupLongitude` | `number` | Opsional | Longitude jemput (`-180` s.d `180`) |
 | `bookings[i].pickupNotes` | `string` | Opsional | Catatan khusus penjemputan |
+| `bookings[i].packageType` / `package_type` | `string` | Opsional | Tipe paket: `'ALL_IN'` atau `'TRANSPORT_ONLY'`. Default: `'ALL_IN'`. |
 
 #### Request Body
 ```json
@@ -528,6 +649,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
       "dateOfBirth": "1998-07-20",
       "gender": "female",
       "nationality": "Indonesia",
+      "packageType": "ALL_IN",
       "healthNotes": "Alergi makanan laut",
       "pickupLocation": "Hotel Santika Premiere Malang, Jl. Letjen Sutoyo No.79",
       "pickupLatitude": -7.962145,
@@ -542,6 +664,7 @@ Memproses pemesanan lebih dari 1 peserta/trip dalam satu transaksi checkout (ACI
       "dateOfBirth": "1995-03-15",
       "gender": "male",
       "nationality": "Indonesia",
+      "packageType": "TRANSPORT_ONLY",
       "pickupLocation": "Stasiun Malang Kota Baru",
       "pickupNotes": "Pintu Timur"
     }
@@ -778,6 +901,39 @@ Authorization: Bearer <jwt_access_token>
   "timestamp": "2026-09-03T04:00:00.000Z"
 }
 ```
+
+---
+
+### 5.6 Aturan Pemisahan Armada Otomatis Berdasarkan Geopolitik / Kewarganegaraan (Nationality Segregation Logic)
+
+Untuk menjaga keamanan, keharmonisan, dan kenyamanan peserta selama perjalanan wisata bersama (trip sharing), sistem mengimplementasikan **Auto-Segregation Algorithm** yang memisahkan unit armada fisik (Mobil #1, Mobil #2, dst.) bagi traveler dari negara-negara yang memiliki sensitivitas/konflik geopolitik historis.
+
+#### 1. Matriks 9 Aturan Konflik Kewarganegaraan (Simetris / Dwiarah)
+| No | Pasangan Negara A | Pasangan Negara B | Keterangan & Sensitivitas |
+| :---: | :--- | :--- | :--- |
+| 1 | **Armenia** (`AM`) | **Azerbaijan** (`AZ`) | Konflik wilayah Kaukasus |
+| 2 | **India** (`IN`) | **Pakistan** (`PK`) | Sensitivitas perbatasan Asia Selatan |
+| 3 | **Serbia** (`RS`) | **Kosovo** (`XK`) / **Bosnia and Herzegovina** (`BA`) | Sensitivitas wilayah Balkan |
+| 4 | **Morocco / Maroko** (`MA`) | **Algeria / Aljazair** (`DZ`) | Sensitivitas geopolitik Afrika Utara |
+| 5 | **Turkey / Turki** (`TR`) | **Greece / Yunani** (`GR`) / **Cyprus / Siprus** (`CY`) | Sensitivitas Mediterania Timur |
+| 6 | **United Kingdom / Inggris** (`GB`) | **Argentina** (`AR`) | Sensitivitas kedaulatan Kepulauan Falkland |
+| 7 | **Russia / Rusia** (`RU`) | **Ukraine / Ukraina** (`UA`) | Konflik aktif Eropa Timur |
+| 8 | **China / Tiongkok** (`CN`) | **Taiwan** (`TW`) / **Hong Kong** (`HK`) | Sensitivitas politik & kedaulatan |
+| 9 | **China / Tiongkok** (`CN`) | **Japan / Jepang** (`JP`) / **South Korea / Korsel** (`KR`) | Sensitivitas regional Asia Timur |
+
+#### 2. Algoritma Alokasi Armada pada Backend (`POST /api/bookings` & `/bulk`)
+1. **Normalisasi Kewarganegaraan**: Bersihkan input string `nationality` dan petakan ke nama kanonikal ISO/Inggris resmi (misal: `"PK"` / `"pakistan"` $\to$ `"Pakistan"`, `"Inggris"` / `"UK"` $\to$ `"United Kingdom"`, `"Korsel"` $\to$ `"South Korea"`).
+2. **Evaluasi Grup Armada Terbuka (`groups`)**:
+   - Ambil daftar seluruh grup armada yang berstatus `open` pada trip tersebut.
+   - Filter grup yang masih memiliki sisa kapasitas cukup (`capacity - currentParticipants >= requestedSeats`).
+   - Periksa apakah di dalam grup tersebut terdapat peserta dari negara yang berkonflik dengan traveler pendaftar baru (`findConflictingCountriesInGroup`).
+3. **Penetapan Grup**:
+   - **Grup Kompatibel Ditemukan**: Masukkan traveler ke grup tersebut.
+   - **Tidak Ada Grup Kompatibel** (semua grup penuh atau memiliki penumpang berkonflik):
+     - Sistem secara otomatis membuka/membuat grup armada baru (misal: Mobil #2 / Mobil #3) untuk traveler tersebut.
+     - Kapasitas armada baru tersebut tetap dapat diisi oleh traveler dari negara-negara netral lainnya (seperti Indonesia, Malaysia, Jerman, dll.).
+4. **Wewenang Administrator**:
+   - Pada panel admin (`/api/admin/participants/move-group`), admin tetap memiliki wewenang penuh untuk memindahkan peserta antar-armada (*manual override*), dengan sistem menyajikan peringatan dini (*warning badge*).
 
 ---
 
@@ -1272,7 +1428,7 @@ Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjala
       "phone": "+6281233445566",
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
-      "experienceYears": 6,
+      "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
@@ -1703,8 +1859,13 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
   "email": "andi@example.com",
   "nationality": "Indonesia",
   "gender": "male",
+  "dateOfBirth": "1996-07-22",
+  "packageType": "ALL_IN",
+  "pickupLocation": "Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi No. 52, Jetis",
+  "pickupNotes": "Lobi Utama / Depan Resepsionis",
   "paymentStatus": "paid",
-  "totalAmount": 850000
+  "totalAmount": 850000,
+  "notes": "Peserta walk-in kantor operasional"
 }
 ```
 
@@ -1718,6 +1879,9 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
     "bookingCode": "TRV-4192",
     "fullName": "Andi Pratama (Offline Booking)",
     "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+    "packageType": "ALL_IN",
+    "pickupLocation": "Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi No. 52, Jetis",
+    "pickupNotes": "Lobi Utama / Depan Resepsionis",
     "paymentStatus": "paid"
   },
   "timestamp": "2026-09-03T04:00:00.000Z"
@@ -1838,6 +2002,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
   "durationDays": 2,
   "durationNights": 1,
   "pricePerPax": 750000,
+  "priceTransportOnly": 450000,
   "coverImage": "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=1200",
   "galleryImages": [
     "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=800"
@@ -1862,6 +2027,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
     "slug": "kawah-ijen-blue-fire-experience",
     "location": "Banyuwangi, Jawa Timur",
     "pricePerPax": 750000,
+    "priceTransportOnly": 450000,
     "durationDays": 2,
     "isActive": true
   },
@@ -1891,6 +2057,7 @@ Mengambil semua data destinasi (aktif maupun non-aktif) dalam format standar `ca
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 850000,
+    "priceTransportOnly": 550000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1200",
     "galleryImages": [],
     "inclusions": ["Tiket Masuk Bromo", "Jeep 4x4"],
@@ -1919,6 +2086,7 @@ Dapat mengirimkan sebagian (parsial) atau seluruh field destinasi.
 {
   "title": "Bromo Sunrise & Midnight Safari (VIP Edition)",
   "pricePerPax": 900000,
+  "priceTransportOnly": 600000,
   "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
   "location": "Probolinggo & Pasuruan, Jawa Timur",
   "isPopular": true,
@@ -1939,6 +2107,7 @@ Dapat mengirimkan sebagian (parsial) atau seluruh field destinasi.
     "durationDays": 2,
     "durationNights": 1,
     "pricePerPax": 900000,
+    "priceTransportOnly": 600000,
     "coverImage": "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=1600",
     "isPopular": true,
     "isActive": true,
@@ -2354,7 +2523,7 @@ Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta 
       "phone": "+6281233445566",
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
-      "experienceYears": 6,
+      "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
@@ -2405,7 +2574,6 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
 }
 ```
 
-##### Response Sukses (`21- Created` -> `201 Created`)
 ##### Response Sukses (`201 Created`)
 ```json
 {
@@ -2858,7 +3026,237 @@ Menghapus grup armada mobil. Otomatis dilindungi jika grup masih memiliki pesert
 
 ---
 
-## 13. Panduan Integrasi Frontend (Next.js Client Example)
+#### 12.10.8 Manifes Penumpang Grup Armada (`GET /api/admin/groups/:id/manifest`)
+Mengambil manifes resmi penumpang untuk grup armada tertentu, mencakup rincian trip, destinasi, armada kendaraan, driver, nomor manifes, dan daftar seluruh penumpang beserta `packageType` (`ALL_IN` vs `TRANSPORT_ONLY`), status pembayaran, dan titik penjemputan.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/groups/:id/manifest`
+- **Auth**: `Bearer <admin_jwt_token>`
+
+##### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Passenger manifest retrieved successfully",
+  "data": {
+    "manifestNumber": "MNF-BROMO-SUNRISE-MIDNIGHT-SAFARI-GRP1-F128C9",
+    "generatedAt": "2026-09-18T07:30:00.000Z",
+    "group": {
+      "id": "f128c9a0-4412-4eb2-a102-bcde91230001",
+      "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+      "groupNumber": 1,
+      "status": "confirmed",
+      "currentParticipants": 2,
+      "maxParticipants": 6,
+      "pricePerPerson": 850000,
+      "totalPrice": 5100000,
+      "trip": {
+        "id": "3a09e112-9c44-48f1-9011-8a9d12340001",
+        "destinationId": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+        "departureDate": "2026-10-01T00:00:00.000Z",
+        "returnDate": "2026-10-03T00:00:00.000Z",
+        "status": "scheduled",
+        "destination": {
+          "id": "7fa1bc82-0193-4a11-891d-724bc29a0001",
+          "name": "Bromo Sunrise & Midnight Safari",
+          "slug": "bromo-sunrise-midnight-safari",
+          "location": "Probolinggo, Jawa Timur"
+        }
+      },
+      "driver": {
+        "id": "d0912384-1234-4bc1-9022-771199aabb01",
+        "fullName": "Pak Joko Santoso",
+        "phoneNumber": "+6281233445566",
+        "vehicleType": "Toyota HiAce Premio",
+        "plateNumber": "N 1234 XY"
+      },
+      "vehicle": {
+        "id": "veh-7711-4bc1-9022-882299aabb01",
+        "name": "Toyota HiAce Premio Luxury",
+        "plateNumber": "N 1234 XY",
+        "capacity": 6
+      },
+      "participants": [
+        {
+          "id": "c19208a1-5512-48ea-9201-7fa112345678",
+          "bookingCode": "TRV-8921",
+          "fullName": "Siti Rahmawati",
+          "phoneNumber": "+6281298765432",
+          "packageType": "ALL_IN",
+          "paymentStatus": "paid",
+          "totalAmount": 850000,
+          "pickupLocation": "Hotel Santika Premiere Malang",
+          "pickupNotes": "Lobi depan",
+          "checkInStatus": "checked_in"
+        },
+        {
+          "id": "d29319b2-6623-49fb-8312-8ab223456789",
+          "bookingCode": "TRV-8922",
+          "fullName": "Budi Santoso",
+          "phoneNumber": "+6281233445566",
+          "packageType": "TRANSPORT_ONLY",
+          "paymentStatus": "paid",
+          "totalAmount": 550000,
+          "pickupLocation": "Stasiun Malang Kota Baru",
+          "pickupNotes": "Pintu Timur",
+          "checkInStatus": "pending"
+        }
+      ]
+    }
+  },
+  "timestamp": "2026-09-18T07:30:00.000Z"
+}
+```
+
+---
+
+## 14. Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)
+
+Layanan pengelolaan metadata SEO terpusat (singleton) dan Schema.org JSON-LD untuk integrasi frontend Next.js App Router (SSR `layout.tsx` dan `sitemap.ts`).
+
+### 14.1 Mengambil Pengaturan SEO Global (Public SSR / Frontend)
+Digunakan oleh frontend SSR (`layout.tsx`, `sitemap.ts`) untuk mengambil metadata default situs. Jika pengaturan di database belum ada, backend otomatis mengembalikan default object anti-crash.
+
+- **Method**: `GET`
+- **Path**: `/api/settings/seo`
+- **Auth**: Public (Tanpa token)
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "SEO settings retrieved successfully",
+  "data": {
+    "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    "siteTitleDefault": "Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours",
+    "siteTitleTemplate": "%s | Share Tour Jogja",
+    "metaDescription": "Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.",
+    "keywords": [
+      "Share Tour Jogja",
+      "Open Trip Jogja",
+      "Sharing Tour Yogyakarta",
+      "Trip Sharing Jogja",
+      "Small Group Travel Indonesia"
+    ],
+    "defaultOgImage": "/images/hero-bromo.png",
+    "googleVerificationTag": "google-site-verification-code-xyz",
+    "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\",\"url\":\"https://sharetourjogja.com\"}",
+    "robotsIndex": true,
+    "pageSeoSettings": {
+      "home": {
+        "title": "Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours",
+        "description": "Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.",
+        "keywords": ["Share Tour Jogja", "Open Trip Jogja", "Sharing Tour Yogyakarta"]
+      },
+      "destinations": {
+        "title": "Explore Tour Packages & Yogyakarta Sharing Trips",
+        "description": "Discover popular Yogyakarta tour packages: Prambanan, Merapi Lava Tour, Timang Beach, and Borobudur. Join vehicle groups and save up to 60% with cost-sharing."
+      },
+      "blog": {
+        "title": "Blog Wisata, Cerita Komunitas & Panduan Trip Sharing",
+        "description": "Kumpulan artikel, tips berhemat liburan, rute rekomendasi, dan edukasi seputar open trip cost-sharing maksimal 6 pax di Indonesia."
+      },
+      "bookings": {
+        "title": "My Bookings & Trip Ticket Status",
+        "description": "Check your active Yogyakarta tour booking, seat assignment, driver details, and download e-ticket vouchers."
+      }
+    },
+    "createdAt": "2026-09-16T09:00:00.000Z",
+    "updatedAt": "2026-09-16T09:00:00.000Z"
+  },
+  "timestamp": "2026-09-16T09:00:00.000Z"
+}
+```
+
+---
+
+### 14.2 Mengambil Pengaturan SEO Global (Admin Panel)
+Mengambil konfigurasi SEO global dan per halaman saat ini untuk ditampilkan pada form admin setting.
+
+- **Method**: `GET`
+- **Path**: `/api/admin/settings/seo`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Response Sukses (`200 OK`)
+Format data identik dengan endpoint publik di atas.
+
+---
+
+### 14.3 Memperbarui Pengaturan SEO Global & Per Halaman (Admin Panel)
+Menyimpan dan memperbarui konfigurasi SEO global, SEO per halaman, dan Schema.org JSON-LD.
+
+- **Method**: `PUT` *(atau `PATCH /api/admin/settings/seo`)*
+- **Path**: `/api/admin/settings/seo`
+- **Auth**: `Bearer <admin_jwt_token>` (Role: `admin`)
+
+#### Request Body
+```json
+{
+  "siteTitleDefault": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+  "siteTitleTemplate": "%s | Share Tour Jogja",
+  "metaDescription": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya.",
+  "keywords": [
+    "Share Tour Jogja",
+    "Open Trip Jogja",
+    "Wisata Hemat Jogja"
+  ],
+  "defaultOgImage": "/images/og-share-tour.jpg",
+  "googleVerificationTag": "google-site-verification-code-updated",
+  "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
+  "robotsIndex": true,
+  "pageSeoSettings": {
+    "home": {
+      "title": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+      "description": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya."
+    },
+    "destinations": {
+      "title": "Katalog Paket Tour & Wisata Jogja",
+      "description": "Daftar lengkap destinasi sharing tour Yogyakarta hemat 6 pax."
+    }
+  }
+}
+```
+
+#### Validasi Khusus:
+- `organizationSchemaJson`: Jika diisi string non-kosong, wajib berupa string JSON yang valid (lolos `JSON.parse`).
+- `pageSeoSettings`: Objek dictionary dengan key nama halaman (misal: `home`, `destinations`, `blog`, `bookings`, `login`, `register`).
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "SEO settings updated successfully",
+  "data": {
+    "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+    "siteTitleDefault": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+    "siteTitleTemplate": "%s | Share Tour Jogja",
+    "metaDescription": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya.",
+    "keywords": [
+      "Share Tour Jogja",
+      "Open Trip Jogja",
+      "Wisata Hemat Jogja"
+    ],
+    "defaultOgImage": "/images/og-share-tour.jpg",
+    "googleVerificationTag": "google-site-verification-code-updated",
+    "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
+    "robotsIndex": true,
+    "pageSeoSettings": {
+      "home": {
+        "title": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+        "description": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya."
+      }
+    },
+    "createdAt": "2026-09-16T09:00:00.000Z",
+    "updatedAt": "2026-09-16T09:15:00.000Z"
+  },
+  "timestamp": "2026-09-16T09:15:00.000Z"
+}
+```
+
+
+---
+
+## 15. Panduan Integrasi Frontend (Next.js Client Example)
 
 ### 13.1 HTTP Client Helper (`lib/api.ts`)
 ```typescript
