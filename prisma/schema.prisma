@@ -308,11 +308,13 @@ model SeoSetting {
   google_verification_tag  String?
   organization_schema_json String?  @db.Text
   robots_index             Boolean  @default(true)
+  page_seo_settings        Json?
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
   @@map("seo_settings")
 }
+
 
 model PasswordResetToken {
   id         String   @id @default(uuid())

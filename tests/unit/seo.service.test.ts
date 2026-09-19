@@ -155,6 +155,37 @@ describe('SeoService', () => {
       expect(result.id).toBe('seo-created')
       expect(prisma.seoSetting.create).toHaveBeenCalled()
     })
+
+    it('should save and update page_seo_settings map', async () => {
+      const existing = {
+        id: 'seo-1',
+        site_title_default: 'Main Title',
+      }
+      const pageSeoPayload = {
+        home: { title: 'Home SEO', description: 'Home Desc' },
+        destinations: { title: 'Destinations Catalog', description: 'Explore Jogja', noIndex: false },
+      }
+      const updated = {
+        id: 'seo-1',
+        site_title_default: 'Main Title',
+        page_seo_settings: pageSeoPayload,
+      }
+
+      ;(prisma.seoSetting.findFirst as jest.Mock).mockResolvedValue(existing)
+      ;(prisma.seoSetting.update as jest.Mock).mockResolvedValue(updated)
+
+      const result = await SeoService.updateSettings({
+        pageSeoSettings: pageSeoPayload,
+      })
+
+      expect(result.pageSeoSettings).toEqual(pageSeoPayload)
+      expect(prisma.seoSetting.update).toHaveBeenCalledWith({
+        where: { id: 'seo-1' },
+        data: expect.objectContaining({
+          page_seo_settings: pageSeoPayload,
+        }),
+      })
+    })
   })
 
   describe('seoValidator', () => {
@@ -168,11 +199,16 @@ describe('SeoService', () => {
         googleVerificationTag: 'tag-xyz',
         organizationSchemaJson: '{"@context": "https://schema.org", "@type": "Organization"}',
         robotsIndex: true,
+        pageSeoSettings: {
+          home: { title: 'Home Page', description: 'Home description', noIndex: false },
+          blog: { title: 'Blog Page', description: 'Blog description' },
+        },
       }
 
       const { error, value } = seoValidator.update.validate(payload)
       expect(error).toBeUndefined()
       expect(value.siteTitleDefault).toBe('Valid Title')
+      expect(value.pageSeoSettings.home.title).toBe('Home Page')
     })
 
     it('should reject update payload with invalid organizationSchemaJson string', () => {
@@ -185,3 +221,4 @@ describe('SeoService', () => {
     })
   })
 })
+

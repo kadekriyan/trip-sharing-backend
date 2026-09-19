@@ -1,3 +1,15 @@
+export interface PageSeoItem {
+  title?: string
+  description?: string
+  keywords?: string[] | string
+  ogImage?: string
+  og_image?: string
+  noIndex?: boolean
+  no_index?: boolean
+}
+
+export type PageSeoSettingsMap = Record<string, PageSeoItem>
+
 export interface SeoSettingsResponse {
   id: string
   siteTitleDefault: string
@@ -15,6 +27,8 @@ export interface SeoSettingsResponse {
   organization_schema_json?: string | null
   robotsIndex: boolean
   robots_index?: boolean
+  pageSeoSettings?: PageSeoSettingsMap | null
+  page_seo_settings?: PageSeoSettingsMap | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -35,4 +49,7 @@ export interface UpdateSeoSettingsDTO {
   organization_schema_json?: string | null
   robotsIndex?: boolean
   robots_index?: boolean
+  pageSeoSettings?: PageSeoSettingsMap | null
+  page_seo_settings?: PageSeoSettingsMap | null
 }
+

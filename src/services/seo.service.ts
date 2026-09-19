@@ -62,6 +62,15 @@ function formatSeoSettings(seo: Record<string, unknown>) {
         ? Boolean(seo.robotsIndex)
         : true
 
+  let pageSeoSettings = (seo.page_seo_settings || seo.pageSeoSettings || null) as Record<string, unknown> | null
+  if (typeof pageSeoSettings === 'string') {
+    try {
+      pageSeoSettings = JSON.parse(pageSeoSettings)
+    } catch {
+      pageSeoSettings = null
+    }
+  }
+
   return {
     id: (seo.id as string) || 'singleton',
     siteTitleDefault,
@@ -79,6 +88,8 @@ function formatSeoSettings(seo: Record<string, unknown>) {
     organization_schema_json: organizationSchemaJson,
     robotsIndex,
     robots_index: robotsIndex,
+    pageSeoSettings,
+    page_seo_settings: pageSeoSettings,
     createdAt: seo.created_at || new Date().toISOString(),
     updatedAt: seo.updated_at || new Date().toISOString(),
   }
@@ -174,6 +185,11 @@ export class SeoService {
       updateData.robots_index = Boolean(data.robotsIndex ?? data.robots_index)
     }
 
+    const pageSeo = data.pageSeoSettings !== undefined ? data.pageSeoSettings : data.page_seo_settings
+    if (pageSeo !== undefined) {
+      updateData.page_seo_settings = pageSeo as Prisma.InputJsonValue
+    }
+
     const existing = await prisma.seoSetting.findFirst()
 
     let result
@@ -201,6 +217,7 @@ export class SeoService {
             (updateData.organization_schema_json as string) ??
             DEFAULT_SEO_SETTINGS.organization_schema_json,
           robots_index: (updateData.robots_index as boolean) ?? DEFAULT_SEO_SETTINGS.robots_index,
+          page_seo_settings: updateData.page_seo_settings,
         },
       })
     }
@@ -208,3 +225,4 @@ export class SeoService {
     return formatSeoSettings(result as unknown as Record<string, unknown>)
   }
 }
+

@@ -3142,6 +3142,25 @@ Digunakan oleh frontend SSR (`layout.tsx`, `sitemap.ts`) untuk mengambil metadat
     "googleVerificationTag": "google-site-verification-code-xyz",
     "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\",\"url\":\"https://sharetourjogja.com\"}",
     "robotsIndex": true,
+    "pageSeoSettings": {
+      "home": {
+        "title": "Share Tour Jogja — Open Trip & Yogyakarta Sharing Tours",
+        "description": "Open trip and sharing tour platform in Yogyakarta & Indonesia. Join small-group travel tours, save up to 60% with cost-sharing, and make new friends.",
+        "keywords": ["Share Tour Jogja", "Open Trip Jogja", "Sharing Tour Yogyakarta"]
+      },
+      "destinations": {
+        "title": "Explore Tour Packages & Yogyakarta Sharing Trips",
+        "description": "Discover popular Yogyakarta tour packages: Prambanan, Merapi Lava Tour, Timang Beach, and Borobudur. Join vehicle groups and save up to 60% with cost-sharing."
+      },
+      "blog": {
+        "title": "Blog Wisata, Cerita Komunitas & Panduan Trip Sharing",
+        "description": "Kumpulan artikel, tips berhemat liburan, rute rekomendasi, dan edukasi seputar open trip cost-sharing maksimal 6 pax di Indonesia."
+      },
+      "bookings": {
+        "title": "My Bookings & Trip Ticket Status",
+        "description": "Check your active Yogyakarta tour booking, seat assignment, driver details, and download e-ticket vouchers."
+      }
+    },
     "createdAt": "2026-09-16T09:00:00.000Z",
     "updatedAt": "2026-09-16T09:00:00.000Z"
   },
@@ -3152,7 +3171,7 @@ Digunakan oleh frontend SSR (`layout.tsx`, `sitemap.ts`) untuk mengambil metadat
 ---
 
 ### 14.2 Mengambil Pengaturan SEO Global (Admin Panel)
-Mengambil konfigurasi SEO global saat ini untuk ditampilkan pada form admin setting.
+Mengambil konfigurasi SEO global dan per halaman saat ini untuk ditampilkan pada form admin setting.
 
 - **Method**: `GET`
 - **Path**: `/api/admin/settings/seo`
@@ -3163,8 +3182,8 @@ Format data identik dengan endpoint publik di atas.
 
 ---
 
-### 14.3 Memperbarui Pengaturan SEO Global (Admin Panel)
-Menyimpan dan memperbarui konfigurasi SEO global dan Schema.org JSON-LD.
+### 14.3 Memperbarui Pengaturan SEO Global & Per Halaman (Admin Panel)
+Menyimpan dan memperbarui konfigurasi SEO global, SEO per halaman, dan Schema.org JSON-LD.
 
 - **Method**: `PUT` *(atau `PATCH /api/admin/settings/seo`)*
 - **Path**: `/api/admin/settings/seo`
@@ -3184,12 +3203,23 @@ Menyimpan dan memperbarui konfigurasi SEO global dan Schema.org JSON-LD.
   "defaultOgImage": "/images/og-share-tour.jpg",
   "googleVerificationTag": "google-site-verification-code-updated",
   "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
-  "robotsIndex": true
+  "robotsIndex": true,
+  "pageSeoSettings": {
+    "home": {
+      "title": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+      "description": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya."
+    },
+    "destinations": {
+      "title": "Katalog Paket Tour & Wisata Jogja",
+      "description": "Daftar lengkap destinasi sharing tour Yogyakarta hemat 6 pax."
+    }
+  }
 }
 ```
 
 #### Validasi Khusus:
 - `organizationSchemaJson`: Jika diisi string non-kosong, wajib berupa string JSON yang valid (lolos `JSON.parse`).
+- `pageSeoSettings`: Objek dictionary dengan key nama halaman (misal: `home`, `destinations`, `blog`, `bookings`, `login`, `register`).
 
 #### Response Sukses (`200 OK`)
 ```json
@@ -3210,12 +3240,19 @@ Menyimpan dan memperbarui konfigurasi SEO global dan Schema.org JSON-LD.
     "googleVerificationTag": "google-site-verification-code-updated",
     "organizationSchemaJson": "{\"@context\":\"https://schema.org\",\"@type\":\"TravelAgency\",\"name\":\"Share Tour Jogja\"}",
     "robotsIndex": true,
+    "pageSeoSettings": {
+      "home": {
+        "title": "Share Tour Jogja — Open Trip & Wisata Yogyakarta",
+        "description": "Platform open trip dan paket tour sharing hemat ke destinasi terbaik di Yogyakarta dan sekitarnya."
+      }
+    },
     "createdAt": "2026-09-16T09:00:00.000Z",
     "updatedAt": "2026-09-16T09:15:00.000Z"
   },
   "timestamp": "2026-09-16T09:15:00.000Z"
 }
 ```
+
 
 ---
 
