@@ -1744,8 +1744,13 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
   "email": "andi@example.com",
   "nationality": "Indonesia",
   "gender": "male",
+  "dateOfBirth": "1996-07-22",
+  "packageType": "ALL_IN",
+  "pickupLocation": "Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi No. 52, Jetis",
+  "pickupNotes": "Lobi Utama / Depan Resepsionis",
   "paymentStatus": "paid",
-  "totalAmount": 850000
+  "totalAmount": 850000,
+  "notes": "Peserta walk-in kantor operasional"
 }
 ```
 
@@ -1759,6 +1764,9 @@ Mengambil daftar identitas traveler yang terdaftar di akun pengguna yang login.
     "bookingCode": "TRV-4192",
     "fullName": "Andi Pratama (Offline Booking)",
     "bookingGroupId": "f128c9a0-4412-4eb2-a102-bcde91230001",
+    "packageType": "ALL_IN",
+    "pickupLocation": "Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi No. 52, Jetis",
+    "pickupNotes": "Lobi Utama / Depan Resepsionis",
     "paymentStatus": "paid"
   },
   "timestamp": "2026-09-03T04:00:00.000Z"

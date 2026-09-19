@@ -228,5 +228,59 @@ describe('ParticipantService', () => {
       expect(result.fullName).toBe('Manual Traveler')
       expect(result.paymentStatus).toBe('paid')
     })
+
+    it('should correctly save pickup_location, pickup_notes, package_type, and date_of_birth', async () => {
+      const mockGroup = {
+        id: '1',
+        trip_id: 'trip-1',
+        current_participants: 2,
+        max_participants: 6,
+        price_per_person: new Prisma.Decimal('750000'),
+        trip: { id: 'trip-1' },
+      }
+
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockGroup)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({ id: 'usr-1', email: 'test@booking.local' })
+      ;(prisma.participant.create as jest.Mock).mockResolvedValue({
+        id: 'part-new-2',
+        booking_code: 'TRV-8888',
+        full_name: 'Traveler With Pickup',
+        pickup_location: 'Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi',
+        pickup_notes: 'Lobi Utama',
+        package_type: 'ALL_IN',
+        payment_status: 'paid',
+      })
+      ;(prisma.bookingGroup.update as jest.Mock).mockResolvedValue({
+        ...mockGroup,
+        current_participants: 3,
+      })
+      ;(prisma.trip.update as jest.Mock).mockResolvedValue({})
+      ;(prisma.payment.create as jest.Mock).mockResolvedValue({ id: 'pay-new-2', status: 'completed' })
+      ;(prisma.auditLog.create as jest.Mock).mockResolvedValue({})
+
+      await ParticipantService.createParticipantAsAdmin({
+        bookingGroupId: 'grp-1',
+        fullName: 'Traveler With Pickup',
+        phoneNumber: '081234567890',
+        pickupLocation: 'Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi',
+        pickupNotes: 'Lobi Utama',
+        packageType: 'ALL_IN',
+        dateOfBirth: '1998-04-12',
+        paymentStatus: 'paid',
+        totalAmount: 750000,
+      })
+
+      expect(prisma.participant.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            full_name: 'Traveler With Pickup',
+            pickup_location: 'Hotel Tentrem Yogyakarta, Jl. P. Mangkubumi',
+            pickup_notes: 'Lobi Utama',
+            package_type: 'ALL_IN',
+            date_of_birth: expect.any(Date),
+          }),
+        })
+      )
+    })
   })
 })
