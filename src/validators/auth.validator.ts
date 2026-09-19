@@ -33,5 +33,12 @@ export const authValidator = {
     token: Joi.string().required(),
     password: Joi.string().min(6).required(),
   }),
+
+  changePassword: Joi.object({
+    currentPassword: Joi.string().required(),
+    newPassword: Joi.string().min(6).required(),
+    confirmPassword: Joi.string().valid(Joi.ref('newPassword')).optional(),
+  }),
 }
+
 

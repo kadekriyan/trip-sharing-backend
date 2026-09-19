@@ -25,6 +25,13 @@ router.post(
   validateRequest(authValidator.resetPassword),
   asyncHandler(AuthController.resetPassword)
 )
+router.post(
+  '/change-password',
+  authenticate,
+  validateRequest(authValidator.changePassword),
+  asyncHandler(AuthController.changePassword)
+)
 
 export default router
+
 

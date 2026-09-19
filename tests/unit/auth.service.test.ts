@@ -266,6 +266,52 @@ describe('AuthService', () => {
     })
   })
 
+  describe('changePassword', () => {
+    it('should throw error if user is not found', async () => {
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+
+      await expect(
+        AuthService.changePassword('usr-notfound', 'oldPass123', 'newPass123')
+      ).rejects.toThrow(ApiError)
+    })
+
+    it('should throw error if current password is wrong', async () => {
+      const currentHashed = await bcrypt.hash('correctOldPassword', 10)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'usr-1',
+        password: currentHashed,
+        is_active: true,
+      })
+
+      await expect(
+        AuthService.changePassword('usr-1', 'wrongOldPassword', 'newPass123')
+      ).rejects.toThrow(ApiError)
+    })
+
+    it('should throw error if new password is same as current password', async () => {
+      await expect(
+        AuthService.changePassword('usr-1', 'samePassword123', 'samePassword123')
+      ).rejects.toThrow(ApiError)
+    })
+
+    it('should successfully change password when old password matches', async () => {
+      const currentHashed = await bcrypt.hash('correctOldPassword', 10)
+      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        id: 'usr-1',
+        password: currentHashed,
+        is_active: true,
+      })
+      ;(prisma.user.update as jest.Mock).mockResolvedValue({ id: 'usr-1' })
+
+      const result = await AuthService.changePassword('usr-1', 'correctOldPassword', 'newSecurePassword456')
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'usr-1' },
+        data: { password: expect.any(String) },
+      })
+      expect(result.message).toContain('berhasil diperbarui')
+    })
+  })
+
   describe('authValidator schema', () => {
     it('should successfully validate .local emails for login and register', () => {
       const { authValidator } = require('../../src/validators/auth.validator')
@@ -295,7 +341,15 @@ describe('AuthService', () => {
         password: 'newPassword123',
       })
       expect(resetResult.error).toBeUndefined()
+
+      const changeResult = authValidator.changePassword.validate({
+        currentPassword: 'oldPassword123',
+        newPassword: 'newPassword123',
+        confirmPassword: 'newPassword123',
+      })
+      expect(changeResult.error).toBeUndefined()
     })
   })
 })
+
 

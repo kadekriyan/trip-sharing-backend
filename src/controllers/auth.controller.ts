@@ -39,5 +39,16 @@ export class AuthController {
     const result = await AuthService.resetPassword(token, password)
     sendResponse(res, 200, result.message, result)
   }
+
+  static async changePassword(req: Request, res: Response) {
+    const userId = req.user?.id
+    if (!userId) {
+      return sendResponse(res, 401, 'Unauthorized')
+    }
+    const { currentPassword, newPassword } = req.body
+    const result = await AuthService.changePassword(userId, currentPassword, newPassword)
+    sendResponse(res, 200, result.message, result)
+  }
 }
+
 

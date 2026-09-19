@@ -265,7 +265,42 @@ Memperbarui kata sandi akun menggunakan token reset valid.
 
 ---
 
+### 2.7 Ganti Kata Sandi Akun (`Change Password`)
+Memperbarui kata sandi akun untuk pengguna (Admin / Traveler) yang sedang login dengan memverifikasi kata sandi saat ini.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/change-password`
+- **Auth**: `Bearer <jwt_token>` (Wajib login)
+
+#### Request Body
+```json
+{
+  "currentPassword": "OldSecurePassword123!",
+  "newPassword": "NewSecurePassword456!",
+  "confirmPassword": "NewSecurePassword456!"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Kata sandi berhasil diperbarui.",
+  "data": {
+    "message": "Kata sandi berhasil diperbarui."
+  },
+  "timestamp": "2026-09-20T03:00:00.000Z"
+}
+```
+
+#### Response Error Umum
+- `400 Bad Request`: Validasi gagal (misal: panjang kata sandi baru < 6 karakter, konfirmasi tidak cocok, atau kata sandi baru sama dengan yang lama).
+- `401 Unauthorized`: Token hilang / kedaluwarsa, atau kata sandi saat ini (`currentPassword`) salah.
+
+---
+
 ## 3. Katalog Destinasi Wisata (`/api/destinations`)
+
 
 ### 3.1 Daftar Katalog Destinasi (Filter & Paginasi)
 Menampilkan daftar destinasi wisata aktif dengan filter dan pengurutan.

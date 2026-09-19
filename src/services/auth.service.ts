@@ -188,6 +188,43 @@ export class AuthService {
     }
   }
 
+  static async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (!userId) {
+      throw new ApiError('User ID tidak valid.', 400)
+    }
+    if (!currentPassword) {
+      throw new ApiError('Kata sandi saat ini wajib diisi.', 400)
+    }
+    if (!newPassword || newPassword.length < 6) {
+      throw new ApiError('Kata sandi baru minimal 6 karakter.', 400)
+    }
+    if (currentPassword === newPassword) {
+      throw new ApiError('Kata sandi baru tidak boleh sama dengan kata sandi saat ini.', 400)
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } })
+    if (!user || !user.is_active) {
+      throw new ApiError('Pengguna tidak ditemukan atau akun dinonaktifkan.', 404)
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password)
+    if (!isMatch) {
+      throw new ApiError('Kata sandi saat ini tidak sesuai.', 400)
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    })
+
+    return {
+      message: 'Kata sandi akun berhasil diperbarui.',
+    }
+  }
+
+
   private static generateAuthTokens(user: {
     id: string
     email: string
