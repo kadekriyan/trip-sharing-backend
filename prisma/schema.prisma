@@ -21,11 +21,12 @@ model User {
   created_at        DateTime      @default(now())
   updated_at        DateTime      @updatedAt
 
-  driver       Driver?
-  participants Participant[]
-  articles     Article[]
-  admin_logs   AuditLog[]
-  guided_trips Trip[]
+  driver                Driver?
+  participants          Participant[]
+  articles              Article[]
+  admin_logs            AuditLog[]
+  guided_trips          Trip[]
+  password_reset_tokens PasswordResetToken[]
 
   @@index([email])
   @@index([role])
@@ -312,3 +313,18 @@ model SeoSetting {
 
   @@map("seo_settings")
 }
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  user_id    String
+  token      String   @unique
+  expires_at DateTime
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([user_id])
+}
+

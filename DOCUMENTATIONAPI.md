@@ -185,6 +185,86 @@ Mengambil data profil lengkap traveler atau admin aktif.
 
 ---
 
+### 2.4 Permintaan Lupa Kata Sandi (`Forgot Password`)
+Mengirim tautan token reset kata sandi ke email terdaftar.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/forgot-password`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "email": "budi@example.com"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Jika email terdaftar, tautan pengaturan ulang kata sandi telah dikirim ke email Anda.",
+  "data": {
+    "message": "Jika email terdaftar, tautan pengaturan ulang kata sandi telah dikirim ke email Anda."
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 2.5 Verifikasi Token Reset Password
+Memeriksa apakah token reset yang diklik dari email masih valid dan belum kedaluwarsa.
+
+- **Method**: `GET`
+- **Path**: `/api/auth/reset-password/verify?token=<token_hex>`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Token valid",
+  "data": {
+    "valid": true,
+    "email": "budi@example.com",
+    "name": "Budi Traveler"
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
+### 2.6 Atur Ulang Kata Sandi Baru (`Reset Password`)
+Memperbarui kata sandi akun menggunakan token reset valid.
+
+- **Method**: `POST`
+- **Path**: `/api/auth/reset-password`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "token": "7f8b9a1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+  "password": "NewSecurePassword123!"
+}
+```
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Kata sandi berhasil diperbarui. Silakan masuk kembali dengan kata sandi baru Anda.",
+  "data": {
+    "message": "Kata sandi berhasil diperbarui. Silakan masuk kembali dengan kata sandi baru Anda."
+  },
+  "timestamp": "2026-09-03T04:00:00.000Z"
+}
+```
+
+---
+
 ## 3. Katalog Destinasi Wisata (`/api/destinations`)
 
 ### 3.1 Daftar Katalog Destinasi (Filter & Paginasi)

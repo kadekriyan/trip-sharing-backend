@@ -23,4 +23,15 @@ export const authValidator = {
     'g-recaptcha-response': Joi.string().optional(),
     gRecaptchaResponse: Joi.string().optional(),
   }),
+
+  forgotPassword: Joi.object({
+    email: Joi.string().email({ tlds: false }).required(),
+    clientBaseUrl: Joi.string().uri().optional(),
+  }),
+
+  resetPassword: Joi.object({
+    token: Joi.string().required(),
+    password: Joi.string().min(6).required(),
+  }),
 }
+

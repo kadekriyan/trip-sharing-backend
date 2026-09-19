@@ -21,4 +21,23 @@ export class AuthController {
     const profile = await AuthService.getMe(req.user.id)
     sendResponse(res, 200, 'Authenticated user', profile)
   }
+
+  static async forgotPassword(req: Request, res: Response) {
+    const { email, clientBaseUrl } = req.body
+    const result = await AuthService.forgotPassword(email, clientBaseUrl)
+    sendResponse(res, 200, result.message, result)
+  }
+
+  static async verifyResetToken(req: Request, res: Response) {
+    const token = String(req.query.token || req.body?.token || '')
+    const result = await AuthService.verifyResetToken(token)
+    sendResponse(res, 200, 'Token valid', result)
+  }
+
+  static async resetPassword(req: Request, res: Response) {
+    const { token, password } = req.body
+    const result = await AuthService.resetPassword(token, password)
+    sendResponse(res, 200, result.message, result)
+  }
 }
+

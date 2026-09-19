@@ -14,5 +14,17 @@ router.post(
 )
 router.post('/login', validateRequest(authValidator.login), asyncHandler(AuthController.login))
 router.get('/me', authenticate, asyncHandler(AuthController.me))
+router.post(
+  '/forgot-password',
+  validateRequest(authValidator.forgotPassword),
+  asyncHandler(AuthController.forgotPassword)
+)
+router.get('/reset-password/verify', asyncHandler(AuthController.verifyResetToken))
+router.post(
+  '/reset-password',
+  validateRequest(authValidator.resetPassword),
+  asyncHandler(AuthController.resetPassword)
+)
 
 export default router
+
