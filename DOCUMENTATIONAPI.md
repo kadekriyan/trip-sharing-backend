@@ -1180,7 +1180,7 @@ Menampilkan artikel blog/tips wisata dengan filter kategori, pencarian, dan pagi
 
 ---
 
-### 7.2 Detail Artikel Blog (by Slug)
+### 8.2 Detail Artikel Blog (by Slug)
 Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`).
 
 - **Method**: `GET`
@@ -1196,7 +1196,7 @@ Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`)
     "id": "5128ca01-8891-4da2-b101-771122334455",
     "title": "5 Alasan Mengapa Trip Sharing Lebih Hemat & Seru",
     "slug": "5-alasan-mengapa-trip-sharing-lebih-hemat-seru",
-    "content": "Isi artikel lengkap format markdown atau HTML...",
+    "content": "<h2>Mengapa Memilih Trip Sharing?</h2><p>Trip sharing memungkinkan Anda...</p><figure class=\"mx-auto my-6 text-center max-w-2xl not-prose\"><img src=\"http://localhost:3001/uploads/articles/bromo.webp\" alt=\"Gunung Bromo\" class=\"w-full h-auto rounded-2xl shadow-md\" /><figcaption class=\"text-xs text-slate-500 italic mt-2\">Pesona Bromo saat sunrise</figcaption></figure>",
     "category": "Travel Tips",
     "author": {
       "name": "Admin Editorial",
@@ -1210,6 +1210,20 @@ Mengambil isi lengkap artikel dan otomatis menambah jumlah pembaca (`viewCount`)
   "timestamp": "2026-09-03T04:00:00.000Z"
 }
 ```
+
+---
+
+### 8.3 CMS Rich Content Editor & Media Embed (WordPress-Style)
+Editor artikel blog pada panel admin (`/admin/blogs/new` dan `/admin/blogs/:id/edit`) mengimplementasikan **BlogRichEditor** dengan kapabilitas:
+1. **Mode Multi-Tab & Split Screen**:
+   - `Visual (WYSIWYG)`: Penyuntingan visual interaktif langsung dengan shortcut formatting (Heading H2-H4, Paragraph, Bold, Italic, Underline, Strikethrough, Ordered/Unordered Lists, Blockquote, Divider, Table).
+   - `HTML / Source Code`: Penyuntingan kode HTML mentah (seperti Text Mode pada WordPress) dengan sinkronisasi dua arah real-time.
+   - `Live Preview & Split-Screen`: Panel pratinjau instan dengan styling CSS Typography yang identik 100% dengan halaman detail publik (`/blog/:slug`).
+2. **Inline Media Modal**:
+   - **Upload & Sisip Foto**: Terintegrasi langsung dengan Supabase/Local Storage folder `articles/` serta input URL eksternal, dilengkapi konfigurasi Alt Text, Caption, dan Alignment (`center`, `left`, `right`, `full`).
+   - **Video Embed (YouTube & Vimeo)**: Parser otomatis regex untuk URL YouTube (`watch?v=`, `youtu.be/`, `embed/`, `shorts/`) dan Vimeo ke iframe aman (`youtube-nocookie.com`) dengan wrapper 16:9 responsive (`aspect-video w-full rounded-2xl`).
+   - **Tautan (Link)**: Modal custom link dengan konfigurasi `target="_blank"` dan `rel="noopener noreferrer"`.
+   - **Tabel & Callout Boxes**: Generator tabel responsif dan kotak tips/info/peringatan berdesain modern.
 
 ---
 
