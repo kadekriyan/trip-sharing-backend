@@ -76,6 +76,18 @@ export class FileService {
     const relativePath = `/uploads/${safeFolder}/${filename}`
     const fullUrl = `${protocol}://${host}${relativePath}`
 
+    try {
+      if (file && file.buffer) {
+        const uploadDir = path.join(process.cwd(), 'uploads', safeFolder)
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true })
+        }
+        fs.writeFileSync(path.join(uploadDir, filename), file.buffer)
+      }
+    } catch (fsErr) {
+      logger.warn(`Failed to write file to local disk: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`)
+    }
+
     return {
       url: fullUrl,
       path: relativePath,
