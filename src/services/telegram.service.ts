@@ -2,7 +2,7 @@ import axios from 'axios'
 import { logger } from '../utils/logger'
 
 export interface NewBookingNotificationPayload {
-  bookingCode: string | string[]
+  bookingCode?: string | (string | null | undefined)[] | null
   customerName: string
   customerPhone?: string
   customerEmail?: string
@@ -17,7 +17,7 @@ export interface NewBookingNotificationPayload {
 
 export interface PaymentSuccessNotificationPayload {
   orderId: string
-  bookingCode?: string | string[]
+  bookingCode?: string | (string | null | undefined)[] | null
   customerName: string
   customerEmail?: string
   destinationName: string
@@ -127,8 +127,8 @@ export class TelegramService {
   ): Promise<boolean> {
     try {
       const bookingCodes = Array.isArray(data.bookingCode)
-        ? data.bookingCode.join(', ')
-        : data.bookingCode
+        ? data.bookingCode.filter(Boolean).join(', ')
+        : data.bookingCode || '-'
 
       const packageLabel =
         data.packageType === 'TRANSPORT_ONLY' ? 'Transport Only' : 'All-In (Termasuk Tiket)'
@@ -165,7 +165,7 @@ export class TelegramService {
     try {
       const bookingCodes = data.bookingCode
         ? Array.isArray(data.bookingCode)
-          ? data.bookingCode.join(', ')
+          ? data.bookingCode.filter(Boolean).join(', ')
           : data.bookingCode
         : null
 

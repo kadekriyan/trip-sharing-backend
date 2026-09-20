@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/database'
 import { snap } from '../config/midtrans'
+import { TelegramService } from './telegram.service'
+import { logger } from '../utils/logger'
 import { BookingItemInput, CreateBulkBookingInput } from '../types/booking'
 import { ApiError } from '../utils/errors'
 import {
@@ -346,6 +348,23 @@ export class BookingService {
       timeout: 30000,
     })
 
+    // Dispatch asynchronous Telegram notification (non-blocking)
+    TelegramService.sendNewBookingNotification({
+      bookingCode: result.participant.booking_code,
+      customerName: result.participant.full_name,
+      customerPhone: result.participant.phone_number || undefined,
+      customerEmail: userEmail,
+      destinationName: trip.destination.name,
+      tripDate: trip.departure_date,
+      paxCount: 1,
+      packageType,
+      pickupLocation: bookingData.pickup_location || bookingData.pickupLocation || null,
+      totalAmount,
+      paymentStatus: 'PENDING',
+    }).catch((err) => {
+      logger.error('Failed to dispatch telegram new booking notification', err)
+    })
+
     return result
   }
 
@@ -600,6 +619,24 @@ export class BookingService {
     } catch (snapErr) {
       console.warn('Midtrans snap transaction generation notice:', (snapErr as Error).message)
     }
+
+    // Dispatch aggregated Telegram notification for bulk booking (non-blocking)
+    const firstItem = transactionResult.createdItems[0]
+    TelegramService.sendNewBookingNotification({
+      bookingCode: transactionResult.createdItems.map((c) => c.participant.booking_code),
+      customerName: firstItem.participant.full_name,
+      customerPhone: firstItem.participant.phone_number || undefined,
+      customerEmail: firstItem.email,
+      destinationName: firstItem.trip.destination.name,
+      tripDate: firstItem.trip.departure_date,
+      paxCount: transactionResult.createdItems.length,
+      packageType: firstItem.participant.package_type || 'ALL_IN',
+      pickupLocation: firstItem.participant.pickup_location || null,
+      totalAmount: transactionResult.totalAmount,
+      paymentStatus: 'PENDING',
+    }).catch((err) => {
+      logger.error('Failed to dispatch telegram bulk booking notification', err)
+    })
 
     return {
       bulkBookingId: transactionResult.bulkBookingId,

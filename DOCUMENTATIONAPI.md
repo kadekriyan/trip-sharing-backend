@@ -3268,11 +3268,12 @@ TELEGRAM_THREAD_ID="" # Opsional (untuk sub-forum/topik supergroup)
 ```
 
 ### 15.2 Pemicu Notifikasi Otomatis
-1. **Pembayaran Lunas Terkonfirmasi (`Payment Success / Settlement`)**:
-   - Terpicu saat webhook Midtrans menerima status `capture` / `settlement` (`POST /api/payments/webhook`) atau saat simulasi pembayaran (`POST /api/payments/:id/simulate`).
+1. **Pesanan Baru Masuk (`New Booking - PENDING`)**:
+   - Terpicu seketika saat traveler selesai submit form booking publik (`POST /api/bookings` atau `POST /api/bookings/bulk`).
+   - Mengirimkan detail: Kode Booking (atau daftar kode rombongan), Nama Pemesan, Nomor WhatsApp/Telepon, Email, Destinasi, Tanggal Trip, Jumlah Pax, Tipe Paket (`All-In` / `Transport Only`), Lokasi Penjemputan, Total Biaya, Status Pembayaran (`PENDING`), dan Waktu Order.
+2. **Pembayaran Lunas Terkonfirmasi (`Payment Success - PAID`)**:
+   - Terpicu saat webhook Midtrans menerima status `capture` / `settlement` (`POST /api/payments/webhook`) atau saat simulasi pembayaran admin (`POST /api/payments/:id/simulate`).
    - Mengirimkan detail: Order ID, Kode Booking, Nama Peserta, Email, Destinasi, Tanggal Trip, Jumlah Peserta, Metode Pembayaran, Nominal Lunas, dan Waktu Lunas.
-2. **Modul Pesanan Baru (`sendNewBookingNotification`)**:
-   - Modul method pembantu tersedia di `TelegramService.sendNewBookingNotification` untuk pengiriman alert pesanan draft jika diaktifkan.
 
 ---
 
