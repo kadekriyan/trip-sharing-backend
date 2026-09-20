@@ -12,12 +12,34 @@ const transporter = nodemailer.createTransport({
 
 export class EmailService {
   private static async send(to: string, subject: string, html: string) {
-    if (!process.env.SMTP_HOST || !process.env.SMTP_FROM) {
-      logger.warn('SMTP is not configured, email skipped', { to, subject })
+    const host = process.env.SMTP_HOST
+    const from = process.env.SMTP_FROM
+    const user = process.env.SMTP_USER
+    const pass = process.env.SMTP_PASS
+
+    if (
+      !host ||
+      !from ||
+      !user ||
+      !pass ||
+      user === 'your_email@gmail.com' ||
+      pass === 'your_app_password' ||
+      user.includes('example.com')
+    ) {
+      logger.warn('SMTP is not configured or placeholder detected, email skipped', { to, subject })
       return null
     }
 
-    return transporter.sendMail({ from: process.env.SMTP_FROM, to, subject, html })
+    try {
+      return await transporter.sendMail({ from, to, subject, html })
+    } catch (err: unknown) {
+      logger.error('Failed to send email notification', {
+        to,
+        subject,
+        error: (err as Error)?.message || String(err),
+      })
+      return null
+    }
   }
 
   static async sendBookingConfirmation(email: string, data: Record<string, unknown>) {

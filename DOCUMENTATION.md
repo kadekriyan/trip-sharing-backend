@@ -24,7 +24,8 @@
 12. [Partisipan Traveler (`/api/participants`)](#12-partisipan-traveler-apiparticipants)
 13. [Dashboard & Manajemen Admin (`/api/admin`)](#13-dashboard--manajemen-admin-apiadmin)
 14. [Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)](#14-pengaturan-sistem--dynamic-seo-apisettings--apiadminsettings)
-15. [Panduan Integrasi Frontend (Next.js Client Example)](#15-panduan-integrasi-frontend-nextjs-client-example)
+15. [Integrasi Notifikasi Telegram Bot (`TelegramService`)](#15-integrasi-notifikasi-telegram-bot-telegramservice)
+16. [Panduan Integrasi Frontend (Next.js Client Example)](#16-panduan-integrasi-frontend-nextjs-client-example)
 
 ---
 
@@ -3253,12 +3254,31 @@ Menyimpan dan memperbarui konfigurasi SEO global, SEO per halaman, dan Schema.or
 }
 ```
 
+---
+
+## 15. Integrasi Notifikasi Telegram Bot (`TelegramService`)
+
+Modul otomatisasi pengiriman notifikasi instan real-time ke Channel / Grup / Supergroup / ID Admin Telegram menggunakan **Telegram Bot API**. Bekerja secara *non-blocking (asynchronous)* sehingga tidak mengganggu flow pembuatan booking ataupun respons webhook pembayaran.
+
+### 15.1 Variabel Lingkungan (`.env`)
+```env
+TELEGRAM_BOT_TOKEN="123456789:AAFakeTokenForTelegramBotAPIExample"
+TELEGRAM_CHAT_ID="-1001234567890"
+TELEGRAM_THREAD_ID="" # Opsional (untuk sub-forum/topik supergroup)
+```
+
+### 15.2 Pemicu Notifikasi Otomatis
+1. **Pembayaran Lunas Terkonfirmasi (`Payment Success / Settlement`)**:
+   - Terpicu saat webhook Midtrans menerima status `capture` / `settlement` (`POST /api/payments/webhook`) atau saat simulasi pembayaran (`POST /api/payments/:id/simulate`).
+   - Mengirimkan detail: Order ID, Kode Booking, Nama Peserta, Email, Destinasi, Tanggal Trip, Jumlah Peserta, Metode Pembayaran, Nominal Lunas, dan Waktu Lunas.
+2. **Modul Pesanan Baru (`sendNewBookingNotification`)**:
+   - Modul method pembantu tersedia di `TelegramService.sendNewBookingNotification` untuk pengiriman alert pesanan draft jika diaktifkan.
 
 ---
 
-## 15. Panduan Integrasi Frontend (Next.js Client Example)
+## 16. Panduan Integrasi Frontend (Next.js Client Example)
 
-### 13.1 HTTP Client Helper (`lib/api.ts`)
+### 16.1 HTTP Client Helper (`lib/api.ts`)
 ```typescript
 import axios from 'axios'
 

@@ -231,7 +231,7 @@ export class BookingService {
     const randomDigits = Math.floor(1000 + Math.random() * 9000)
     const bookingCode = `TRV-${randomDigits}`
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       let resolvedUserId = typeof userId === 'string' && userId ? cleanId(userId) : undefined
       if (!resolvedUserId || resolvedUserId === '0') {
         let user = await tx.user.findUnique({ where: { email: userEmail } })
@@ -345,6 +345,8 @@ export class BookingService {
       maxWait: 10000,
       timeout: 30000,
     })
+
+    return result
   }
 
   static async createBulkBooking(

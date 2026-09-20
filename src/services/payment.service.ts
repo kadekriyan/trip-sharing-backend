@@ -3,7 +3,9 @@ import { prisma } from '../config/database'
 import { snap } from '../config/midtrans'
 import { MidtransNotification } from '../types/payment'
 import { ApiError } from '../utils/errors'
+import { logger } from '../utils/logger'
 import { EmailService } from './email.service'
+import { TelegramService } from './telegram.service'
 
 function parseBulkParticipantIds(notes?: string | null): string[] {
   if (!notes) return []
@@ -91,7 +93,27 @@ export class PaymentService {
 
     const payment = await prisma.payment.findUnique({
       where: { midtrans_order_id: notification.order_id },
-      include: { participant: { include: { user: true } } },
+      include: {
+        participant: {
+          include: {
+            user: true,
+            booking_group: {
+              include: {
+                trip: {
+                  include: { destination: true },
+                },
+              },
+            },
+          },
+        },
+        booking_group: {
+          include: {
+            trip: {
+              include: { destination: true },
+            },
+          },
+        },
+      },
     })
     if (!payment) throw new ApiError('Payment not found', 404)
 
@@ -125,11 +147,34 @@ export class PaymentService {
       }
 
       if (payment.participant?.user?.email) {
-        await EmailService.sendPaymentReceipt(payment.participant.user.email, {
+        EmailService.sendPaymentReceipt(payment.participant.user.email, {
           participant_name: payment.participant.full_name,
           amount: payment.amount,
+        }).catch((err) => {
+          logger.error('Failed to send payment receipt email', err)
         })
       }
+
+      // Dispatch asynchronous Telegram notification (non-blocking)
+      TelegramService.sendPaymentSuccessNotification({
+        orderId: payment.midtrans_order_id || `ORDER-${payment.id}`,
+        bookingCode: payment.participant?.booking_code || undefined,
+        customerName: payment.participant?.full_name || 'Traveler',
+        customerEmail: payment.participant?.user?.email,
+        destinationName:
+          payment.participant?.booking_group?.trip?.destination?.name ||
+          payment.booking_group?.trip?.destination?.name ||
+          'Open Trip Jogja',
+        tripDate:
+          payment.participant?.booking_group?.trip?.departure_date ||
+          payment.booking_group?.trip?.departure_date,
+        paxCount: allParticipantIds.length || 1,
+        amount: Number(payment.amount),
+        paymentMethod: notification.payment_type || payment.payment_method || 'Midtrans',
+        paidAt: new Date(),
+      }).catch((err) => {
+        logger.error('Failed to dispatch telegram payment notification', err)
+      })
     } else if (failed) {
       if (bulkParticipantIds.length > 0) {
         await prisma.participant.updateMany({
@@ -161,8 +206,25 @@ export class PaymentService {
         ],
       },
       include: {
-        participant: { include: { user: true } },
-        booking_group: { include: { trip: true } },
+        participant: {
+          include: {
+            user: true,
+            booking_group: {
+              include: {
+                trip: {
+                  include: { destination: true },
+                },
+              },
+            },
+          },
+        },
+        booking_group: {
+          include: {
+            trip: {
+              include: { destination: true },
+            },
+          },
+        },
       },
     })
 
@@ -170,8 +232,14 @@ export class PaymentService {
       const participant = await prisma.participant.findUnique({
         where: { id: cleanId },
         include: {
-          booking_group: { include: { trip: true } },
           user: true,
+          booking_group: {
+            include: {
+              trip: {
+                include: { destination: true },
+              },
+            },
+          },
         },
       })
       if (!participant) {
@@ -190,8 +258,25 @@ export class PaymentService {
           status: 'pending',
         },
         include: {
-          participant: { include: { user: true } },
-          booking_group: { include: { trip: true } },
+          participant: {
+            include: {
+              user: true,
+              booking_group: {
+                include: {
+                  trip: {
+                    include: { destination: true },
+                  },
+                },
+              },
+            },
+          },
+          booking_group: {
+            include: {
+              trip: {
+                include: { destination: true },
+              },
+            },
+          },
         },
       })
     }
@@ -233,11 +318,34 @@ export class PaymentService {
       }
 
       if (payment.participant?.user?.email) {
-        await EmailService.sendPaymentReceipt(payment.participant.user.email, {
+        EmailService.sendPaymentReceipt(payment.participant.user.email, {
           participant_name: payment.participant.full_name,
           amount: payment.amount,
+        }).catch((err) => {
+          logger.error('Failed to send payment receipt email in simulation', err)
         })
       }
+
+      // Dispatch asynchronous Telegram notification (non-blocking)
+      TelegramService.sendPaymentSuccessNotification({
+        orderId: payment.midtrans_order_id || `ORDER-${payment.id}`,
+        bookingCode: payment.participant?.booking_code || undefined,
+        customerName: payment.participant?.full_name || 'Traveler',
+        customerEmail: payment.participant?.user?.email,
+        destinationName:
+          payment.participant?.booking_group?.trip?.destination?.name ||
+          payment.booking_group?.trip?.destination?.name ||
+          'Open Trip Jogja',
+        tripDate:
+          payment.participant?.booking_group?.trip?.departure_date ||
+          payment.booking_group?.trip?.departure_date,
+        paxCount: allParticipantIds.length || 1,
+        amount: Number(payment.amount),
+        paymentMethod: payment.payment_method || 'Midtrans Simulation',
+        paidAt: new Date(),
+      }).catch((err) => {
+        logger.error('Failed to dispatch telegram payment simulation notification', err)
+      })
     } else if (failed) {
       if (bulkParticipantIds.length > 0) {
         await prisma.participant.updateMany({

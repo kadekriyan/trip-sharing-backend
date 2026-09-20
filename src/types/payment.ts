@@ -5,4 +5,5 @@ export interface MidtransNotification {
   signature_key?: string
   gross_amount?: string
   status_code?: string
+  payment_type?: string
 }
