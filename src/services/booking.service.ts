@@ -696,6 +696,7 @@ export class BookingService {
     const participants = await prisma.participant.findMany({
       where,
       include: {
+        user: true,
         booking_group: {
           include: {
             vehicle: true,
@@ -733,9 +734,30 @@ export class BookingService {
       const groupVehicle = p.booking_group.vehicle || p.booking_group.driver?.vehicle || trip.guide?.driver?.vehicle || null
       const driverObj = p.booking_group.driver || trip.guide?.driver || null
 
+      const resolvedFullName = p.full_name || p.user?.name || 'Traveler'
+      const resolvedPhone = p.phone_number || p.user?.phone || ''
+      const resolvedEmail = p.user?.email || (p.phone_number ? `${p.phone_number.replace(/[^0-9]/g, '')}@booking.local` : '')
+      const resolvedNationality = p.nationality || p.country || 'Indonesia'
+
       return {
         id: p.id,
         bookingCode,
+        fullName: resolvedFullName,
+        name: resolvedFullName,
+        email: resolvedEmail,
+        phoneNumber: resolvedPhone,
+        phone: resolvedPhone,
+        nationality: resolvedNationality,
+        country: resolvedNationality,
+        dateOfBirth: p.date_of_birth,
+        gender: p.gender,
+        healthNotes: p.health_notes,
+        preferredLanguage: p.preferred_language,
+        pickupLocation: p.pickup_location,
+        pickupLatitude: p.pickup_latitude ? Number(p.pickup_latitude) : null,
+        pickupLongitude: p.pickup_longitude ? Number(p.pickup_longitude) : null,
+        pickupNotes: p.pickup_notes,
+        departureDate: trip.departure_date,
         destination: {
           title: dest.name,
           slug: dest.slug || `destination-${dest.id}`,
@@ -747,6 +769,14 @@ export class BookingService {
           departureDate: trip.departure_date,
           returnDate: trip.return_date,
         },
+        user: p.user
+          ? {
+              id: p.user.id,
+              fullName: p.user.name,
+              email: p.user.email,
+              phoneNumber: p.user.phone,
+            }
+          : null,
         group: {
           id: p.booking_group.id,
           groupNumber: p.booking_group.group_number,

@@ -745,6 +745,95 @@ describe('BookingService', () => {
       expect(error).toBeDefined()
     })
   })
+
+  describe('getUserBookings', () => {
+    it('should return empty array if no filter is provided', async () => {
+      const res = await BookingService.getUserBookings({})
+      expect(res).toEqual([])
+      expect(prisma.participant.findMany).not.toHaveBeenCalled()
+    })
+
+    it('should return complete passenger details including name, phone, email, and nationality', async () => {
+      const mockParticipant = {
+        id: 'part-123',
+        booking_code: 'TRV-2607',
+        full_name: 'Ananda Putri',
+        phone_number: '081234567890',
+        nationality: 'Indonesia',
+        country: 'Indonesia',
+        date_of_birth: new Date('1998-08-17'),
+        gender: 'female',
+        health_notes: 'None',
+        preferred_language: 'id',
+        pickup_location: 'Meeting Point Utama',
+        pickup_latitude: new Prisma.Decimal('-7.7956'),
+        pickup_longitude: new Prisma.Decimal('110.3695'),
+        pickup_notes: 'Dekat pintu utara',
+        total_amount: new Prisma.Decimal('800000'),
+        payment_status: 'paid',
+        check_in_status: 'pending',
+        checked_in: false,
+        package_type: 'ALL_IN',
+        created_at: new Date('2026-09-11'),
+        user: {
+          id: 'usr-1',
+          name: 'Ananda Putri',
+          email: 'ananda@example.com',
+          phone: '081234567890',
+        },
+        booking_group: {
+          id: 'grp-1',
+          group_number: 2,
+          max_participants: 6,
+          current_participants: 4,
+          price_per_person: new Prisma.Decimal('800000'),
+          driver: {
+            user: { name: 'Driver Ananda', phone: '0899887766' },
+            vehicle: { name: 'Toyota HiAce Premio', plate_number: 'N 1234 XY', vehicle_type: 'VAN' },
+          },
+          vehicle: { name: 'Toyota HiAce Premio', plate_number: 'N 1234 XY', vehicle_type: 'VAN' },
+          trip: {
+            id: 'trip-1',
+            departure_date: new Date('2026-09-11'),
+            return_date: new Date('2026-09-12'),
+            destination: {
+              id: 'dest-1',
+              name: 'Bromo Sunrise Camp',
+              slug: 'bromo-sunrise-camp',
+              cover_image: '/images/dest-bromo.jpg',
+              meeting_point: 'Meeting Point Utama',
+            },
+          },
+        },
+        payment: {
+          id: 'pay-1',
+          status: 'paid',
+          amount: new Prisma.Decimal('800000'),
+        },
+      }
+
+      ;(prisma.participant.findMany as jest.Mock).mockResolvedValue([mockParticipant])
+
+      const res = await BookingService.getUserBookings({ bookingCode: 'TRV-2607' })
+
+      expect(res).toHaveLength(1)
+      expect(res[0]).toMatchObject({
+        id: 'part-123',
+        bookingCode: 'TRV-2607',
+        fullName: 'Ananda Putri',
+        email: 'ananda@example.com',
+        phoneNumber: '081234567890',
+        nationality: 'Indonesia',
+        pickupLocation: 'Meeting Point Utama',
+        pickupNotes: 'Dekat pintu utara',
+        paymentStatus: 'paid',
+        totalAmount: 800000,
+      })
+      expect(res[0].destination.title).toBe('Bromo Sunrise Camp')
+      expect(res[0].group.groupNumber).toBe(2)
+    })
+  })
 })
+
 
 
