@@ -86,7 +86,10 @@ Semua endpoint mengembalikan struktur envelope konsisten:
 ## 2. Autentikasi & Pengguna (`/api/auth`)
 
 ### 2.1 Registrasi Traveler Baru
-Mendaftarkan akun traveler baru ke dalam sistem.
+Mendaftarkan akun traveler baru ke dalam sistem. 
+
+> **Catatan Integrasi Phase 11 (Guest-to-Register Transition & Linkage)**:  
+> Jika traveler sebelumnya pernah melakukan pemesanan tiket (*guest booking*) tanpa login menggunakan email yang sama, sistem tidak akan menolak pendaftaran. Sebaliknya, sistem secara otomatis meng-upgrade akun guest tersebut menjadi akun terdaftar resmi, memperbarui nama/telepon/kata sandi terenkripsi (bcrypt), dan seluruh data pesanan maupun invoice sebelumnya otomatis terhubung ke akun traveler ini.
 
 - **Method**: `POST`
 - **Path**: `/api/auth/register`

@@ -28,20 +28,47 @@ export class AuthService {
     let phone: string | null = null
 
     if (typeof emailOrData === 'string') {
-      email = emailOrData
+      email = emailOrData.toLowerCase().trim()
       pass = password || ''
       userName = name || 'Traveler'
     } else {
-      email = emailOrData.email
+      email = (emailOrData.email || '').toLowerCase().trim()
       pass = emailOrData.password
       userName = emailOrData.fullName || emailOrData.name || 'Traveler'
       phone = emailOrData.phoneNumber || emailOrData.phone || null
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } })
-    if (existingUser) throw new ApiError('Email already registered', 400)
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
+    })
 
     const hashedPassword = await bcrypt.hash(pass, 10)
+
+    if (existingUser) {
+      const isGuestAccount =
+        existingUser.password === 'guest_booking' ||
+        !existingUser.password.startsWith('$2')
+
+      if (isGuestAccount) {
+        // Upgrade existing guest user to registered user
+        const updatedUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            email,
+            password: hashedPassword,
+            name: userName || existingUser.name,
+            ...(phone ? { phone } : {}),
+            role: 'participant',
+            is_active: true,
+          },
+        })
+        return this.generateAuthTokens(updatedUser)
+      } else {
+        throw new ApiError('Email already registered', 400)
+      }
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -57,8 +84,20 @@ export class AuthService {
   }
 
   static async login(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } })
+    const normalizedEmail = (email || '').toLowerCase().trim()
+    const user = await prisma.user.findFirst({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+      },
+    })
     if (!user || !user.is_active) throw new ApiError('Invalid credentials', 401)
+
+    if (user.password === 'guest_booking' || !user.password.startsWith('$2')) {
+      throw new ApiError(
+        'Akun Anda belum memiliki kata sandi aktif. Silakan mendaftar (register) terlebih dahulu.',
+        401
+      )
+    }
 
     const isPasswordValid = await bcrypt.compare(password, user.password)
     if (!isPasswordValid) throw new ApiError('Invalid credentials', 401)

@@ -7,6 +7,7 @@ jest.mock('../../src/config/database', () => ({
   prisma: {
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -32,10 +33,12 @@ describe('AuthService', () => {
   })
 
   describe('register', () => {
-    it('should throw ApiError (400) if email is already registered', async () => {
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+    it('should throw ApiError (400) if email is already registered with an active password', async () => {
+      const hashed = await bcrypt.hash('existingPass', 10)
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
         id: 'usr-1',
         email: 'exists@example.com',
+        password: hashed,
       })
 
       await expect(
@@ -49,8 +52,51 @@ describe('AuthService', () => {
       })
     })
 
+    it('should upgrade existing guest account to registered user and return tokens', async () => {
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        id: 'usr-guest-1',
+        email: 'guest@example.com',
+        password: 'guest_booking',
+        name: 'Guest User',
+        phone: '08123456789',
+        role: 'participant',
+        is_active: true,
+      })
+      ;(prisma.user.update as jest.Mock).mockImplementation(async ({ data }) => ({
+        id: 'usr-guest-1',
+        email: data.email,
+        name: data.name,
+        role: data.role,
+      }))
+
+      const result = await AuthService.register({
+        email: 'guest@example.com',
+        password: 'NewStrongPassword123',
+        fullName: 'Registered Traveler',
+        phoneNumber: '08123456789',
+      })
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'usr-guest-1' },
+        data: expect.objectContaining({
+          email: 'guest@example.com',
+          password: expect.any(String),
+          name: 'Registered Traveler',
+          role: 'participant',
+          is_active: true,
+        }),
+      })
+      expect(result).toHaveProperty('token')
+      expect(result).toHaveProperty('refresh_token')
+      expect(result.user).toEqual({
+        id: 'usr-guest-1',
+        email: 'guest@example.com',
+        role: 'participant',
+      })
+    })
+
     it('should hash password and create participant user successfully', async () => {
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue(null)
       ;(prisma.user.create as jest.Mock).mockImplementation(async ({ data }) => ({
         id: 'usr-10',
         email: data.email,
@@ -60,8 +106,10 @@ describe('AuthService', () => {
 
       const result = await AuthService.register('newuser@example.com', 'secret123', 'Alice')
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'newuser@example.com' },
+      expect(prisma.user.findFirst).toHaveBeenCalledWith({
+        where: {
+          email: { equals: 'newuser@example.com', mode: 'insensitive' },
+        },
       })
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
@@ -83,7 +131,7 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should throw ApiError (401) if user not found', async () => {
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue(null)
 
       await expect(AuthService.login('notfound@example.com', 'password123')).rejects.toThrow(
         ApiError
@@ -95,7 +143,7 @@ describe('AuthService', () => {
     })
 
     it('should throw ApiError (401) if user is inactive', async () => {
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
         id: 'usr-2',
         email: 'inactive@example.com',
         is_active: false,
@@ -108,9 +156,23 @@ describe('AuthService', () => {
       })
     })
 
+    it('should throw ApiError (401) if account is a guest account without active password', async () => {
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
+        id: 'usr-guest',
+        email: 'guest@example.com',
+        password: 'guest_booking',
+        is_active: true,
+      })
+
+      await expect(AuthService.login('guest@example.com', 'anyPass')).rejects.toMatchObject({
+        statusCode: 401,
+        message: expect.stringContaining('belum memiliki kata sandi aktif'),
+      })
+    })
+
     it('should throw ApiError (401) if password does not match', async () => {
       const hashedPassword = await bcrypt.hash('correctPassword', 10)
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
         id: 'usr-3',
         email: 'user@example.com',
         password: hashedPassword,
@@ -127,7 +189,7 @@ describe('AuthService', () => {
 
     it('should return auth tokens when credentials are valid', async () => {
       const hashedPassword = await bcrypt.hash('correctPassword', 10)
-      ;(prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      ;(prisma.user.findFirst as jest.Mock).mockResolvedValue({
         id: 'usr-3',
         email: 'user@example.com',
         password: hashedPassword,

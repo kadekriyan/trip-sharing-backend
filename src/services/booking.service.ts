@@ -213,8 +213,9 @@ export class BookingService {
     const nationality = bookingData.nationality || bookingData.country || 'Indonesia'
     const gender = bookingData.gender || null
     const healthNotes = bookingData.healthNotes || bookingData.health_notes || null
-    const userEmail =
+    const rawUserEmail =
       bookingData.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now()}@booking.local`
+    const userEmail = rawUserEmail.toLowerCase().trim()
     const rawPackageType = (bookingData.packageType || bookingData.package_type || 'ALL_IN').toUpperCase()
     const packageType = rawPackageType === 'TRANSPORT_ONLY' ? 'TRANSPORT_ONLY' : 'ALL_IN'
 
@@ -236,7 +237,11 @@ export class BookingService {
     const result = await prisma.$transaction(async (tx) => {
       let resolvedUserId = typeof userId === 'string' && userId ? cleanId(userId) : undefined
       if (!resolvedUserId || resolvedUserId === '0') {
-        let user = await tx.user.findUnique({ where: { email: userEmail } })
+        let user = await tx.user.findFirst({
+          where: {
+            email: { equals: userEmail, mode: 'insensitive' },
+          },
+        })
         if (!user) {
           user = await tx.user.create({
             data: {
@@ -428,8 +433,9 @@ export class BookingService {
         const nationality = b.nationality || b.country || 'Indonesia'
         const gender = b.gender || null
         const healthNotes = b.healthNotes || b.health_notes || null
-        const userEmail =
+        const rawUserEmail =
           b.email || `${phoneNumber.replace(/[^0-9]/g, '') || Date.now() + '-' + idx}@booking.local`
+        const userEmail = rawUserEmail.toLowerCase().trim()
 
         const rawPackageType = (b.packageType || b.package_type || 'ALL_IN').toUpperCase()
         const packageType = rawPackageType === 'TRANSPORT_ONLY' ? 'TRANSPORT_ONLY' : 'ALL_IN'
@@ -449,7 +455,11 @@ export class BookingService {
 
         let resolvedUserId = typeof userId === 'string' && userId ? cleanId(userId) : undefined
         if (!resolvedUserId || resolvedUserId === '0') {
-          let user = await tx.user.findUnique({ where: { email: userEmail } })
+          let user = await tx.user.findFirst({
+            where: {
+              email: { equals: userEmail, mode: 'insensitive' },
+            },
+          })
           if (!user) {
             user = await tx.user.create({
               data: {
@@ -681,17 +691,43 @@ export class BookingService {
   }
 
   static async getUserBookings(filter: { userId?: string; email?: string; bookingCode?: string }) {
-    const where: Prisma.ParticipantWhereInput = {}
-    if (filter.userId && filter.userId !== '0') {
-      where.user_id = cleanId(filter.userId)
-    } else if (filter.email || filter.bookingCode) {
-      where.OR = [
-        ...(filter.email ? [{ user: { email: filter.email } }] : []),
-        ...(filter.bookingCode ? [{ booking_code: filter.bookingCode }] : []),
-      ]
-    } else {
+    const cleanUserId = filter.userId && filter.userId !== '0' ? cleanId(filter.userId) : undefined
+    let userEmail = filter.email?.toLowerCase().trim()
+
+    // If cleanUserId is given, also fetch the user's registered email to cross-match any guest booking records
+    if (cleanUserId && !userEmail) {
+      const userRec = await prisma.user.findUnique({
+        where: { id: cleanUserId },
+        select: { email: true },
+      })
+      if (userRec?.email) {
+        userEmail = userRec.email.toLowerCase().trim()
+      }
+    }
+
+    const conditions: Prisma.ParticipantWhereInput[] = []
+
+    if (cleanUserId) {
+      conditions.push({ user_id: cleanUserId })
+    }
+    if (userEmail) {
+      conditions.push({
+        user: {
+          email: { equals: userEmail, mode: 'insensitive' },
+        },
+      })
+    }
+    if (filter.bookingCode) {
+      conditions.push({
+        booking_code: { equals: filter.bookingCode.trim(), mode: 'insensitive' },
+      })
+    }
+
+    if (conditions.length === 0) {
       return []
     }
+
+    const where: Prisma.ParticipantWhereInput = conditions.length === 1 ? conditions[0] : { OR: conditions }
 
     const participants = await prisma.participant.findMany({
       where,
@@ -727,7 +763,15 @@ export class BookingService {
       orderBy: { created_at: 'desc' },
     })
 
-    return participants.map((p) => {
+    // Deduplicate by participant ID if matched across multiple OR conditions
+    const seenIds = new Set<string>()
+    const uniqueParticipants = participants.filter((p) => {
+      if (seenIds.has(p.id)) return false
+      seenIds.add(p.id)
+      return true
+    })
+
+    return uniqueParticipants.map((p) => {
       const trip = p.booking_group.trip
       const dest = trip.destination
       const bookingCode = p.booking_code || `TRV-${p.id}`
@@ -838,8 +882,7 @@ export class BookingService {
     const participant = await prisma.participant.findFirst({
       where: {
         OR: [
-          { booking_code: identifier },
-          { booking_code: identifier.toUpperCase() },
+          { booking_code: { equals: identifier, mode: 'insensitive' } },
           ...(isCleanId ? [{ id: cleanId(identifier) }] : []),
         ],
       },
@@ -882,8 +925,10 @@ export class BookingService {
     if (options?.userId && !options.isAdmin) {
       const isOwner =
         participant.user_id === options.userId ||
-        (participant.user?.email && options.email && participant.user.email.toLowerCase() === options.email.toLowerCase())
-      if (!isOwner && participant.booking_code !== identifier && participant.booking_code !== identifier.toUpperCase()) {
+        (participant.user?.email &&
+          options.email &&
+          participant.user.email.toLowerCase() === options.email.toLowerCase())
+      if (!isOwner && participant.booking_code?.toLowerCase() !== identifier.toLowerCase()) {
         throw new ApiError('Unauthorized to view this invoice', 403)
       }
     }

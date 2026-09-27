@@ -56,7 +56,9 @@ export class BookingController {
 
   static async getUserBookings(req: Request, res: Response) {
     const userId = req.user?.id
-    const email = req.query.email as string | undefined
+    const userEmail = (req.user as { email?: string })?.email
+    const queryEmail = req.query.email as string | undefined
+    const email = queryEmail || userEmail
     const bookingCode = (req.query.bookingCode || req.query.booking_code) as string | undefined
 
     const bookings = await BookingService.getUserBookings({ userId, email, bookingCode })
