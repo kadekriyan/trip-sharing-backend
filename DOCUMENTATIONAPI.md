@@ -1419,12 +1419,18 @@ Mengambil detail wilayah operasional berdasarkan UUID atau Slug.
 ## 10. Driver / Pengemudi (`/api/drivers`)
 
 ### 10.1 Daftar Driver Tersedia
-Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing. Dapat difilter berdasarkan wilayah operasional (`areaId` atau `area`).
+Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing. Dapat difilter berdasarkan wilayah operasional (`areaId` atau `area`) serta dievaluasi ketersediaannya pada tanggal keberangkatan tertentu (`date` atau `tripId`).
+
+> **Catatan Integrasi Dynamic Driver Schedule (Phase 12)**:  
+> Setiap driver memiliki jadwal periode bertugas (`activeStartDate` s/d `activeEndDate`) dan periode cuti/libur sementara (`inactiveStartDate` s/d `inactiveEndDate`).  
+> Jika query parameter `date` (format `YYYY-MM-DD`) atau `tripId` dikirimkan, backend secara dinamis menghitung `isAvailable` (apakah aktif pada tanggal tersebut), `status` (berubah menjadi `off_duty` jika sedang cuti/di luar masa kontrak), serta melampirkan `statusReason` dan `evaluationDate`.
 
 - **Method**: `GET`
 - **Path**: `/api/drivers`
 - **Auth**: Public
 - **Query Params**:
+  - `date` *(opsional, string YYYY-MM-DD)*: Evaluasi ketersediaan dinamis pada tanggal tertentu.
+  - `tripId` / `trip_id` *(opsional, UUID)*: Evaluasi ketersediaan dinamis pada tanggal keberangkatan trip terkait.
   - `is_available` / `isAvailable` *(opsional, boolean)*: `true` / `false`.
   - `status` *(opsional, string)*: Filter status driver (`active`, `on_duty`, `off_duty`, `inactive`).
   - `areaId` / `area_id` *(opsional, string)*: Filter berdasarkan ID area operasional.
@@ -1447,9 +1453,17 @@ Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjala
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
       "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
+      "activeStartDate": "2026-01-01T00:00:00.000Z",
+      "activeEndDate": "2026-12-31T00:00:00.000Z",
+      "inactiveStartDate": null,
+      "inactiveEndDate": null,
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
+      "rawIsAvailable": true,
+      "rawStatus": "active",
+      "statusReason": "Driver aktif dan tersedia pada tanggal ini",
+      "evaluationDate": "2026-09-28",
       "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
       "area": {
         "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
@@ -2516,14 +2530,16 @@ Menghapus artikel secara permanen dari database.
 ### 12.8 Manajemen Driver / Personil Pengemudi Admin (`CRUD & Pairing`)
 
 #### 12.8.1 Daftar Seluruh Driver Admin (`GET /api/admin/drivers`)
-Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta data armada fisik yang saat ini terpasang.
+Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta data armada fisik yang saat ini terpasang. Mendukung evaluasi ketersediaan dinamis pada tanggal tertentu (`date` atau `tripId`).
 
 - **Method**: `GET`
 - **Path**: `/api/admin/drivers`
 - **Auth**: `Bearer <admin_jwt_token>`
 - **Query Params**:
+  - `date` *(opsional, string YYYY-MM-DD)*: Evaluasi ketersediaan dinamis pada tanggal tertentu.
+  - `tripId` / `trip_id` *(opsional, UUID)*: Evaluasi ketersediaan dinamis pada tanggal keberangkatan trip terkait.
   - `is_available` *(opsional, boolean)*: Filter status ketersediaan.
-  - `status` *(opsional, string)*: Filter status (`active`, `inactive`, `on_trip`).
+  - `status` *(opsional, string)*: Filter status (`active`, `inactive`, `on_trip`, `off_duty`).
   - `search` *(opsional, string)*: Pencarian nama driver, nomor HP, atau nomor SIM.
 
 ##### Response Sukses (`200 OK`)
@@ -2542,9 +2558,17 @@ Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta 
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
       "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
+      "activeStartDate": "2026-01-01T00:00:00.000Z",
+      "activeEndDate": "2026-12-31T00:00:00.000Z",
+      "inactiveStartDate": null,
+      "inactiveEndDate": null,
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
+      "rawIsAvailable": true,
+      "rawStatus": "active",
+      "statusReason": "Driver aktif dan tersedia pada tanggal ini",
+      "evaluationDate": "2026-09-28",
       "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
       "vehicle": {
         "id": "veh-7711-4bc1-9022-882299aabb01",
@@ -2572,7 +2596,7 @@ Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta 
 ---
 
 #### 12.8.2 Daftarkan Driver Baru (`POST /api/admin/drivers`)
-Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehicleId`) secara opsional. Jika akun user belum ada, sistem otomatis membuatkan akun user ber-role `'driver'`.
+Mendaftarkan personil driver baru beserta jadwal masa berlaku tugas dan cuti. Admin dapat langsung menautkan armada (`vehicleId`) secara opsional.
 
 - **Method**: `POST`
 - **Path**: `/api/admin/drivers`
@@ -2586,6 +2610,10 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
   "email": "budi.driver@example.com",
   "licenseNumber": "SIM-A-77889900",
   "licenseExpiryDate": "2029-08-30",
+  "activeStartDate": "2026-01-01",
+  "activeEndDate": "2026-12-31",
+  "inactiveStartDate": null,
+  "inactiveEndDate": null,
   "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
   "photoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
   "isAvailable": true
@@ -2605,6 +2633,10 @@ Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehic
     "email": "budi.driver@example.com",
     "licenseNumber": "SIM-A-77889900",
     "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
+    "activeStartDate": "2026-01-01T00:00:00.000Z",
+    "activeEndDate": "2026-12-31T00:00:00.000Z",
+    "inactiveStartDate": null,
+    "inactiveEndDate": null,
     "rating": 5.0,
     "isAvailable": true,
     "vehicleId": "veh-7711-4bc1-9022-882299aabb01"

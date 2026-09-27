@@ -8,6 +8,7 @@ import {
   UpdateGroupInput,
 } from '../types/group'
 import { ApiError } from '../utils/errors'
+import { DriverService } from './driver.service'
 
 function cleanId(val: unknown): string {
   if (typeof val === 'string') {
@@ -155,8 +156,23 @@ export class GroupService {
     const rawDriverId = data.driver_id || data.driverId
     if (rawDriverId) {
       const cleanDriverId = cleanId(rawDriverId)
-      const driver = await prisma.driver.findUnique({ where: { id: cleanDriverId } })
+      const driver = await prisma.driver.findUnique({
+        where: { id: cleanDriverId },
+        include: { user: true },
+      })
       if (!driver) throw new ApiError('Driver not found', 404)
+
+      if (trip.departure_date) {
+        const activeCheck = await DriverService.isDriverActiveOnDate(driver, trip.departure_date)
+        if (!activeCheck.isActive) {
+          const tripDateStr = new Date(trip.departure_date).toISOString().slice(0, 10)
+          throw new ApiError(
+            `Driver ${driver.user?.name || ''} tidak aktif pada tanggal trip (${tripDateStr}): ${activeCheck.reason}`,
+            400
+          )
+        }
+      }
+
       driverId = cleanDriverId
     }
 
@@ -247,8 +263,23 @@ export class GroupService {
       const rawDriverId = data.driver_id ?? data.driverId
       if (rawDriverId) {
         const cleanDriverId = cleanId(rawDriverId)
-        const driver = await prisma.driver.findUnique({ where: { id: cleanDriverId } })
+        const driver = await prisma.driver.findUnique({
+          where: { id: cleanDriverId },
+          include: { user: true },
+        })
         if (!driver) throw new ApiError('Driver not found', 404)
+
+        if (existing.trip?.departure_date) {
+          const activeCheck = await DriverService.isDriverActiveOnDate(driver, existing.trip.departure_date)
+          if (!activeCheck.isActive) {
+            const tripDateStr = new Date(existing.trip.departure_date).toISOString().slice(0, 10)
+            throw new ApiError(
+              `Driver ${driver.user?.name || ''} tidak aktif pada tanggal trip (${tripDateStr}): ${activeCheck.reason}`,
+              400
+            )
+          }
+        }
+
         updateData.driver = { connect: { id: cleanDriverId } }
       } else {
         updateData.driver = { disconnect: true }
@@ -340,7 +371,10 @@ export class GroupService {
     const cleanGroupId = cleanId(id)
     const existing = await prisma.bookingGroup.findUnique({
       where: { id: cleanGroupId },
-      include: { driver: { include: { user: true } } },
+      include: {
+        driver: { include: { user: true } },
+        trip: true,
+      },
     })
     if (!existing) throw new ApiError('Booking group not found', 404)
 
@@ -355,6 +389,18 @@ export class GroupService {
         include: { user: true },
       })
       if (!driver) throw new ApiError('Driver not found', 404)
+
+      if (existing.trip?.departure_date) {
+        const activeCheck = await DriverService.isDriverActiveOnDate(driver, existing.trip.departure_date)
+        if (!activeCheck.isActive) {
+          const tripDateStr = new Date(existing.trip.departure_date).toISOString().slice(0, 10)
+          throw new ApiError(
+            `Driver ${driver.user?.name || ''} tidak aktif pada tanggal trip (${tripDateStr}): ${activeCheck.reason}`,
+            400
+          )
+        }
+      }
+
       updatedDriverId = cleanDriverId
       driverInfo = driver
     }

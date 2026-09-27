@@ -9,12 +9,129 @@ function cleanId(val: unknown): string {
   return String(val || '')
 }
 
+function toDateString(d: Date | string | null | undefined): string | null {
+  if (!d) return null
+  const dateObj = typeof d === 'string' ? new Date(d) : d
+  if (isNaN(dateObj.getTime())) return null
+  return dateObj.toISOString().slice(0, 10)
+}
+
+export function evaluateDriverAvailability(
+  driver: {
+    status?: string | null
+    is_available?: boolean | null
+    isAvailable?: boolean | null
+    active_start_date?: Date | string | null
+    activeStartDate?: Date | string | null
+    active_end_date?: Date | string | null
+    activeEndDate?: Date | string | null
+    inactive_start_date?: Date | string | null
+    inactiveStartDate?: Date | string | null
+    inactive_end_date?: Date | string | null
+    inactiveEndDate?: Date | string | null
+  },
+  targetDate?: Date | string | null
+) {
+  const targetStr = toDateString(targetDate || new Date())!
+
+  const activeStart = toDateString(driver.active_start_date ?? driver.activeStartDate)
+  const activeEnd = toDateString(driver.active_end_date ?? driver.activeEndDate)
+  const inactiveStart = toDateString(driver.inactive_start_date ?? driver.inactiveStartDate)
+  const inactiveEnd = toDateString(driver.inactive_end_date ?? driver.inactiveEndDate)
+
+  // 1. Cek rentang tanggal tidak aktif / cuti terlebih dahulu
+  if (inactiveStart && inactiveEnd) {
+    if (targetStr >= inactiveStart && targetStr <= inactiveEnd) {
+      return {
+        isAvailable: false,
+        status: 'off_duty',
+        statusReason: `Driver tidak aktif / cuti dari ${inactiveStart} hingga ${inactiveEnd}`,
+      }
+    }
+  } else if (inactiveStart) {
+    if (targetStr >= inactiveStart) {
+      return {
+        isAvailable: false,
+        status: 'off_duty',
+        statusReason: `Driver tidak aktif / cuti sejak ${inactiveStart}`,
+      }
+    }
+  } else if (inactiveEnd) {
+    if (targetStr <= inactiveEnd) {
+      return {
+        isAvailable: false,
+        status: 'off_duty',
+        statusReason: `Driver tidak aktif hingga ${inactiveEnd}`,
+      }
+    }
+  }
+
+  // 2. Cek rentang tanggal aktif jika dikonfigurasi
+  if (activeStart && activeEnd) {
+    if (targetStr < activeStart) {
+      return {
+        isAvailable: false,
+        status: 'inactive',
+        statusReason: `Driver baru aktif mulai ${activeStart}`,
+      }
+    }
+    if (targetStr > activeEnd) {
+      return {
+        isAvailable: false,
+        status: 'inactive',
+        statusReason: `Masa aktif driver telah berakhir pada ${activeEnd}`,
+      }
+    }
+    return {
+      isAvailable: true,
+      status: 'active',
+      statusReason: `Driver aktif dalam jadwal (${activeStart} s/d ${activeEnd})`,
+    }
+  } else if (activeStart) {
+    if (targetStr < activeStart) {
+      return {
+        isAvailable: false,
+        status: 'inactive',
+        statusReason: `Driver baru aktif mulai ${activeStart}`,
+      }
+    }
+    return {
+      isAvailable: true,
+      status: 'active',
+      statusReason: `Driver aktif sejak ${activeStart}`,
+    }
+  } else if (activeEnd) {
+    if (targetStr > activeEnd) {
+      return {
+        isAvailable: false,
+        status: 'inactive',
+        statusReason: `Masa aktif driver telah berakhir pada ${activeEnd}`,
+      }
+    }
+    return {
+      isAvailable: true,
+      status: 'active',
+      statusReason: `Driver aktif hingga ${activeEnd}`,
+    }
+  }
+
+  // 3. Jika tidak ada rentang tanggal spesifik, gunakan status dasar driver
+  const rawStatus = driver.status || 'active'
+  const isAvail = driver.is_available ?? driver.isAvailable ?? (rawStatus === 'active')
+  return {
+    isAvailable: isAvail && rawStatus === 'active',
+    status: rawStatus,
+    statusReason: rawStatus !== 'active' ? `Status driver: ${rawStatus}` : 'Driver aktif dan siap bertugas',
+  }
+}
+
 export function formatDriver(
   d: Record<string, unknown> & {
     user?: Record<string, unknown> | null
     vehicle?: Record<string, unknown> | null
     area?: Record<string, unknown> | null
-  }
+  },
+  targetDate?: Date | string | null
 ) {
   const user = d.user || {}
   const vehicle = d.vehicle || null
@@ -42,6 +159,23 @@ export function formatDriver(
 
   const areaId = (d.area_id as string) || (d.areaId as string) || (area?.id as string) || null
 
+  const activeStartDate = (d.active_start_date as string | Date) || (d.activeStartDate as string | Date) || null
+  const activeEndDate = (d.active_end_date as string | Date) || (d.activeEndDate as string | Date) || null
+  const inactiveStartDate = (d.inactive_start_date as string | Date) || (d.inactiveStartDate as string | Date) || null
+  const inactiveEndDate = (d.inactive_end_date as string | Date) || (d.inactiveEndDate as string | Date) || null
+
+  const calculatedAvail = evaluateDriverAvailability(
+    {
+      status: d.status as string,
+      is_available: d.is_available as boolean,
+      active_start_date: activeStartDate,
+      active_end_date: activeEndDate,
+      inactive_start_date: inactiveStartDate,
+      inactive_end_date: inactiveEndDate,
+    },
+    targetDate
+  )
+
   return {
     id: d.id as string,
     userId: (d.user_id as string) || (d.userId as string) || (user.id as string) || '',
@@ -60,10 +194,26 @@ export function formatDriver(
       (d.license_expiry_date as string | Date) ||
       (d.licenseExpiryDate as string | Date) ||
       null,
+    activeStartDate,
+    active_start_date: activeStartDate,
+    activeEndDate,
+    active_end_date: activeEndDate,
+    inactiveStartDate,
+    inactive_start_date: inactiveStartDate,
+    inactiveEndDate,
+    inactive_end_date: inactiveEndDate,
     rating: d.rating ? Number(d.rating) : 5.0,
-    isAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
-    is_available: d.is_available !== undefined ? (d.is_available as boolean) : true,
-    status: (d.status as string) || 'active',
+    isAvailable: calculatedAvail.isAvailable,
+    is_available: calculatedAvail.isAvailable,
+    rawIsAvailable: d.is_available !== undefined ? (d.is_available as boolean) : true,
+    status: calculatedAvail.status,
+    rawStatus: (d.status as string) || 'active',
+    statusReason: calculatedAvail.statusReason,
+    evaluationDate: targetDate
+      ? typeof targetDate === 'string'
+        ? targetDate
+        : targetDate.toISOString()
+      : new Date().toISOString(),
     areaId,
     area_id: areaId,
     area: area
@@ -114,6 +264,64 @@ export function formatDriver(
 }
 
 export class DriverService {
+  static async evaluateAvailability(
+    driverIdOrObj: string | Record<string, unknown>,
+    targetDate?: Date | string
+  ) {
+    let driverRecord: Record<string, unknown> | null = null
+    if (typeof driverIdOrObj === 'string') {
+      const cleanDrvId = cleanId(driverIdOrObj)
+      driverRecord = await prisma.driver.findFirst({
+        where: {
+          OR: [
+            { id: cleanDrvId },
+            { id: driverIdOrObj },
+            { user_id: cleanDrvId },
+            { license_number: driverIdOrObj.toUpperCase() },
+          ],
+        },
+        include: { user: true },
+      })
+    } else {
+      driverRecord = driverIdOrObj
+    }
+
+    if (!driverRecord) {
+      return { isActive: false, isAvailable: false, status: 'inactive', reason: 'Driver tidak ditemukan' }
+    }
+
+    const res = evaluateDriverAvailability(
+      {
+        status: driverRecord.status as string,
+        is_available: driverRecord.is_available as boolean,
+        active_start_date: (driverRecord.active_start_date || driverRecord.activeStartDate) as Date | string,
+        active_end_date: (driverRecord.active_end_date || driverRecord.activeEndDate) as Date | string,
+        inactive_start_date: (driverRecord.inactive_start_date || driverRecord.inactiveStartDate) as Date | string,
+        inactive_end_date: (driverRecord.inactive_end_date || driverRecord.inactiveEndDate) as Date | string,
+      },
+      targetDate
+    )
+
+    return {
+      isActive: res.isAvailable,
+      isAvailable: res.isAvailable,
+      status: res.status,
+      reason: res.statusReason,
+    }
+  }
+
+  static async isDriverActiveOnDate(
+    driverIdOrObj: string | Record<string, unknown>,
+    targetDate: Date | string
+  ): Promise<{ isActive: boolean; reason: string; effectiveStatus: string }> {
+    const res = await this.evaluateAvailability(driverIdOrObj, targetDate)
+    return {
+      isActive: res.isActive,
+      reason: res.reason,
+      effectiveStatus: res.status,
+    }
+  }
+
   static async create(data: CreateDriverInput) {
     let userId = data.user_id || data.userId
     const name = data.fullName || data.name || 'Driver'
@@ -144,6 +352,17 @@ export class DriverService {
       data.license_number || data.licenseNumber || `SIM-${Math.floor(10000000 + Math.random() * 90000000)}`
     const rawExpiry = data.licenseExpiryDate ?? data.license_expiry_date
     const licenseExpiryDate = rawExpiry ? new Date(rawExpiry) : null
+
+    const rawActiveStart = data.activeStartDate ?? data.active_start_date
+    const activeStartDate = rawActiveStart ? new Date(rawActiveStart) : null
+    const rawActiveEnd = data.activeEndDate ?? data.active_end_date
+    const activeEndDate = rawActiveEnd ? new Date(rawActiveEnd) : null
+
+    const rawInactiveStart = data.inactiveStartDate ?? data.inactive_start_date
+    const inactiveStartDate = rawInactiveStart ? new Date(rawInactiveStart) : null
+    const rawInactiveEnd = data.inactiveEndDate ?? data.inactive_end_date
+    const inactiveEndDate = rawInactiveEnd ? new Date(rawInactiveEnd) : null
+
     const isAvailable = data.is_available ?? data.isAvailable ?? true
     const status = data.status || 'active'
 
@@ -163,6 +382,10 @@ export class DriverService {
         user_id: userId,
         license_number: licenseNumber,
         license_expiry_date: licenseExpiryDate,
+        active_start_date: activeStartDate,
+        active_end_date: activeEndDate,
+        inactive_start_date: inactiveStartDate,
+        inactive_end_date: inactiveEndDate,
         is_available: isAvailable,
         status,
         area_id: areaId,
@@ -209,14 +432,21 @@ export class DriverService {
   }
 
   static async list(filters: DriverFilterInput = {}) {
-    const where: Record<string, unknown> = {}
+    let targetDate: Date | string | null = null
+    if (filters.date) {
+      targetDate = filters.date
+    } else if (filters.tripId || filters.trip_id) {
+      const rawTripId = filters.tripId || filters.trip_id
+      const trip = await prisma.trip.findUnique({
+        where: { id: cleanId(rawTripId) },
+        select: { departure_date: true },
+      })
+      if (trip) {
+        targetDate = trip.departure_date
+      }
+    }
 
-    if (filters.is_available !== undefined || filters.isAvailable !== undefined) {
-      where.is_available = filters.isAvailable ?? filters.is_available
-    }
-    if (filters.status) {
-      where.status = filters.status
-    }
+    const where: Record<string, unknown> = {}
 
     // Filter by Area
     const rawArea = filters.areaId || filters.area_id || filters.area
@@ -255,10 +485,21 @@ export class DriverService {
       orderBy: { created_at: 'desc' },
     })
 
-    return drivers.map((d) => formatDriver(d as never))
+    let formatted = drivers.map((d) => formatDriver(d as never, targetDate))
+
+    // Filter by effective status / isAvailable if explicitly requested in filter
+    if (filters.is_available !== undefined || filters.isAvailable !== undefined) {
+      const reqAvail = Boolean(filters.isAvailable ?? filters.is_available)
+      formatted = formatted.filter((d) => d.isAvailable === reqAvail)
+    }
+    if (filters.status) {
+      formatted = formatted.filter((d) => d.status === filters.status)
+    }
+
+    return formatted
   }
 
-  static async get(id: string) {
+  static async get(id: string, targetDate?: Date | string) {
     const cleanDrvId = cleanId(id)
     const driver = await prisma.driver.findFirst({
       where: {
@@ -273,7 +514,7 @@ export class DriverService {
     })
 
     if (!driver) throw new ApiError('Driver not found', 404)
-    return formatDriver(driver as never)
+    return formatDriver(driver as never, targetDate)
   }
 
   static async update(id: string, data: UpdateDriverInput) {
@@ -309,6 +550,22 @@ export class DriverService {
     if (data.licenseExpiryDate !== undefined || data.license_expiry_date !== undefined) {
       const rawExpiry = data.licenseExpiryDate ?? data.license_expiry_date
       driverUpdate.license_expiry_date = rawExpiry ? new Date(rawExpiry) : null
+    }
+    if (data.activeStartDate !== undefined || data.active_start_date !== undefined) {
+      const rawActiveStart = data.activeStartDate ?? data.active_start_date
+      driverUpdate.active_start_date = rawActiveStart ? new Date(rawActiveStart) : null
+    }
+    if (data.activeEndDate !== undefined || data.active_end_date !== undefined) {
+      const rawActiveEnd = data.activeEndDate ?? data.active_end_date
+      driverUpdate.active_end_date = rawActiveEnd ? new Date(rawActiveEnd) : null
+    }
+    if (data.inactiveStartDate !== undefined || data.inactive_start_date !== undefined) {
+      const rawInactiveStart = data.inactiveStartDate ?? data.inactive_start_date
+      driverUpdate.inactive_start_date = rawInactiveStart ? new Date(rawInactiveStart) : null
+    }
+    if (data.inactiveEndDate !== undefined || data.inactive_end_date !== undefined) {
+      const rawInactiveEnd = data.inactiveEndDate ?? data.inactive_end_date
+      driverUpdate.inactive_end_date = rawInactiveEnd ? new Date(rawInactiveEnd) : null
     }
     if (data.isAvailable !== undefined || data.is_available !== undefined) {
       driverUpdate.is_available = Boolean(data.isAvailable ?? data.is_available)
@@ -433,12 +690,13 @@ export class DriverService {
     }
 
     if (driver.user_id) {
-      const activeTrips = await prisma.trip.findMany({
-        where: {
-          guide_id: driver.user_id,
-          status: { in: ['active', 'scheduled', 'planning'] },
-        },
-      })
+      const activeTrips =
+        (await prisma.trip.findMany({
+          where: {
+            guide_id: driver.user_id,
+            status: { in: ['active', 'scheduled', 'planning'] },
+          },
+        })) || []
 
       if (activeTrips.length > 0) {
         throw new ApiError(

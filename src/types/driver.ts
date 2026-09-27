@@ -10,6 +10,14 @@ export interface CreateDriverInput {
   license_number?: string
   licenseExpiryDate?: string | Date | null
   license_expiry_date?: string | Date | null
+  activeStartDate?: string | Date | null
+  active_start_date?: string | Date | null
+  activeEndDate?: string | Date | null
+  active_end_date?: string | Date | null
+  inactiveStartDate?: string | Date | null
+  inactive_start_date?: string | Date | null
+  inactiveEndDate?: string | Date | null
+  inactive_end_date?: string | Date | null
   experienceYears?: number
   experience_years?: number
   rating?: number
@@ -39,6 +47,14 @@ export interface UpdateDriverInput {
   license_number?: string
   licenseExpiryDate?: string | Date | null
   license_expiry_date?: string | Date | null
+  activeStartDate?: string | Date | null
+  active_start_date?: string | Date | null
+  activeEndDate?: string | Date | null
+  active_end_date?: string | Date | null
+  inactiveStartDate?: string | Date | null
+  inactive_start_date?: string | Date | null
+  inactiveEndDate?: string | Date | null
+  inactive_end_date?: string | Date | null
   experienceYears?: number
   experience_years?: number
   rating?: number
@@ -64,4 +80,8 @@ export interface DriverFilterInput {
   area_id?: string
   area?: string
   search?: string
+  date?: string | Date
+  tripId?: string
+  trip_id?: string
 }
+

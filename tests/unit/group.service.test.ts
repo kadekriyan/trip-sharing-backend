@@ -247,6 +247,37 @@ describe('GroupService', () => {
       )
     })
 
+    it('should throw 400 when assigning a driver who is inactive/on leave on trip departure date', async () => {
+      const mockExistingGroup = {
+        id: 'grp-1',
+        driver_id: null,
+        trip: {
+          id: 'trip-10',
+          departure_date: new Date('2026-10-03'),
+        },
+      }
+      const mockDriverOnLeave = {
+        id: 'drv-leave',
+        license_number: 'SIM-999',
+        status: 'active',
+        is_available: true,
+        inactive_start_date: new Date('2026-10-01'),
+        inactive_end_date: new Date('2026-10-05'),
+        user: { name: 'Driver Sedang Cuti' },
+      }
+
+      ;(prisma.bookingGroup.findUnique as jest.Mock).mockResolvedValue(mockExistingGroup)
+      ;(prisma.driver.findUnique as jest.Mock).mockResolvedValue(mockDriverOnLeave)
+
+      await expect(
+        GroupService.assignDriver('grp-1', { driverId: 'drv-leave' }, 'admin-1')
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        message: expect.stringContaining('tidak aktif pada tanggal trip'),
+      })
+      expect(prisma.bookingGroup.update).not.toHaveBeenCalled()
+    })
+
     it('should unassign driver when driverId is null', async () => {
       const mockExistingGroup = {
         id: 'grp-1',

@@ -9,7 +9,7 @@ export class DriverController {
         ? req.query.is_available === 'true'
         : req.query.isAvailable !== undefined
         ? req.query.isAvailable === 'true'
-        : true
+        : undefined
 
     const drivers = await DriverService.list({
       is_available: isAvailable,
@@ -17,6 +17,8 @@ export class DriverController {
       areaId: (req.query.areaId as string) || (req.query.area_id as string) || undefined,
       area: (req.query.area as string) || undefined,
       search: req.query.search as string | undefined,
+      date: (req.query.date as string) || undefined,
+      tripId: (req.query.tripId as string) || (req.query.trip_id as string) || undefined,
     })
     sendResponse(res, 200, 'Drivers retrieved', drivers)
   }

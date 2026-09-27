@@ -232,16 +232,20 @@ model Area {
 }
 
 model Driver {
-  id               String   @id @default(uuid())
-  user_id          String   @unique
-  license_number   String   @unique
+  id                  String    @id @default(uuid())
+  user_id             String    @unique
+  license_number      String    @unique
   license_expiry_date DateTime?
-  rating           Decimal  @default(0) @db.Decimal(3, 2)
-  is_available     Boolean  @default(true)
-  status           String   @default("active")
-  area_id          String?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  active_start_date   DateTime?
+  active_end_date     DateTime?
+  inactive_start_date DateTime?
+  inactive_end_date   DateTime?
+  rating              Decimal   @default(0) @db.Decimal(3, 2)
+  is_available        Boolean   @default(true)
+  status              String    @default("active")
+  area_id             String?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
   user           User           @relation(fields: [user_id], references: [id])
   area           Area?          @relation(fields: [area_id], references: [id], onDelete: SetNull)

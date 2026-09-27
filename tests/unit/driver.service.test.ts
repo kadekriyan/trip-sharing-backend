@@ -246,7 +246,7 @@ describe('DriverService', () => {
         booking_groups: [],
       })
       ;(prisma.trip.findMany as jest.Mock).mockResolvedValue([])
-      ;(prisma.vehicle.updateMany as jest.Mock).mockResolvedValue({ count: 1 })
+      ;(prisma.vehicle.updateMany as jest.Mock).mockResolvedValue({ count: 0 })
       ;(prisma.driver.delete as jest.Mock).mockResolvedValue({ id: 'drv-1' })
 
       const result = await DriverService.delete('drv-1')
@@ -254,4 +254,81 @@ describe('DriverService', () => {
       expect(prisma.driver.delete).toHaveBeenCalledWith({ where: { id: '1' } })
     })
   })
+
+  describe('evaluateAvailability & dynamic date-based status', () => {
+    it('should be inactive when target date is within inactive range (cuti)', async () => {
+      const driverWithLeave = {
+        id: 'drv-leave',
+        status: 'active',
+        is_available: true,
+        inactive_start_date: new Date('2026-10-01'),
+        inactive_end_date: new Date('2026-10-05'),
+        user: { name: 'Driver Cuti' },
+      }
+
+      // Date inside inactive range
+      const resultInside = await DriverService.evaluateAvailability(driverWithLeave, '2026-10-03')
+      expect(resultInside.isActive).toBe(false)
+      expect(resultInside.status).toBe('off_duty')
+      expect(resultInside.reason).toContain('Driver tidak aktif / cuti')
+
+      // Date outside inactive range
+      const resultOutside = await DriverService.evaluateAvailability(driverWithLeave, '2026-10-10')
+      expect(resultOutside.isActive).toBe(true)
+      expect(resultOutside.status).toBe('active')
+    })
+
+    it('should be active when target date enters active range even if base status was inactive', async () => {
+      const driverScheduledActive = {
+        id: 'drv-active-window',
+        status: 'inactive',
+        is_available: false,
+        active_start_date: new Date('2026-11-01'),
+        active_end_date: new Date('2026-11-30'),
+        user: { name: 'Driver Musiman' },
+      }
+
+      // Date inside active range -> automatically active
+      const resultInside = await DriverService.evaluateAvailability(driverScheduledActive, '2026-11-15')
+      expect(resultInside.isActive).toBe(true)
+      expect(resultInside.status).toBe('active')
+
+      // Date before active range -> inactive
+      const resultBefore = await DriverService.evaluateAvailability(driverScheduledActive, '2026-10-15')
+      expect(resultBefore.isActive).toBe(false)
+      expect(resultBefore.status).toBe('inactive')
+      expect(resultBefore.reason).toContain('Driver baru aktif mulai')
+
+      // Date after active range -> inactive
+      const resultAfter = await DriverService.evaluateAvailability(driverScheduledActive, '2026-12-05')
+      expect(resultAfter.isActive).toBe(false)
+      expect(resultAfter.status).toBe('inactive')
+      expect(resultAfter.reason).toContain('Masa aktif driver telah berakhir')
+    })
+
+    it('should correctly format driver with date-evaluated availability in formatDriver', async () => {
+      const driver = {
+        id: 'drv-fmt',
+        user_id: 'usr-fmt',
+        license_number: 'SIM-999',
+        status: 'active',
+        is_available: true,
+        inactive_start_date: new Date('2026-10-01'),
+        inactive_end_date: new Date('2026-10-05'),
+        user: { name: 'Driver Format' },
+      }
+
+      ;(prisma.driver.findMany as jest.Mock).mockResolvedValue([driver])
+
+      const listDuringLeave = await DriverService.list({ date: '2026-10-02' })
+      expect(listDuringLeave[0].isAvailable).toBe(false)
+      expect(listDuringLeave[0].status).toBe('off_duty')
+      expect(listDuringLeave[0].statusReason).toContain('cuti')
+
+      const listAfterLeave = await DriverService.list({ date: '2026-10-10' })
+      expect(listAfterLeave[0].isAvailable).toBe(true)
+      expect(listAfterLeave[0].status).toBe('active')
+    })
+  })
 })
+
