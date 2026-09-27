@@ -133,3 +133,46 @@ describe('TripService.update', () => {
     ).rejects.toThrow(ApiError)
   })
 })
+
+describe('TripService.delete', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('should throw ApiError (400) with clear descriptive message if trip has registered participants', async () => {
+    const tripWithParticipants = {
+      id: '100',
+      current_participants: 2,
+      booking_groups: [
+        { id: 'grp-1', current_participants: 2 },
+      ],
+    }
+    ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(tripWithParticipants)
+
+    await expect(TripService.delete('trip-100')).rejects.toThrow(ApiError)
+    await expect(TripService.delete('trip-100')).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining('masih memiliki 2 peserta terdaftar'),
+    })
+    expect(prisma.trip.delete).not.toHaveBeenCalled()
+  })
+
+  it('should delete trip successfully if trip has 0 participants', async () => {
+    const emptyTrip = {
+      id: '200',
+      current_participants: 0,
+      booking_groups: [
+        { id: 'grp-1', current_participants: 0 },
+      ],
+    }
+    ;(prisma.trip.findUnique as jest.Mock).mockResolvedValue(emptyTrip)
+    ;(prisma.trip.delete as jest.Mock).mockResolvedValue({ id: '200' })
+
+    await TripService.delete('trip-200')
+
+    expect(prisma.trip.delete).toHaveBeenCalledWith({
+      where: { id: '200' },
+    })
+  })
+})
+

@@ -187,8 +187,17 @@ export class TripService {
   static async delete(id: string) {
     const cleanId = id.replace(/^trip-/, '')
     const trip = await this.get(cleanId)
-    if (trip.booking_groups.some((group) => group.current_participants > 0)) {
-      throw new ApiError('Trip has participants and cannot be deleted', 400)
+    const totalGroupParticipants = trip.booking_groups.reduce(
+      (sum, group) => sum + (group.current_participants || 0),
+      0
+    )
+    const activeParticipants = Math.max(totalGroupParticipants, trip.current_participants || 0)
+
+    if (activeParticipants > 0) {
+      throw new ApiError(
+        `Jadwal trip tidak dapat dihapus karena masih memiliki ${activeParticipants} peserta terdaftar. Silakan batalkan atau pindahkan peserta terlebih dahulu ke jadwal trip lain sebelum menghapus.`,
+        400
+      )
     }
 
     await prisma.trip.delete({ where: { id: cleanId } })
