@@ -1,102 +1,151 @@
-import { z } from 'zod';
+import Joi from 'joi';
+import { ValidationError } from '../utils/errors';
 
-export const transactionTypeEnum = z.enum(['INCOME', 'EXPENSE']);
+export function validateSchema<T = any>(schema: Joi.ObjectSchema, data: any): T {
+  const { error, value } = schema.validate(data, {
+    abortEarly: false,
+    stripUnknown: true,
+    convert: true,
+  });
 
-export const transactionCategoryEnum = z.enum([
+  if (error) {
+    const details = error.details.map((detail) => ({
+      field: detail.path.join('.'),
+      message: detail.message,
+    }));
+    throw new ValidationError('Validation failed', details);
+  }
+
+  return value as T;
+}
+
+export const transactionTypeEnum = Joi.string().valid('INCOME', 'EXPENSE');
+
+export const transactionCategoryEnum = Joi.string().valid(
   'GUEST_COLLECT',
   'MERCHANT_COMMISSION',
+  'SHOPPING_COMMISSION',
   'MODAL_REFUND',
+  'PACKAGE_REFUND',
   'OTHER_INCOME',
   'DRIVER_MODAL',
+  'DRIVER_CAPITAL_EXPENSE',
   'DRIVER_FEE',
+  'DRIVER_SALARY',
   'DRIVER_TRANSPORT',
+  'DRIVER_TRANSPORT_PKG',
   'VENDOR_TICKET',
   'VENDOR_RENTAL',
+  'VENDOR_RENT',
   'VENDOR_PARKING',
+  'VENDOR_VIP_PARKING',
   'OP_ADMIN_SALARY',
   'OP_CAR_WASH',
   'OP_RENT',
   'OP_UTILITIES',
   'OP_MAINTENANCE',
-  'OTHER_EXPENSE',
-]);
+  'OTHER_EXPENSE'
+);
 
-export const paymentMethodEnum = z.enum(['CASH', 'TRANSFER', 'MIDTRANS']);
-export const transactionStatusEnum = z.enum(['PENDING', 'CONFIRMED', 'SETTLED', 'CANCELLED']);
+export const paymentMethodEnum = Joi.string().valid('CASH', 'TRANSFER', 'MIDTRANS');
+export const transactionStatusEnum = Joi.string().valid('PENDING', 'CONFIRMED', 'SETTLED', 'CANCELLED');
 
-export const createTransactionSchema = z.object({
-  type: transactionTypeEnum,
-  category: transactionCategoryEnum,
-  amount: z.number().positive('Amount must be greater than 0'),
-  payment_method: paymentMethodEnum.default('CASH'),
+export const createTransactionSchema = Joi.object({
+  type: transactionTypeEnum.required(),
+  category: transactionCategoryEnum.required(),
+  amount: Joi.number().positive().required(),
+  payment_method: paymentMethodEnum.default('CASH').optional(),
   paymentMethod: paymentMethodEnum.optional(),
-  status: transactionStatusEnum.default('CONFIRMED'),
-  transaction_date: z.string().or(z.date()).optional(),
-  transactionDate: z.string().or(z.date()).optional(),
-  trip_id: z.string().uuid().optional().nullable(),
-  tripId: z.string().uuid().optional().nullable(),
-  booking_group_id: z.string().uuid().optional().nullable(),
-  bookingGroupId: z.string().uuid().optional().nullable(),
-  driver_id: z.string().uuid().optional().nullable(),
-  driverId: z.string().uuid().optional().nullable(),
-  vehicle_id: z.string().uuid().optional().nullable(),
-  vehicleId: z.string().uuid().optional().nullable(),
-  vendor_name: z.string().max(255).optional().nullable(),
-  vendorName: z.string().max(255).optional().nullable(),
-  receipt_proof_url: z.string().url().optional().nullable().or(z.string().optional()),
-  receiptProofUrl: z.string().url().optional().nullable().or(z.string().optional()),
-  description: z.string().max(500).optional().nullable(),
-  notes: z.string().max(1000).optional().nullable(),
+  status: transactionStatusEnum.default('CONFIRMED').optional(),
+  transaction_date: Joi.alternatives().try(Joi.date().iso(), Joi.string(), Joi.allow(null, '')).optional(),
+  transactionDate: Joi.alternatives().try(Joi.date().iso(), Joi.string(), Joi.allow(null, '')).optional(),
+  trip_id: Joi.string().allow(null, '').optional(),
+  tripId: Joi.string().allow(null, '').optional(),
+  booking_group_id: Joi.string().allow(null, '').optional(),
+  bookingGroupId: Joi.string().allow(null, '').optional(),
+  driver_id: Joi.string().allow(null, '').optional(),
+  driverId: Joi.string().allow(null, '').optional(),
+  vehicle_id: Joi.string().allow(null, '').optional(),
+  vehicleId: Joi.string().allow(null, '').optional(),
+  vendor_name: Joi.string().max(255).allow(null, '').optional(),
+  vendorName: Joi.string().max(255).allow(null, '').optional(),
+  receipt_proof_url: Joi.string().allow(null, '').optional(),
+  receiptProofUrl: Joi.string().allow(null, '').optional(),
+  description: Joi.string().max(500).allow(null, '').optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
 });
 
-export const updateTransactionSchema = createTransactionSchema.partial();
-
-export const createDriverSettlementSlipSchema = z.object({
-  driver_id: z.string().uuid(),
-  driverId: z.string().uuid().optional(),
-  period_start: z.string().or(z.date()),
-  periodStart: z.string().or(z.date()).optional(),
-  period_end: z.string().or(z.date()),
-  periodEnd: z.string().or(z.date()).optional(),
-  package_type: z.enum(['ALL_IN', 'TRANSPORT_ONLY', 'MIXED']).default('MIXED'),
-  packageType: z.enum(['ALL_IN', 'TRANSPORT_ONLY', 'MIXED']).optional(),
-  total_trips: z.number().int().nonnegative().optional(),
-  totalTrips: z.number().int().nonnegative().optional(),
-  total_driver_fee: z.number().nonnegative().optional(),
-  totalDriverFee: z.number().nonnegative().optional(),
-  total_transport_allowance: z.number().nonnegative().optional(),
-  totalTransportAllowance: z.number().nonnegative().optional(),
-  total_bonus_or_commission: z.number().nonnegative().optional(),
-  totalBonusOrCommission: z.number().nonnegative().optional(),
-  total_deductions: z.number().nonnegative().optional(),
-  totalDeductions: z.number().nonnegative().optional(),
-  net_amount: z.number().optional(),
-  netAmount: z.number().optional(),
-  notes: z.string().max(1000).optional().nullable(),
-  breakdown_details: z.any().optional(),
-  breakdownDetails: z.any().optional(),
+export const updateTransactionSchema = Joi.object({
+  type: transactionTypeEnum.optional(),
+  category: transactionCategoryEnum.optional(),
+  amount: Joi.number().positive().optional(),
+  payment_method: paymentMethodEnum.optional(),
+  paymentMethod: paymentMethodEnum.optional(),
+  status: transactionStatusEnum.optional(),
+  transaction_date: Joi.alternatives().try(Joi.date().iso(), Joi.string(), Joi.allow(null, '')).optional(),
+  transactionDate: Joi.alternatives().try(Joi.date().iso(), Joi.string(), Joi.allow(null, '')).optional(),
+  trip_id: Joi.string().allow(null, '').optional(),
+  tripId: Joi.string().allow(null, '').optional(),
+  booking_group_id: Joi.string().allow(null, '').optional(),
+  bookingGroupId: Joi.string().allow(null, '').optional(),
+  driver_id: Joi.string().allow(null, '').optional(),
+  driverId: Joi.string().allow(null, '').optional(),
+  vehicle_id: Joi.string().allow(null, '').optional(),
+  vehicleId: Joi.string().allow(null, '').optional(),
+  vendor_name: Joi.string().max(255).allow(null, '').optional(),
+  vendorName: Joi.string().max(255).allow(null, '').optional(),
+  receipt_proof_url: Joi.string().allow(null, '').optional(),
+  receiptProofUrl: Joi.string().allow(null, '').optional(),
+  description: Joi.string().max(500).allow(null, '').optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
 });
 
-export const createVendorSettlementSlipSchema = z.object({
-  vendor_name: z.string().min(1, 'Vendor name is required'),
-  vendorName: z.string().optional(),
-  category: z.enum(['TICKET', 'RENTAL_JEEP', 'PARKING_VIP', 'OTHER']).default('TICKET'),
-  period_start: z.string().or(z.date()),
-  periodStart: z.string().or(z.date()).optional(),
-  period_end: z.string().or(z.date()),
-  periodEnd: z.string().or(z.date()).optional(),
-  total_items: z.number().int().nonnegative().optional(),
-  totalItems: z.number().int().nonnegative().optional(),
-  total_amount: z.number().positive('Total amount must be greater than 0'),
-  totalAmount: z.number().optional(),
-  notes: z.string().max(1000).optional().nullable(),
-  breakdown_details: z.any().optional(),
-  breakdownDetails: z.any().optional(),
+export const createDriverSettlementSlipSchema = Joi.object({
+  driver_id: Joi.string().required(),
+  driverId: Joi.string().optional(),
+  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  periodStart: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  periodEnd: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  package_type: Joi.string().valid('ALL_IN', 'TRANSPORT_ONLY', 'MIXED').default('MIXED').optional(),
+  packageType: Joi.string().valid('ALL_IN', 'TRANSPORT_ONLY', 'MIXED').optional(),
+  total_trips: Joi.number().integer().min(0).optional(),
+  totalTrips: Joi.number().integer().min(0).optional(),
+  total_driver_fee: Joi.number().min(0).optional(),
+  totalDriverFee: Joi.number().min(0).optional(),
+  total_transport_allowance: Joi.number().min(0).optional(),
+  totalTransportAllowance: Joi.number().min(0).optional(),
+  total_bonus_or_commission: Joi.number().min(0).optional(),
+  totalBonusOrCommission: Joi.number().min(0).optional(),
+  total_deductions: Joi.number().min(0).optional(),
+  totalDeductions: Joi.number().min(0).optional(),
+  net_amount: Joi.number().optional(),
+  netAmount: Joi.number().optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
+  breakdown_details: Joi.any().optional(),
+  breakdownDetails: Joi.any().optional(),
 });
 
-export const updateSlipStatusSchema = z.object({
-  status: z.enum(['DRAFT', 'DRIVER_CONFIRMED', 'VENDOR_CONFIRMED', 'PAID', 'CANCELLED']),
-  payment_proof_url: z.string().url().optional().nullable().or(z.string().optional()),
-  paymentProofUrl: z.string().url().optional().nullable().or(z.string().optional()),
-  notes: z.string().max(1000).optional().nullable(),
+export const createVendorSettlementSlipSchema = Joi.object({
+  vendor_name: Joi.string().required(),
+  vendorName: Joi.string().optional(),
+  category: Joi.string().valid('TICKET', 'RENTAL_JEEP', 'PARKING_VIP', 'OTHER').default('TICKET').optional(),
+  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  periodStart: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  periodEnd: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  total_items: Joi.number().integer().min(0).optional(),
+  totalItems: Joi.number().integer().min(0).optional(),
+  total_amount: Joi.number().positive().required(),
+  totalAmount: Joi.number().optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
+  breakdown_details: Joi.any().optional(),
+  breakdownDetails: Joi.any().optional(),
+});
+
+export const updateSlipStatusSchema = Joi.object({
+  status: Joi.string().valid('DRAFT', 'DRIVER_CONFIRMED', 'VENDOR_CONFIRMED', 'PAID', 'CANCELLED').required(),
+  payment_proof_url: Joi.string().allow(null, '').optional(),
+  paymentProofUrl: Joi.string().allow(null, '').optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
 });

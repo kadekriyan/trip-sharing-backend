@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { FinanceService } from '../services/finance.service';
 import {
+  validateSchema,
   createTransactionSchema,
   updateTransactionSchema,
   createDriverSettlementSlipSchema,
@@ -11,7 +12,7 @@ import {
 export class FinanceController {
   static async createTransaction(req: Request, res: Response, next: NextFunction) {
     try {
-      const validated = createTransactionSchema.parse(req.body);
+      const validated = validateSchema(createTransactionSchema, req.body);
       const adminId = (req as any).user?.userId;
       const tx = await FinanceService.createTransaction(validated, adminId);
       res.status(201).json({
@@ -83,7 +84,7 @@ export class FinanceController {
   static async updateTransaction(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const validated = updateTransactionSchema.parse(req.body);
+      const validated = validateSchema(updateTransactionSchema, req.body);
       const tx = await FinanceService.updateTransaction(id, validated);
       res.json({
         success: true,
@@ -142,7 +143,7 @@ export class FinanceController {
 
   static async createDriverSlip(req: Request, res: Response, next: NextFunction) {
     try {
-      const validated = createDriverSettlementSlipSchema.parse(req.body);
+      const validated = validateSchema(createDriverSettlementSlipSchema, req.body);
       const slip = await FinanceService.createDriverSettlementSlip(validated);
       res.status(201).json({
         success: true,
@@ -186,7 +187,7 @@ export class FinanceController {
   static async updateDriverSlipStatus(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const validated = updateSlipStatusSchema.parse(req.body);
+      const validated = validateSchema(updateSlipStatusSchema, req.body);
       const slip = await FinanceService.updateDriverSlipStatus(id, validated);
       res.json({
         success: true,
@@ -200,7 +201,7 @@ export class FinanceController {
 
   static async createVendorSlip(req: Request, res: Response, next: NextFunction) {
     try {
-      const validated = createVendorSettlementSlipSchema.parse(req.body);
+      const validated = validateSchema(createVendorSettlementSlipSchema, req.body);
       const slip = await FinanceService.createVendorSettlementSlip(validated);
       res.status(201).json({
         success: true,
@@ -244,7 +245,7 @@ export class FinanceController {
   static async updateVendorSlipStatus(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const validated = updateSlipStatusSchema.parse(req.body);
+      const validated = validateSchema(updateSlipStatusSchema, req.body);
       const slip = await FinanceService.updateVendorSlipStatus(id, validated);
       res.json({
         success: true,
