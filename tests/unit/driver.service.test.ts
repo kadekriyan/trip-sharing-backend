@@ -330,5 +330,41 @@ describe('DriverService', () => {
       expect(listAfterLeave[0].status).toBe('active')
     })
   })
+
+  describe('driverValidator', () => {
+    it('should validate and preserve activeStartDate, activeEndDate, inactiveStartDate, inactiveEndDate', () => {
+      // Import driverValidator
+      const { driverValidator } = require('../../src/validators/driver.validator')
+
+      const input = {
+        fullName: 'Parji',
+        phoneNumber: '08123456789',
+        licenseNumber: 'SIM-123422544',
+        licenseExpiryDate: '2027-12-29T00:00:00.000Z',
+        activeStartDate: '2026-10-01T00:00:00.000Z',
+        activeEndDate: '2026-12-31T00:00:00.000Z',
+        inactiveStartDate: '2026-10-05T00:00:00.000Z',
+        inactiveEndDate: '2026-10-10T00:00:00.000Z',
+      }
+
+      const { error: createErr, value: createVal } = driverValidator.create.validate(input, {
+        stripUnknown: true,
+      })
+      expect(createErr).toBeUndefined()
+      expect(createVal.activeStartDate).toBeDefined()
+      expect(createVal.activeEndDate).toBeDefined()
+      expect(createVal.inactiveStartDate).toBeDefined()
+      expect(createVal.inactiveEndDate).toBeDefined()
+
+      const { error: updateErr, value: updateVal } = driverValidator.update.validate(input, {
+        stripUnknown: true,
+      })
+      expect(updateErr).toBeUndefined()
+      expect(updateVal.activeStartDate).toBeDefined()
+      expect(updateVal.activeEndDate).toBeDefined()
+      expect(updateVal.inactiveStartDate).toBeDefined()
+      expect(updateVal.inactiveEndDate).toBeDefined()
+    })
+  })
 })
 

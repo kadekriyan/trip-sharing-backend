@@ -61,6 +61,7 @@ model Destination {
   seo_og_image       String?
   custom_schema_json String?  @db.Text
   no_index           Boolean  @default(false)
+  is_unlisted        Boolean  @default(false)
   is_active          Boolean  @default(true)
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
@@ -68,6 +69,7 @@ model Destination {
   trips Trip[]
 
   @@index([is_active])
+  @@index([is_unlisted])
   @@index([slug])
 }
 

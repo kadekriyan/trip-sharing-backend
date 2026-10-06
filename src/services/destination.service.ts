@@ -9,6 +9,8 @@ export interface DestinationQueryFilters {
   sortBy?: 'popular' | 'price_asc' | 'price_desc' | 'rating'
   page?: number
   limit?: number
+  is_unlisted?: boolean
+  isUnlisted?: boolean
 }
 
 function formatDestination(dest: Record<string, unknown>) {
@@ -53,6 +55,8 @@ function formatDestination(dest: Record<string, unknown>) {
       (dest.custom_schema_json as string) || (dest.customSchemaJson as string) || null,
     noIndex: dest.no_index !== undefined ? Boolean(dest.no_index) : Boolean(dest.noIndex),
     no_index: dest.no_index !== undefined ? Boolean(dest.no_index) : Boolean(dest.noIndex),
+    isUnlisted: dest.is_unlisted !== undefined ? Boolean(dest.is_unlisted) : Boolean(dest.isUnlisted),
+    is_unlisted: dest.is_unlisted !== undefined ? Boolean(dest.is_unlisted) : Boolean(dest.isUnlisted),
     isActive: dest.is_active !== undefined ? (dest.is_active as boolean) : true,
     createdAt: dest.created_at,
     updatedAt: dest.updated_at,
@@ -134,6 +138,8 @@ export class DestinationService {
     customSchemaJson?: string
     no_index?: boolean
     noIndex?: boolean
+    is_unlisted?: boolean
+    isUnlisted?: boolean
     is_active?: boolean
   }) {
     const name = data.name || data.title || 'Untitled Destination'
@@ -142,6 +148,11 @@ export class DestinationService {
     const price = data.price_per_person ?? data.pricePerPax ?? 0
     const priceTransportOnly = data.price_transport_only ?? data.priceTransportOnly ?? 0
     const coverImage = data.cover_image || data.coverImage || data.image_url || null
+    const isUnlisted = Boolean(data.is_unlisted ?? data.isUnlisted ?? false)
+    const noIndex =
+      data.no_index !== undefined || data.noIndex !== undefined
+        ? Boolean(data.no_index ?? data.noIndex)
+        : isUnlisted
 
     const seoKeywords = data.seo_keywords ?? data.seoKeywords
     let parsedKeywords: Prisma.InputJsonValue | undefined = undefined
@@ -188,7 +199,8 @@ export class DestinationService {
         seo_keywords: parsedKeywords ?? ([] as Prisma.InputJsonValue),
         seo_og_image: data.seo_og_image || data.seoOgImage || null,
         custom_schema_json: data.custom_schema_json || data.customSchemaJson || null,
-        no_index: Boolean(data.no_index ?? data.noIndex ?? false),
+        no_index: noIndex,
+        is_unlisted: isUnlisted,
         is_active: data.is_active ?? true,
       },
     })
@@ -203,8 +215,16 @@ export class DestinationService {
     const limit = filters.limit && filters.limit > 0 ? Number(filters.limit) : 10
     const skip = (page - 1) * limit
 
+    const isUnlistedFilter =
+      filters.is_unlisted !== undefined
+        ? filters.is_unlisted
+        : filters.isUnlisted !== undefined
+        ? filters.isUnlisted
+        : false
+
     const where: Prisma.DestinationWhereInput = {
       is_active: true,
+      is_unlisted: isUnlistedFilter,
       ...(filters.search && {
         OR: [
           { name: { contains: filters.search, mode: 'insensitive' } },
@@ -252,9 +272,13 @@ export class DestinationService {
     }
   }
 
-  static async adminList(filters: { is_active?: boolean } = {}) {
+  static async adminList(filters: { is_active?: boolean; is_unlisted?: boolean; isUnlisted?: boolean } = {}) {
+    const isUnlisted = filters.is_unlisted !== undefined ? filters.is_unlisted : filters.isUnlisted
     const destinations = await prisma.destination.findMany({
-      where: { ...(filters.is_active !== undefined && { is_active: filters.is_active }) },
+      where: {
+        ...(filters.is_active !== undefined && { is_active: filters.is_active }),
+        ...(isUnlisted !== undefined && { is_unlisted: isUnlisted }),
+      },
       orderBy: { created_at: 'desc' },
     })
     return destinations.map((d) => formatDestination(d as unknown as Record<string, unknown>))
@@ -495,6 +519,13 @@ export class DestinationService {
     }
     if (data.noIndex !== undefined || data.no_index !== undefined) {
       updateData.no_index = Boolean(data.noIndex ?? data.no_index)
+    }
+    if (data.isUnlisted !== undefined || data.is_unlisted !== undefined) {
+      const isUnlisted = Boolean(data.isUnlisted ?? data.is_unlisted)
+      updateData.is_unlisted = isUnlisted
+      if (isUnlisted && data.noIndex === undefined && data.no_index === undefined && !existing.no_index) {
+        updateData.no_index = true
+      }
     }
     if (data.isActive !== undefined || data.is_active !== undefined) {
       updateData.is_active = Boolean(data.isActive ?? data.is_active)
