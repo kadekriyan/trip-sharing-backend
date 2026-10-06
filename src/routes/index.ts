@@ -13,11 +13,14 @@ import tripRoutes from './trips.routes'
 import uploadRoutes from './upload.routes'
 import vehicleRoutes from './vehicles.routes'
 import settingsRoutes from './settings.routes'
+import financeRoutes from './finance.routes'
 
 export const routes = Router()
 
 routes.use('/auth', authRoutes)
 routes.use('/admin', adminRoutes)
+routes.use('/finance', financeRoutes)
+routes.use('/admin/finance', financeRoutes)
 routes.use('/settings', settingsRoutes)
 routes.use('/destinations', destinationRoutes)
 routes.use('/trips', tripRoutes)

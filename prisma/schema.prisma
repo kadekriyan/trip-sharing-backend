@@ -86,9 +86,10 @@ model Trip {
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
 
-  destination    Destination    @relation(fields: [destination_id], references: [id])
-  guide          User?          @relation(fields: [guide_id], references: [id])
-  booking_groups BookingGroup[]
+  destination          Destination          @relation(fields: [destination_id], references: [id])
+  guide                User?                @relation(fields: [guide_id], references: [id])
+  booking_groups       BookingGroup[]
+  finance_transactions FinanceTransaction[]
 
   @@index([destination_id])
   @@index([departure_date])
@@ -109,11 +110,12 @@ model BookingGroup {
   created_at           DateTime @default(now())
   updated_at           DateTime @updatedAt
 
-  trip         Trip          @relation(fields: [trip_id], references: [id])
-  driver       Driver?       @relation(fields: [driver_id], references: [id], onDelete: SetNull)
-  vehicle      Vehicle?      @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
-  participants Participant[]
-  payments     Payment[]
+  trip                 Trip                 @relation(fields: [trip_id], references: [id])
+  driver               Driver?              @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  vehicle              Vehicle?             @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+  participants         Participant[]
+  payments             Payment[]
+  finance_transactions FinanceTransaction[]
 
   @@unique([trip_id, group_number])
   @@index([trip_id])
@@ -249,10 +251,12 @@ model Driver {
   created_at          DateTime  @default(now())
   updated_at          DateTime  @updatedAt
 
-  user           User           @relation(fields: [user_id], references: [id])
-  area           Area?          @relation(fields: [area_id], references: [id], onDelete: SetNull)
-  vehicle        Vehicle?
-  booking_groups BookingGroup[]
+  user                 User                   @relation(fields: [user_id], references: [id])
+  area                 Area?                  @relation(fields: [area_id], references: [id], onDelete: SetNull)
+  vehicle              Vehicle?
+  booking_groups       BookingGroup[]
+  finance_transactions FinanceTransaction[]
+  settlement_slips     DriverSettlementSlip[]
 
   @@index([is_available])
   @@index([status])
@@ -276,9 +280,10 @@ model Vehicle {
   created_at       DateTime @default(now())
   updated_at       DateTime @updatedAt
 
-  driver         Driver?        @relation(fields: [driver_id], references: [id], onDelete: SetNull)
-  area           Area?          @relation(fields: [area_id], references: [id], onDelete: SetNull)
-  booking_groups BookingGroup[]
+  driver               Driver?                @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  area                 Area?                  @relation(fields: [area_id], references: [id], onDelete: SetNull)
+  booking_groups       BookingGroup[]
+  finance_transactions FinanceTransaction[]
 
   @@index([is_available])
   @@index([status])
@@ -334,5 +339,94 @@ model PasswordResetToken {
 
   @@index([token])
   @@index([user_id])
+}
+
+model FinanceTransaction {
+  id                 String    @id @default(uuid())
+  transaction_number String    @unique
+  type               String    // INCOME, EXPENSE
+  category           String    // GUEST_COLLECT, MERCHANT_COMMISSION, MODAL_REFUND, OTHER_INCOME, DRIVER_MODAL, DRIVER_FEE, DRIVER_TRANSPORT, VENDOR_TICKET, VENDOR_RENTAL, VENDOR_PARKING, OP_ADMIN_SALARY, OP_CAR_WASH, OP_RENT, OP_UTILITIES, OP_MAINTENANCE, OTHER_EXPENSE
+  amount             Decimal   @db.Decimal(12, 2)
+  payment_method     String    @default("CASH") // CASH, TRANSFER, MIDTRANS
+  status             String    @default("CONFIRMED") // PENDING, CONFIRMED, SETTLED, CANCELLED
+  transaction_date   DateTime  @default(now())
+  trip_id            String?
+  booking_group_id   String?
+  driver_id          String?
+  vehicle_id         String?
+  vendor_name        String?
+  receipt_proof_url  String?
+  description        String?
+  notes              String?
+  created_by         String?
+  created_at         DateTime  @default(now())
+  updated_at         DateTime  @updatedAt
+
+  trip          Trip?         @relation(fields: [trip_id], references: [id], onDelete: SetNull)
+  booking_group BookingGroup? @relation(fields: [booking_group_id], references: [id], onDelete: SetNull)
+  driver        Driver?       @relation(fields: [driver_id], references: [id], onDelete: SetNull)
+  vehicle       Vehicle?      @relation(fields: [vehicle_id], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([category])
+  @@index([status])
+  @@index([transaction_date])
+  @@index([trip_id])
+  @@index([driver_id])
+  @@index([vehicle_id])
+  @@index([booking_group_id])
+}
+
+model DriverSettlementSlip {
+  id                         String    @id @default(uuid())
+  slip_number                String    @unique
+  driver_id                  String
+  period_start               DateTime
+  period_end                 DateTime
+  package_type               String    @default("MIXED") // ALL_IN, TRANSPORT_ONLY, MIXED
+  total_trips                Int       @default(0)
+  total_driver_fee           Decimal   @default(0) @db.Decimal(12, 2)
+  total_transport_allowance  Decimal   @default(0) @db.Decimal(12, 2)
+  total_bonus_or_commission  Decimal   @default(0) @db.Decimal(12, 2)
+  total_deductions           Decimal   @default(0) @db.Decimal(12, 2)
+  net_amount                 Decimal   @db.Decimal(12, 2)
+  status                     String    @default("DRAFT") // DRAFT, DRIVER_CONFIRMED, PAID, CANCELLED
+  confirmed_at               DateTime?
+  paid_at                    DateTime?
+  payment_proof_url          String?
+  notes                      String?
+  breakdown_details          Json?
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+
+  driver Driver @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+
+  @@index([driver_id])
+  @@index([status])
+  @@index([period_start, period_end])
+}
+
+model VendorSettlementSlip {
+  id                String    @id @default(uuid())
+  slip_number       String    @unique
+  vendor_name       String
+  category          String    @default("TICKET") // TICKET, RENTAL_JEEP, PARKING_VIP, OTHER
+  period_start      DateTime
+  period_end        DateTime
+  total_items       Int       @default(0)
+  total_amount      Decimal   @db.Decimal(12, 2)
+  status            String    @default("DRAFT") // DRAFT, VENDOR_CONFIRMED, PAID, CANCELLED
+  confirmed_at      DateTime?
+  paid_at           DateTime?
+  payment_proof_url String?
+  notes             String?
+  breakdown_details Json?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  @@index([vendor_name])
+  @@index([category])
+  @@index([status])
+  @@index([period_start, period_end])
 }
 
