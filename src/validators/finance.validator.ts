@@ -101,11 +101,11 @@ export const updateTransactionSchema = Joi.object({
 });
 
 export const createDriverSettlementSlipSchema = Joi.object({
-  driver_id: Joi.string().required(),
+  driver_id: Joi.string().optional(),
   driverId: Joi.string().optional(),
-  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   periodStart: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
-  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   periodEnd: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   package_type: Joi.string().valid('ALL_IN', 'TRANSPORT_ONLY', 'MIXED').default('MIXED').optional(),
   packageType: Joi.string().valid('ALL_IN', 'TRANSPORT_ONLY', 'MIXED').optional(),
@@ -124,24 +124,31 @@ export const createDriverSettlementSlipSchema = Joi.object({
   notes: Joi.string().max(1000).allow(null, '').optional(),
   breakdown_details: Joi.any().optional(),
   breakdownDetails: Joi.any().optional(),
-});
+})
+  .or('driver_id', 'driverId')
+  .or('period_start', 'periodStart')
+  .or('period_end', 'periodEnd');
 
 export const createVendorSettlementSlipSchema = Joi.object({
-  vendor_name: Joi.string().required(),
+  vendor_name: Joi.string().optional(),
   vendorName: Joi.string().optional(),
   category: Joi.string().valid('TICKET', 'RENTAL_JEEP', 'PARKING_VIP', 'OTHER').default('TICKET').optional(),
-  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   periodStart: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
-  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).required(),
+  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   periodEnd: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
   total_items: Joi.number().integer().min(0).optional(),
   totalItems: Joi.number().integer().min(0).optional(),
-  total_amount: Joi.number().positive().required(),
-  totalAmount: Joi.number().optional(),
+  total_amount: Joi.number().positive().optional(),
+  totalAmount: Joi.number().positive().optional(),
   notes: Joi.string().max(1000).allow(null, '').optional(),
   breakdown_details: Joi.any().optional(),
   breakdownDetails: Joi.any().optional(),
-});
+})
+  .or('vendor_name', 'vendorName')
+  .or('period_start', 'periodStart')
+  .or('period_end', 'periodEnd')
+  .or('total_amount', 'totalAmount');
 
 export const updateSlipStatusSchema = Joi.object({
   status: Joi.string().valid('DRAFT', 'DRIVER_CONFIRMED', 'VENDOR_CONFIRMED', 'PAID', 'CANCELLED').required(),

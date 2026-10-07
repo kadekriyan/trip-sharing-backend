@@ -80,7 +80,24 @@ describe('Finance Validator Unit Tests', () => {
       expect(result.total_driver_fee).toBe(1500000);
     });
 
-    it('throws error if driver_id is missing', () => {
+    it('validates valid driver settlement slip payload with camelCase keys', () => {
+      const payload = {
+        driverId: 'drv-12345',
+        periodStart: '2026-10-01',
+        periodEnd: '2026-10-15',
+        packageType: 'TRANSPORT_ONLY',
+        totalTrips: 5,
+        totalDriverFee: 1500000,
+        netAmount: 1500000,
+      };
+
+      const result = validateSchema(createDriverSettlementSlipSchema, payload);
+      expect(result.driverId).toBe('drv-12345');
+      expect(result.packageType).toBe('TRANSPORT_ONLY');
+      expect(result.totalDriverFee).toBe(1500000);
+    });
+
+    it('throws error if driver_id and driverId are missing', () => {
       expect(() => {
         validateSchema(createDriverSettlementSlipSchema, {
           period_start: '2026-10-01',
@@ -91,7 +108,7 @@ describe('Finance Validator Unit Tests', () => {
   });
 
   describe('createVendorSettlementSlipSchema', () => {
-    it('validates vendor slip payload', () => {
+    it('validates vendor slip payload with snake_case', () => {
       const payload = {
         vendor_name: 'Jeep Merapi Community',
         category: 'RENTAL_JEEP',
@@ -105,6 +122,32 @@ describe('Finance Validator Unit Tests', () => {
       expect(result.vendor_name).toBe('Jeep Merapi Community');
       expect(result.category).toBe('RENTAL_JEEP');
       expect(result.total_amount).toBe(2000000);
+    });
+
+    it('validates vendor slip payload with camelCase keys (frontend payload)', () => {
+      const payload = {
+        vendorName: 'Jeep Merapi Community',
+        category: 'RENTAL_JEEP',
+        periodStart: '2026-10-01',
+        periodEnd: '2026-10-15',
+        totalItems: 4,
+        totalAmount: 2000000,
+      };
+
+      const result = validateSchema(createVendorSettlementSlipSchema, payload);
+      expect(result.vendorName).toBe('Jeep Merapi Community');
+      expect(result.category).toBe('RENTAL_JEEP');
+      expect(result.totalAmount).toBe(2000000);
+    });
+
+    it('throws error if vendor_name and vendorName are missing', () => {
+      expect(() => {
+        validateSchema(createVendorSettlementSlipSchema, {
+          periodStart: '2026-10-01',
+          periodEnd: '2026-10-15',
+          totalAmount: 2000000,
+        });
+      }).toThrow(ValidationError);
     });
   });
 
