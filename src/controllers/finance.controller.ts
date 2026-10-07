@@ -7,6 +7,7 @@ import {
   createDriverSettlementSlipSchema,
   createVendorSettlementSlipSchema,
   updateSlipStatusSchema,
+  updateVendorSettlementSlipSchema,
 } from '../validators/finance.validator';
 
 export class FinanceController {
@@ -235,6 +236,21 @@ export class FinanceController {
       const slip = await FinanceService.getVendorSlipById(id);
       res.json({
         success: true,
+        data: slip,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateVendorSlip(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const validated = validateSchema(updateVendorSettlementSlipSchema, req.body);
+      const slip = await FinanceService.updateVendorSettlementSlip(id, validated);
+      res.json({
+        success: true,
+        message: 'Vendor settlement slip updated successfully',
         data: slip,
       });
     } catch (error) {

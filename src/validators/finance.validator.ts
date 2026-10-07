@@ -156,3 +156,20 @@ export const updateSlipStatusSchema = Joi.object({
   paymentProofUrl: Joi.string().allow(null, '').optional(),
   notes: Joi.string().max(1000).allow(null, '').optional(),
 });
+
+export const updateVendorSettlementSlipSchema = Joi.object({
+  vendor_name: Joi.string().optional(),
+  vendorName: Joi.string().optional(),
+  category: Joi.string().valid('TICKET', 'RENTAL_JEEP', 'PARKING_VIP', 'OTHER').optional(),
+  period_start: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  periodStart: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  period_end: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  periodEnd: Joi.alternatives().try(Joi.date().iso(), Joi.string()).optional(),
+  total_items: Joi.number().integer().min(0).optional(),
+  totalItems: Joi.number().integer().min(0).optional(),
+  total_amount: Joi.number().positive().optional(),
+  totalAmount: Joi.number().positive().optional(),
+  notes: Joi.string().max(1000).allow(null, '').optional(),
+  breakdown_details: Joi.any().optional(),
+  breakdownDetails: Joi.any().optional(),
+});

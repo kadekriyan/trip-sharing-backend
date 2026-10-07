@@ -235,6 +235,20 @@ describe('FinanceService Unit Tests', () => {
       vendorSlipId = slip.id;
     });
 
+    it('should update vendor slip details when in DRAFT status', async () => {
+      const updated = await FinanceService.updateVendorSettlementSlip(vendorSlipId, {
+        vendor_name: 'Test Vendor Goa Pindul Updated',
+        total_items: 30,
+        total_amount: 1800000,
+        notes: '30 Tiket Cave Tubing Pindul (Revisi)',
+      });
+
+      expect(updated.vendorName).toBe('Test Vendor Goa Pindul Updated');
+      expect(updated.totalItems).toBe(30);
+      expect(updated.totalAmount).toBe(1800000);
+      expect(updated.notes).toBe('30 Tiket Cave Tubing Pindul (Revisi)');
+    });
+
     it('should confirm and pay vendor slip, creating expense in ledger', async () => {
       const paid = await FinanceService.updateVendorSlipStatus(vendorSlipId, {
         status: 'PAID',
@@ -250,7 +264,15 @@ describe('FinanceService Unit Tests', () => {
 
       const autoExpense = txs.data.find((t) => t.notes?.includes(vendorSlipId));
       expect(autoExpense).toBeDefined();
-      expect(autoExpense?.amount).toBe(1440000);
+      expect(autoExpense?.amount).toBe(1800000);
+    });
+
+    it('should reject updating vendor slip if already PAID', async () => {
+      await expect(
+        FinanceService.updateVendorSettlementSlip(vendorSlipId, {
+          total_amount: 2000000,
+        })
+      ).rejects.toThrow('Tidak dapat mengubah slip vendor yang sudah LUNAS / DICAIRKAN');
     });
   });
 });

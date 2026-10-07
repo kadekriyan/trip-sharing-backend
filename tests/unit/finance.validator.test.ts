@@ -4,6 +4,7 @@ import {
   updateTransactionSchema,
   createDriverSettlementSlipSchema,
   createVendorSettlementSlipSchema,
+  updateVendorSettlementSlipSchema,
   updateSlipStatusSchema,
 } from '../../src/validators/finance.validator';
 import { ValidationError } from '../../src/utils/errors';
@@ -148,6 +149,32 @@ describe('Finance Validator Unit Tests', () => {
           totalAmount: 2000000,
         });
       }).toThrow(ValidationError);
+    });
+  });
+
+  describe('updateVendorSettlementSlipSchema', () => {
+    it('validates partial vendor slip update with camelCase', () => {
+      const payload = {
+        totalAmount: 2500000,
+        totalItems: 5,
+        notes: 'Updated note',
+      };
+
+      const result = validateSchema(updateVendorSettlementSlipSchema, payload);
+      expect(result.totalAmount).toBe(2500000);
+      expect(result.totalItems).toBe(5);
+      expect(result.notes).toBe('Updated note');
+    });
+
+    it('validates partial vendor slip update with snake_case', () => {
+      const payload = {
+        vendor_name: 'Updated Vendor Name',
+        total_amount: 1800000,
+      };
+
+      const result = validateSchema(updateVendorSettlementSlipSchema, payload);
+      expect(result.vendor_name).toBe('Updated Vendor Name');
+      expect(result.total_amount).toBe(1800000);
     });
   });
 

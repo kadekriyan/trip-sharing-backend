@@ -29,6 +29,7 @@ router.patch('/driver-slips/:id/status', asyncHandler(FinanceController.updateDr
 router.post('/vendor-slips', asyncHandler(FinanceController.createVendorSlip));
 router.get('/vendor-slips', asyncHandler(FinanceController.listVendorSlips));
 router.get('/vendor-slips/:id', asyncHandler(FinanceController.getVendorSlipById));
+router.put('/vendor-slips/:id', asyncHandler(FinanceController.updateVendorSlip));
 router.patch('/vendor-slips/:id/status', asyncHandler(FinanceController.updateVendorSlipStatus));
 
 export default router;

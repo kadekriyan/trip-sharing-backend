@@ -671,6 +671,57 @@ export class FinanceService {
   }
 
   /**
+   * Update Vendor Settlement Slip Details (Only allowed for DRAFT or VENDOR_CONFIRMED)
+   */
+  static async updateVendorSettlementSlip(id: string, data: Record<string, any>) {
+    const existing = await this.getVendorSlipById(id);
+
+    if (existing.status === 'PAID') {
+      throw new ValidationError('Tidak dapat mengubah slip vendor yang sudah LUNAS / DICAIRKAN');
+    }
+    if (existing.status === 'CANCELLED') {
+      throw new ValidationError('Tidak dapat mengubah slip vendor yang sudah DIBATALKAN');
+    }
+
+    const updateData: Prisma.VendorSettlementSlipUpdateInput = {};
+
+    if (data.vendor_name !== undefined || data.vendorName !== undefined) {
+      updateData.vendor_name = data.vendor_name || data.vendorName;
+    }
+    if (data.category !== undefined) {
+      updateData.category = data.category;
+    }
+    if (data.period_start !== undefined || data.periodStart !== undefined) {
+      updateData.period_start = new Date(data.period_start || data.periodStart);
+    }
+    if (data.period_end !== undefined || data.periodEnd !== undefined) {
+      const periodEnd = new Date(data.period_end || data.periodEnd);
+      periodEnd.setHours(23, 59, 59, 999);
+      updateData.period_end = periodEnd;
+    }
+    if (data.total_items !== undefined || data.totalItems !== undefined) {
+      updateData.total_items = Number(data.total_items || data.totalItems || 0);
+    }
+    if (data.total_amount !== undefined || data.totalAmount !== undefined) {
+      const amt = Number(data.total_amount || data.totalAmount || 0);
+      updateData.total_amount = new Prisma.Decimal(amt);
+    }
+    if (data.notes !== undefined) {
+      updateData.notes = data.notes || null;
+    }
+    if (data.breakdown_details !== undefined || data.breakdownDetails !== undefined) {
+      updateData.breakdown_details = data.breakdown_details || data.breakdownDetails || null;
+    }
+
+    const updated = await prisma.vendorSettlementSlip.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return this.formatVendorSlip(updated);
+  }
+
+  /**
    * DTO Formatters
    */
   private static formatTransaction(tx: any) {
