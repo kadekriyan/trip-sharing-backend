@@ -100,11 +100,11 @@ export class EmailService {
     <body>
       <div class="container">
         <div class="header">
-          <h1>Share Trip Jogja</h1>
+          <h1>Java Shared Tour</h1>
         </div>
         <div class="content">
           <div class="greeting">Halo, ${userName}!</div>
-          <p>Kami menerima permintaan untuk mereset kata sandi akun Anda di <strong>Share Trip Jogja</strong>.</p>
+          <p>Kami menerima permintaan untuk mereset kata sandi akun Anda di <strong>Java Shared Tour</strong>.</p>
           <p>Klik tombol di bawah ini untuk mengatur kata sandi baru Anda:</p>
           <div class="button-wrapper">
             <a href="${resetUrl}" class="reset-btn" target="_blank">Atur Ulang Kata Sandi</a>
@@ -119,14 +119,14 @@ export class EmailService {
           </div>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Share Trip Jogja. All rights reserved.
+          &copy; ${new Date().getFullYear()} Java Shared Tour. All rights reserved.
         </div>
       </div>
     </body>
     </html>
     `
 
-    return this.send(email, 'Reset Kata Sandi Akun - Share Trip Jogja', html)
+    return this.send(email, 'Reset Kata Sandi Akun - Java Shared Tour', html)
   }
 }
 

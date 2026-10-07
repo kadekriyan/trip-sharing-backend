@@ -38,7 +38,7 @@ describe('FileService', () => {
       const mockReq = {
         query: { folder: 'destinations' },
         protocol: 'https',
-        get: jest.fn().mockReturnValue('api.tripsharing.id'),
+        get: jest.fn().mockReturnValue('api.javasharedtour.co.id'),
       } as unknown as Request
 
       const mockFile = {
@@ -158,7 +158,7 @@ describe('FileService', () => {
         query: {},
         body: {},
         protocol: 'https',
-        get: jest.fn().mockReturnValue('api.tripsharing.id'),
+        get: jest.fn().mockReturnValue('api.javasharedtour.co.id'),
       } as unknown as Request
 
       const mockFile = {
@@ -170,7 +170,7 @@ describe('FileService', () => {
 
       const result = FileService.formatFileResponse(mockReq, mockFile)
 
-      expect(result.url).toBe('https://api.tripsharing.id/uploads/general/article-img.jpg')
+      expect(result.url).toBe('https://api.javasharedtour.co.id/uploads/general/article-img.jpg')
       expect(result.path).toBe('/uploads/general/article-img.jpg')
     })
   })

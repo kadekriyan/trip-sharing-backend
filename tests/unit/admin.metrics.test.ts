@@ -66,7 +66,7 @@ describe('AdminService', () => {
           new_values: { details: 'Moved participant from group 1 to group 2' },
           ip_address: '180.252.164.12',
           created_at: new Date('2026-08-31T12:30:00.000Z'),
-          user: { id: 'usr-1', email: 'admin@tripsharing.id', name: 'Admin', role: 'admin' },
+          user: { id: 'usr-1', email: 'admin@javasharedtour.co.id', name: 'Admin', role: 'admin' },
         },
       ])
 
@@ -74,7 +74,7 @@ describe('AdminService', () => {
 
       expect(result.data).toHaveLength(1)
       expect(result.data[0].id).toBe('log-1')
-      expect(result.data[0].adminEmail).toBe('admin@tripsharing.id')
+      expect(result.data[0].adminEmail).toBe('admin@javasharedtour.co.id')
       expect(result.data[0].targetResource).toBe('BookingGroup')
       expect(result.meta.total).toBe(1)
       expect(result.meta.totalPages).toBe(1)
