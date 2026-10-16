@@ -27,6 +27,7 @@ model User {
   admin_logs            AuditLog[]
   guided_trips          Trip[]
   password_reset_tokens PasswordResetToken[]
+  reviews               Review[]
 
   @@index([email])
   @@index([role])
@@ -66,7 +67,8 @@ model Destination {
   created_at         DateTime @default(now())
   updated_at         DateTime @updatedAt
 
-  trips Trip[]
+  trips   Trip[]
+  reviews Review[]
 
   @@index([is_active])
   @@index([is_unlisted])
@@ -90,6 +92,7 @@ model Trip {
   guide                User?                @relation(fields: [guide_id], references: [id])
   booking_groups       BookingGroup[]
   finance_transactions FinanceTransaction[]
+  reviews              Review[]
 
   @@index([destination_id])
   @@index([departure_date])
@@ -152,6 +155,7 @@ model Participant {
   booking_group BookingGroup @relation(fields: [booking_group_id], references: [id])
   user          User         @relation(fields: [user_id], references: [id])
   payment       Payment?
+  review        Review?
 
   @@index([booking_group_id])
   @@index([user_id])
@@ -428,5 +432,37 @@ model VendorSettlementSlip {
   @@index([category])
   @@index([status])
   @@index([period_start, period_end])
+}
+
+model Review {
+  id               String    @id @default(uuid())
+  destination_id   String
+  trip_id          String
+  participant_id   String    @unique
+  user_id          String?
+  rating           Int       @default(5)
+  comment          String    @db.Text
+  status           String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejection_reason String?
+  admin_reply      String?   @db.Text
+  replied_at       DateTime?
+  replied_by       String?
+  review_token     String    @unique
+  token_expires_at DateTime?
+  is_submitted     Boolean   @default(false)
+  submitted_at     DateTime?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  destination Destination @relation(fields: [destination_id], references: [id], onDelete: Cascade)
+  trip        Trip        @relation(fields: [trip_id], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participant_id], references: [id], onDelete: Cascade)
+  user        User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([destination_id])
+  @@index([trip_id])
+  @@index([participant_id])
+  @@index([status])
+  @@index([review_token])
 }
 
