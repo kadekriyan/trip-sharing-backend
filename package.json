@@ -2,11 +2,11 @@
   "name": "trip-sharing-backend",
   "version": "1.0.0",
   "description": "Trip Sharing Web Application backend API",
-  "main": "dist/server.js",
+  "main": "dist/src/server.js",
   "scripts": {
     "dev": "nodemon --exec ts-node src/server.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/src/server.js",
     "postinstall": "prisma generate",
     "test": "jest",
     "test:watch": "jest --watch",
