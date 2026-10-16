@@ -71,8 +71,9 @@ export class FileService {
     }
 
     // Fallback if Supabase key is not provided (local dev / mock test)
-    const protocol = req.protocol || 'http'
-    const host = req.get('host') || 'localhost:3001'
+    const forwardedProto = req.headers?.['x-forwarded-proto'] as string | undefined
+    const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol || 'http'
+    const host = req.get ? req.get('host') || 'localhost:3001' : 'localhost:3001'
     const relativePath = `/uploads/${safeFolder}/${filename}`
     const fullUrl = `${protocol}://${host}${relativePath}`
 
@@ -108,8 +109,9 @@ export class FileService {
   static formatFileResponse(req: Request, file: Express.Multer.File): UploadedFileResponse {
     const rawFolder = (req.query.folder as string) || (req.body?.folder as string) || 'general'
     const safeFolder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, '') || 'general'
-    const protocol = req.protocol || 'http'
-    const host = req.get('host') || 'localhost:3001'
+    const forwardedProto = req.headers?.['x-forwarded-proto'] as string | undefined
+    const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol || 'http'
+    const host = req.get ? req.get('host') || 'localhost:3001' : 'localhost:3001'
     const relativePath = `/uploads/${safeFolder}/${file.filename || file.originalname}`
     const fullUrl = `${protocol}://${host}${relativePath}`
 
