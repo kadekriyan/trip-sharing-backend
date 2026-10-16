@@ -92,6 +92,19 @@ export class ReviewController {
   }
 
   /**
+   * GET /api/admin/trips/:id/review-links
+   */
+  static async getTripReviewLinks(req: Request, res: Response) {
+    const { id } = req.params
+    const customBaseUrl =
+      (typeof req.query.baseUrl === 'string' ? req.query.baseUrl : undefined) ||
+      (typeof req.headers.origin === 'string' ? req.headers.origin : undefined)
+
+    const result = await ReviewService.getTripReviewLinks(id, customBaseUrl)
+    sendResponse(res, 200, 'Trip review links retrieved', result)
+  }
+
+  /**
    * PATCH /api/trips/:id/complete
    */
   static async completeTrip(req: Request, res: Response) {

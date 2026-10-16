@@ -26,6 +26,7 @@
 14. [Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)](#14-pengaturan-sistem--dynamic-seo-apisettings--apiadminsettings)
 15. [Integrasi Notifikasi Telegram Bot (`TelegramService`)](#15-integrasi-notifikasi-telegram-bot-telegramservice)
 16. [Panduan Integrasi Frontend (Next.js Client Example)](#16-panduan-integrasi-frontend-nextjs-client-example)
+17. [Sistem Ulasan Terverifikasi & Moderasi Admin (`/api/reviews` & `/api/admin/reviews`)](#17-sistem-ulasan-terverifikasi--moderasi-admin-apireviews--apiadminreviews)
 
 ---
 
@@ -1419,18 +1420,12 @@ Mengambil detail wilayah operasional berdasarkan UUID atau Slug.
 ## 10. Driver / Pengemudi (`/api/drivers`)
 
 ### 10.1 Daftar Driver Tersedia
-Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing. Dapat difilter berdasarkan wilayah operasional (`areaId` atau `area`) serta dievaluasi ketersediaannya pada tanggal keberangkatan tertentu (`date` atau `tripId`).
-
-> **Catatan Integrasi Dynamic Driver Schedule (Phase 12)**:  
-> Setiap driver memiliki jadwal periode bertugas (`activeStartDate` s/d `activeEndDate`) dan periode cuti/libur sementara (`inactiveStartDate` s/d `inactiveEndDate`).  
-> Jika query parameter `date` (format `YYYY-MM-DD`) atau `tripId` dikirimkan, backend secara dinamis menghitung `isAvailable` (apakah aktif pada tanggal tersebut), `status` (berubah menjadi `off_duty` jika sedang cuti/di luar masa kontrak), serta melampirkan `statusReason` dan `evaluationDate`.
+Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjalanan trip sharing. Dapat difilter berdasarkan wilayah operasional (`areaId` atau `area`).
 
 - **Method**: `GET`
 - **Path**: `/api/drivers`
 - **Auth**: Public
 - **Query Params**:
-  - `date` *(opsional, string YYYY-MM-DD)*: Evaluasi ketersediaan dinamis pada tanggal tertentu.
-  - `tripId` / `trip_id` *(opsional, UUID)*: Evaluasi ketersediaan dinamis pada tanggal keberangkatan trip terkait.
   - `is_available` / `isAvailable` *(opsional, boolean)*: `true` / `false`.
   - `status` *(opsional, string)*: Filter status driver (`active`, `on_duty`, `off_duty`, `inactive`).
   - `areaId` / `area_id` *(opsional, string)*: Filter berdasarkan ID area operasional.
@@ -1453,17 +1448,9 @@ Menampilkan daftar personil pengemudi aktif yang siap bertugas mengantar perjala
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
       "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
-      "activeStartDate": "2026-01-01T00:00:00.000Z",
-      "activeEndDate": "2026-12-31T00:00:00.000Z",
-      "inactiveStartDate": null,
-      "inactiveEndDate": null,
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
-      "rawIsAvailable": true,
-      "rawStatus": "active",
-      "statusReason": "Driver aktif dan tersedia pada tanggal ini",
-      "evaluationDate": "2026-09-28",
       "areaId": "a1b2c3d4-0001-48ea-9201-7fa112340001",
       "area": {
         "id": "a1b2c3d4-0001-48ea-9201-7fa112340001",
@@ -2530,16 +2517,14 @@ Menghapus artikel secara permanen dari database.
 ### 12.8 Manajemen Driver / Personil Pengemudi Admin (`CRUD & Pairing`)
 
 #### 12.8.1 Daftar Seluruh Driver Admin (`GET /api/admin/drivers`)
-Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta data armada fisik yang saat ini terpasang. Mendukung evaluasi ketersediaan dinamis pada tanggal tertentu (`date` atau `tripId`).
+Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta data armada fisik yang saat ini terpasang.
 
 - **Method**: `GET`
 - **Path**: `/api/admin/drivers`
 - **Auth**: `Bearer <admin_jwt_token>`
 - **Query Params**:
-  - `date` *(opsional, string YYYY-MM-DD)*: Evaluasi ketersediaan dinamis pada tanggal tertentu.
-  - `tripId` / `trip_id` *(opsional, UUID)*: Evaluasi ketersediaan dinamis pada tanggal keberangkatan trip terkait.
   - `is_available` *(opsional, boolean)*: Filter status ketersediaan.
-  - `status` *(opsional, string)*: Filter status (`active`, `inactive`, `on_trip`, `off_duty`).
+  - `status` *(opsional, string)*: Filter status (`active`, `inactive`, `on_trip`).
   - `search` *(opsional, string)*: Pencarian nama driver, nomor HP, atau nomor SIM.
 
 ##### Response Sukses (`200 OK`)
@@ -2558,17 +2543,9 @@ Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta 
       "email": "joko@driver.local",
       "licenseNumber": "SIM-A-99218201",
       "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
-      "activeStartDate": "2026-01-01T00:00:00.000Z",
-      "activeEndDate": "2026-12-31T00:00:00.000Z",
-      "inactiveStartDate": null,
-      "inactiveEndDate": null,
       "rating": 5.0,
       "isAvailable": true,
       "status": "active",
-      "rawIsAvailable": true,
-      "rawStatus": "active",
-      "statusReason": "Driver aktif dan tersedia pada tanggal ini",
-      "evaluationDate": "2026-09-28",
       "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
       "vehicle": {
         "id": "veh-7711-4bc1-9022-882299aabb01",
@@ -2596,7 +2573,7 @@ Mengambil semua data personil driver yang terdaftar, status ketersediaan, serta 
 ---
 
 #### 12.8.2 Daftarkan Driver Baru (`POST /api/admin/drivers`)
-Mendaftarkan personil driver baru beserta jadwal masa berlaku tugas dan cuti. Admin dapat langsung menautkan armada (`vehicleId`) secara opsional.
+Mendaftarkan personil driver baru. Admin dapat langsung menautkan armada (`vehicleId`) secara opsional. Jika akun user belum ada, sistem otomatis membuatkan akun user ber-role `'driver'`.
 
 - **Method**: `POST`
 - **Path**: `/api/admin/drivers`
@@ -2610,10 +2587,6 @@ Mendaftarkan personil driver baru beserta jadwal masa berlaku tugas dan cuti. Ad
   "email": "budi.driver@example.com",
   "licenseNumber": "SIM-A-77889900",
   "licenseExpiryDate": "2029-08-30",
-  "activeStartDate": "2026-01-01",
-  "activeEndDate": "2026-12-31",
-  "inactiveStartDate": null,
-  "inactiveEndDate": null,
   "vehicleId": "veh-7711-4bc1-9022-882299aabb01",
   "photoUrl": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200",
   "isAvailable": true
@@ -2633,10 +2606,6 @@ Mendaftarkan personil driver baru beserta jadwal masa berlaku tugas dan cuti. Ad
     "email": "budi.driver@example.com",
     "licenseNumber": "SIM-A-77889900",
     "licenseExpiryDate": "2029-08-30T00:00:00.000Z",
-    "activeStartDate": "2026-01-01T00:00:00.000Z",
-    "activeEndDate": "2026-12-31T00:00:00.000Z",
-    "inactiveStartDate": null,
-    "inactiveEndDate": null,
     "rating": 5.0,
     "isAvailable": true,
     "vehicleId": "veh-7711-4bc1-9022-882299aabb01"
@@ -3410,4 +3379,165 @@ export function PaymentButton({ participantId }: { participantId: string }) {
 ```
 
 ---
+
+## 17. Sistem Ulasan Terverifikasi & Moderasi Admin (`/api/reviews` & `/api/admin/reviews`)
+
+Sistem ulasan (Phase 14) menerapkan verifikasi ketat berbasis manifest peserta:
+1. Hanya peserta yang terdaftar pada manifest trip dan sudah lunas (*PAID* / *COMPLETED*) yang berhak memberikan ulasan.
+2. Setiap peserta memiliki token ulasan unik (`review_token`) berkekuatan kriptografi tinggi yang hanya dapat dikirimkan sekali (*double-submit protection*).
+3. Setelah trip berstatus selesai (*COMPLETED*), admin dapat mengirimkan undangan ulasan otomatis ke nomor WhatsApp peserta via **Fonnte WhatsApp Gateway** (`POST /api/admin/trips/:id/send-review-invites`), atau menyalin tautan secara manual (`GET /api/admin/trips/:id/review-links`) sebagai cadangan jika pengiriman WA mengalami gangguan.
+4. Ulasan masuk ke daftar moderasi admin (`PENDING`), di mana admin dapat menyetujui (*APPROVE*) atau menolak (*REJECT*).
+5. Ulasan yang disetujui (*APPROVED*) otomatis tayang di bagian bawah halaman detail destinasi publik (`/destinations/[slug]`), dan nilai rating rata-rata destinasi (`Destination.rating` & `total_reviews`) dihitung ulang secara real-time.
+6. Admin dapat memberikan tanggapan resmi (*admin reply*) atas ulasan wisatawan dalam pola komunikasi 1-arah (wisatawan tidak dapat membalas kembali).
+
+### 17.1 Verifikasi Token Ulasan Publik
+Memverifikasi apakah tautan ulasan valid dan mengembalikan data singkat trip & nama peserta.
+
+- **Method**: `GET`
+- **Path**: `/api/reviews/verify/:token`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Token ulasan valid",
+  "data": {
+    "token": "4a18c9b20e98a...",
+    "isValid": true,
+    "isSubmitted": false,
+    "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+    "departureDate": "2026-10-10T00:00:00.000Z",
+    "destinationId": "b18204aa-5511-4ae2-a110-9bfa11110001",
+    "destinationTitle": "Paket Sunrise Bromo",
+    "destinationSlug": "paket-sunrise-bromo",
+    "participantId": "c19208a1-5512-48ea-9201-7fa112345678",
+    "participantName": "Budi Santoso"
+  }
+}
+```
+
+---
+
+### 17.2 Kirim Ulasan Terverifikasi
+Mengirimkan rating bintang (1-5) dan testimoni ulasan dari peserta terverifikasi.
+
+- **Method**: `POST`
+- **Path**: `/api/reviews/submit/:token`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "rating": 5,
+  "comment": "Pelayanan sangat ramah, driver mengemudi dengan aman, dan trip menyenangkan!"
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Terima kasih! Ulasan Anda berhasil dikirim dan akan diverifikasi oleh tim kami.",
+  "data": {
+    "id": "rev-123456",
+    "rating": 5,
+    "comment": "Pelayanan sangat ramah...",
+    "status": "PENDING",
+    "is_submitted": true
+  }
+}
+```
+
+---
+
+### 17.3 Daftar Ulasan Disetujui Destinasi (Publik)
+Menampilkan daftar ulasan yang telah berstatus `APPROVED` di bagian bawah halaman katalog/detail destinasi.
+
+- **Method**: `GET`
+- **Path**: `/api/reviews/destination/:idOrSlug`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Approved reviews retrieved",
+  "data": {
+    "destination": {
+      "id": "b18204aa-5511-4ae2-a110-9bfa11110001",
+      "name": "Paket Sunrise Bromo",
+      "slug": "paket-sunrise-bromo",
+      "rating": 4.9,
+      "totalReviews": 42
+    },
+    "reviews": [
+      {
+        "id": "rev-123456",
+        "rating": 5,
+        "comment": "Pelayanan sangat ramah...",
+        "travelerName": "Budi Santoso",
+        "adminReply": "Terima kasih banyak Kak Budi! Senang bisa mendampingi liburan seru Anda.",
+        "repliedAt": "2026-10-12T14:30:00.000Z",
+        "submittedAt": "2026-10-11T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 17.4 Moderasi Ulasan & Balasan Admin (`/api/admin/reviews`)
+
+#### a. Daftar Ulasan Admin (Filter Status)
+- **Method**: `GET`
+- **Path**: `/api/admin/reviews?status=PENDING&page=1&limit=20`
+- **Auth**: Admin (`Bearer <token>`)
+
+#### b. Setujui / Tolak Ulasan
+- **Method**: `PATCH`
+- **Path**: `/api/admin/reviews/:id/moderate`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body**:
+```json
+{
+  "status": "APPROVED",
+  "rejectionReason": ""
+}
+```
+
+#### c. Kirim Tanggapan Resmi Pengelola (1-Arah)
+- **Method**: `POST`
+- **Path**: `/api/admin/reviews/:id/reply`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body**:
+```json
+{
+  "adminReply": "Terima kasih atas masukannya Kak, kami terus meningkatkan kenyamanan armada kami."
+}
+```
+
+---
+
+### 17.5 Operasional Trip & Broadcast Fonnte WhatsApp (`/api/admin/trips`)
+
+#### a. Tandai Trip Selesai Terlaksana
+- **Method**: `PATCH`
+- **Path**: `/api/admin/trips/:id/complete`
+- **Auth**: Admin (`Bearer <token>`)
+
+#### b. Broadcast Undangan Review via Fonnte WhatsApp Gateway
+- **Method**: `POST`
+- **Path**: `/api/admin/trips/:id/send-review-invites`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body** *(opsional)*: `{ "baseUrl": "https://javasharedtour.co.id" }`
+
+#### c. Ambil Daftar Tautan Review Peserta (Salin Manual / Fallback)
+- **Method**: `GET`
+- **Path**: `/api/admin/trips/:id/review-links`
+- **Auth**: Admin (`Bearer <token>`)
+
+---
 *Dokumen ini diperbarui secara berkala dan disinkronkan dengan skema database PostgreSQL backend.*
+

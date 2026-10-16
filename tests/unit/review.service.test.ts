@@ -328,4 +328,47 @@ describe('Review & Fonnte Service Unit Tests', () => {
       expect(result.results[0].status).toBe('SENT')
     })
   })
+
+  describe('getTripReviewLinks', () => {
+    it('should generate/fetch review links without sending WhatsApp messages', () => {
+      const mockTrip = {
+        id: 'trip-links-1',
+        destination_id: 'dest-1',
+        destination: { name: 'Prambanan' },
+        departure_date: new Date('2026-10-10'),
+        booking_groups: [
+          {
+            participants: [
+              {
+                id: 'part-paid-1',
+                full_name: 'Budi Santoso',
+                phone_number: '08123456789',
+                payment_status: 'PAID',
+                user_id: null,
+              },
+            ],
+          },
+        ],
+      }
+
+      jest.spyOn(prisma.trip, 'findUnique').mockResolvedValueOnce(mockTrip as never)
+      jest.spyOn(prisma.review, 'findUnique').mockResolvedValueOnce({
+        id: 'rev-existing',
+        participant_id: 'part-paid-1',
+        review_token: 'existing-token-abc',
+        is_submitted: true,
+        rating: 5,
+      } as never)
+
+      const sendMessageSpy = jest.spyOn(FonnteService, 'sendMessage')
+
+      return ReviewService.getTripReviewLinks('trip-links-1', 'https://javasharedtour.co.id').then((result) => {
+        expect(result.totalParticipants).toBe(1)
+        expect(result.results[0].reviewToken).toBe('existing-token-abc')
+        expect(result.results[0].reviewUrl).toBe('https://javasharedtour.co.id/review/existing-token-abc')
+        expect(result.results[0].isSubmitted).toBe(true)
+        expect(sendMessageSpy).not.toHaveBeenCalled()
+      })
+    })
+  })
 })

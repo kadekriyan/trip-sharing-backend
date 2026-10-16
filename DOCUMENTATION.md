@@ -26,6 +26,7 @@
 14. [Pengaturan Sistem & Dynamic SEO (`/api/settings` & `/api/admin/settings`)](#14-pengaturan-sistem--dynamic-seo-apisettings--apiadminsettings)
 15. [Integrasi Notifikasi Telegram Bot (`TelegramService`)](#15-integrasi-notifikasi-telegram-bot-telegramservice)
 16. [Panduan Integrasi Frontend (Next.js Client Example)](#16-panduan-integrasi-frontend-nextjs-client-example)
+17. [Sistem Ulasan Terverifikasi & Moderasi Admin (`/api/reviews` & `/api/admin/reviews`)](#17-sistem-ulasan-terverifikasi--moderasi-admin-apireviews--apiadminreviews)
 
 ---
 
@@ -3378,4 +3379,165 @@ export function PaymentButton({ participantId }: { participantId: string }) {
 ```
 
 ---
+
+## 17. Sistem Ulasan Terverifikasi & Moderasi Admin (`/api/reviews` & `/api/admin/reviews`)
+
+Sistem ulasan (Phase 14) menerapkan verifikasi ketat berbasis manifest peserta:
+1. Hanya peserta yang terdaftar pada manifest trip dan sudah lunas (*PAID* / *COMPLETED*) yang berhak memberikan ulasan.
+2. Setiap peserta memiliki token ulasan unik (`review_token`) berkekuatan kriptografi tinggi yang hanya dapat dikirimkan sekali (*double-submit protection*).
+3. Setelah trip berstatus selesai (*COMPLETED*), admin dapat mengirimkan undangan ulasan otomatis ke nomor WhatsApp peserta via **Fonnte WhatsApp Gateway** (`POST /api/admin/trips/:id/send-review-invites`), atau menyalin tautan secara manual (`GET /api/admin/trips/:id/review-links`) sebagai cadangan jika pengiriman WA mengalami gangguan.
+4. Ulasan masuk ke daftar moderasi admin (`PENDING`), di mana admin dapat menyetujui (*APPROVE*) atau menolak (*REJECT*).
+5. Ulasan yang disetujui (*APPROVED*) otomatis tayang di bagian bawah halaman detail destinasi publik (`/destinations/[slug]`), dan nilai rating rata-rata destinasi (`Destination.rating` & `total_reviews`) dihitung ulang secara real-time.
+6. Admin dapat memberikan tanggapan resmi (*admin reply*) atas ulasan wisatawan dalam pola komunikasi 1-arah (wisatawan tidak dapat membalas kembali).
+
+### 17.1 Verifikasi Token Ulasan Publik
+Memverifikasi apakah tautan ulasan valid dan mengembalikan data singkat trip & nama peserta.
+
+- **Method**: `GET`
+- **Path**: `/api/reviews/verify/:token`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Token ulasan valid",
+  "data": {
+    "token": "4a18c9b20e98a...",
+    "isValid": true,
+    "isSubmitted": false,
+    "tripId": "3a09e112-9c44-48f1-9011-8a9d12340001",
+    "departureDate": "2026-10-10T00:00:00.000Z",
+    "destinationId": "b18204aa-5511-4ae2-a110-9bfa11110001",
+    "destinationTitle": "Paket Sunrise Bromo",
+    "destinationSlug": "paket-sunrise-bromo",
+    "participantId": "c19208a1-5512-48ea-9201-7fa112345678",
+    "participantName": "Budi Santoso"
+  }
+}
+```
+
+---
+
+### 17.2 Kirim Ulasan Terverifikasi
+Mengirimkan rating bintang (1-5) dan testimoni ulasan dari peserta terverifikasi.
+
+- **Method**: `POST`
+- **Path**: `/api/reviews/submit/:token`
+- **Auth**: Public
+
+#### Request Body
+```json
+{
+  "rating": 5,
+  "comment": "Pelayanan sangat ramah, driver mengemudi dengan aman, dan trip menyenangkan!"
+}
+```
+
+#### Response Sukses (`201 Created`)
+```json
+{
+  "success": true,
+  "message": "Terima kasih! Ulasan Anda berhasil dikirim dan akan diverifikasi oleh tim kami.",
+  "data": {
+    "id": "rev-123456",
+    "rating": 5,
+    "comment": "Pelayanan sangat ramah...",
+    "status": "PENDING",
+    "is_submitted": true
+  }
+}
+```
+
+---
+
+### 17.3 Daftar Ulasan Disetujui Destinasi (Publik)
+Menampilkan daftar ulasan yang telah berstatus `APPROVED` di bagian bawah halaman katalog/detail destinasi.
+
+- **Method**: `GET`
+- **Path**: `/api/reviews/destination/:idOrSlug`
+- **Auth**: Public
+
+#### Response Sukses (`200 OK`)
+```json
+{
+  "success": true,
+  "message": "Approved reviews retrieved",
+  "data": {
+    "destination": {
+      "id": "b18204aa-5511-4ae2-a110-9bfa11110001",
+      "name": "Paket Sunrise Bromo",
+      "slug": "paket-sunrise-bromo",
+      "rating": 4.9,
+      "totalReviews": 42
+    },
+    "reviews": [
+      {
+        "id": "rev-123456",
+        "rating": 5,
+        "comment": "Pelayanan sangat ramah...",
+        "travelerName": "Budi Santoso",
+        "adminReply": "Terima kasih banyak Kak Budi! Senang bisa mendampingi liburan seru Anda.",
+        "repliedAt": "2026-10-12T14:30:00.000Z",
+        "submittedAt": "2026-10-11T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### 17.4 Moderasi Ulasan & Balasan Admin (`/api/admin/reviews`)
+
+#### a. Daftar Ulasan Admin (Filter Status)
+- **Method**: `GET`
+- **Path**: `/api/admin/reviews?status=PENDING&page=1&limit=20`
+- **Auth**: Admin (`Bearer <token>`)
+
+#### b. Setujui / Tolak Ulasan
+- **Method**: `PATCH`
+- **Path**: `/api/admin/reviews/:id/moderate`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body**:
+```json
+{
+  "status": "APPROVED",
+  "rejectionReason": ""
+}
+```
+
+#### c. Kirim Tanggapan Resmi Pengelola (1-Arah)
+- **Method**: `POST`
+- **Path**: `/api/admin/reviews/:id/reply`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body**:
+```json
+{
+  "adminReply": "Terima kasih atas masukannya Kak, kami terus meningkatkan kenyamanan armada kami."
+}
+```
+
+---
+
+### 17.5 Operasional Trip & Broadcast Fonnte WhatsApp (`/api/admin/trips`)
+
+#### a. Tandai Trip Selesai Terlaksana
+- **Method**: `PATCH`
+- **Path**: `/api/admin/trips/:id/complete`
+- **Auth**: Admin (`Bearer <token>`)
+
+#### b. Broadcast Undangan Review via Fonnte WhatsApp Gateway
+- **Method**: `POST`
+- **Path**: `/api/admin/trips/:id/send-review-invites`
+- **Auth**: Admin (`Bearer <token>`)
+- **Body** *(opsional)*: `{ "baseUrl": "https://javasharedtour.co.id" }`
+
+#### c. Ambil Daftar Tautan Review Peserta (Salin Manual / Fallback)
+- **Method**: `GET`
+- **Path**: `/api/admin/trips/:id/review-links`
+- **Auth**: Admin (`Bearer <token>`)
+
+---
 *Dokumen ini diperbarui secara berkala dan disinkronkan dengan skema database PostgreSQL backend.*
+

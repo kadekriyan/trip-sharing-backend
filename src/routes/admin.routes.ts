@@ -126,6 +126,7 @@ router.patch(
 )
 router.patch('/trips/:id/complete', asyncHandler(ReviewController.completeTrip))
 router.post('/trips/:id/send-review-invites', asyncHandler(ReviewController.sendTripInvites))
+router.get('/trips/:id/review-links', asyncHandler(ReviewController.getTripReviewLinks))
 router.delete('/trips/:id', asyncHandler(AdminController.deleteTrip))
 
 // Articles & Blogs

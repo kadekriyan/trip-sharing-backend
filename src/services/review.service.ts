@@ -417,6 +417,87 @@ export class ReviewService {
   }
 
   /**
+   * Mengambil atau membuat tautan review untuk semua peserta trip yang sudah lunas (tanpa kirim WA)
+   */
+  static async getTripReviewLinks(tripId: string, customBaseUrl?: string) {
+    const cleanId = tripId.replace(/^trip-/, '')
+
+    const trip = await prisma.trip.findUnique({
+      where: { id: cleanId },
+      include: {
+        destination: true,
+        booking_groups: {
+          include: {
+            participants: true,
+          },
+        },
+      },
+    })
+
+    if (!trip) {
+      throw new ApiError('Trip not found', 404)
+    }
+
+    const allParticipants = trip.booking_groups.flatMap((g) => g.participants)
+    const paidParticipants = allParticipants.filter((p) => {
+      const payStatus = (p.payment_status || '').toLowerCase()
+      return payStatus === 'paid' || payStatus === 'completed'
+    })
+
+    const baseUrl = (
+      customBaseUrl ||
+      process.env.FRONTEND_URL ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      'https://javasharedtour.co.id'
+    ).replace(/\/$/, '')
+
+    const results = []
+
+    for (const participant of paidParticipants) {
+      let review = await prisma.review.findUnique({
+        where: { participant_id: participant.id },
+      })
+
+      if (!review) {
+        const uniqueToken = crypto.randomBytes(20).toString('hex')
+        review = await prisma.review.create({
+          data: {
+            destination_id: trip.destination_id,
+            trip_id: trip.id,
+            participant_id: participant.id,
+            user_id: participant.user_id || null,
+            review_token: uniqueToken,
+            status: 'PENDING',
+            comment: '',
+            rating: 5,
+            is_submitted: false,
+          },
+        })
+      }
+
+      const reviewUrl = `${baseUrl}/review/${review.review_token}`
+
+      results.push({
+        participantId: participant.id,
+        fullName: participant.full_name,
+        phoneNumber: participant.phone_number,
+        reviewToken: review.review_token,
+        reviewUrl,
+        isSubmitted: review.is_submitted,
+        rating: review.is_submitted ? review.rating : null,
+      })
+    }
+
+    return {
+      tripId: trip.id,
+      destinationTitle: trip.destination.name,
+      departureDate: trip.departure_date,
+      totalParticipants: paidParticipants.length,
+      results,
+    }
+  }
+
+  /**
    * Helper internal untuk menghitung ulang rata-rata rating destinasi dari ulasan APPROVED
    */
   private static async recalculateDestinationRating(destinationId: string) {
