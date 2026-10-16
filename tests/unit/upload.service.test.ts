@@ -4,6 +4,17 @@ import { Request } from 'express'
 import fs from 'fs'
 import axios from 'axios'
 
+const mockSharpInstance = {
+  metadata: jest.fn().mockResolvedValue({ format: 'jpeg', width: 800, height: 600 }),
+  rotate: jest.fn().mockReturnThis(),
+  webp: jest.fn().mockReturnThis(),
+  toBuffer: jest.fn().mockResolvedValue(Buffer.from('processed-webp-bytes')),
+}
+
+jest.mock('sharp', () => {
+  return jest.fn().mockImplementation(() => mockSharpInstance)
+})
+
 jest.mock('fs', () => {
   const actualFs = jest.requireActual('fs')
   return {
@@ -23,16 +34,18 @@ describe('FileService', () => {
     jest.clearAllMocks()
     supabaseConfig.anonKey = ''
     supabaseConfig.serviceRoleKey = ''
+    mockSharpInstance.metadata.mockResolvedValue({ format: 'jpeg', width: 800, height: 600 })
+    mockSharpInstance.toBuffer.mockResolvedValue(Buffer.from('processed-webp-bytes'))
   })
 
   describe('uploadFile', () => {
-    it('should upload to Supabase Storage when Supabase API key is configured', async () => {
+    it('should upload to Supabase Storage when Supabase API key is configured and convert to webp', async () => {
       supabaseConfig.anonKey = 'test-supabase-anon-key'
       supabaseConfig.url = 'https://test-project.supabase.co'
       supabaseConfig.bucket = 'uploads'
 
       mockedAxios.post.mockResolvedValueOnce({
-        data: { Key: 'uploads/destinations/bali-trip-123.jpg' },
+        data: { Key: 'uploads/destinations/bali-trip-123.webp' },
       })
 
       const mockReq = {
@@ -52,24 +65,24 @@ describe('FileService', () => {
 
       expect(mockedAxios.post).toHaveBeenCalledWith(
         expect.stringMatching(/https:\/\/test-project\.supabase\.co\/storage\/v1\/object\/uploads\/destinations\/bali-trip-/),
-        mockFile.buffer,
+        expect.any(Buffer),
         expect.objectContaining({
           headers: expect.objectContaining({
             Authorization: 'Bearer test-supabase-anon-key',
             apikey: 'test-supabase-anon-key',
-            'Content-Type': 'image/jpeg',
+            'Content-Type': 'image/webp',
             'x-upsert': 'true',
           }),
         })
       )
 
-      expect(result.url).toMatch(/^https:\/\/test-project\.supabase\.co\/storage\/v1\/object\/public\/uploads\/destinations\/bali-trip-.*\.jpg$/)
+      expect(result.url).toMatch(/^https:\/\/test-project\.supabase\.co\/storage\/v1\/object\/public\/uploads\/destinations\/bali-trip-.*\.webp$/)
       expect(result.originalName).toBe('bali-trip.jpg')
-      expect(result.mimetype).toBe('image/jpeg')
-      expect(result.size).toBe(204800)
+      expect(result.mimetype).toBe('image/webp')
+      expect(result.size).toBe(Buffer.from('processed-webp-bytes').length)
     })
 
-    it('should fallback to local URL format when Supabase key is not configured', async () => {
+    it('should fallback to local URL format when Supabase key is not configured and save as webp', async () => {
       supabaseConfig.anonKey = ''
       supabaseConfig.serviceRoleKey = ''
 
@@ -89,9 +102,31 @@ describe('FileService', () => {
       const result = await FileService.uploadFile(mockReq, mockFile)
 
       expect(mockedAxios.post).not.toHaveBeenCalled()
-      expect(result.url).toMatch(/^http:\/\/localhost:3001\/uploads\/general\/avatar-.*\.png$/)
-      expect(result.path).toMatch(/^\/uploads\/general\/avatar-.*\.png$/)
+      expect(result.url).toMatch(/^http:\/\/localhost:3001\/uploads\/general\/avatar-.*\.webp$/)
+      expect(result.path).toMatch(/^\/uploads\/general\/avatar-.*\.webp$/)
       expect(result.originalName).toBe('avatar.png')
+      expect(result.mimetype).toBe('image/webp')
+    })
+
+    it('should reject invalid or non-image files with 400 ApiError', async () => {
+      mockSharpInstance.metadata.mockResolvedValueOnce({ format: undefined })
+
+      const mockReq = {
+        query: { folder: 'general' },
+        protocol: 'http',
+        get: jest.fn().mockReturnValue('localhost:3001'),
+      } as unknown as Request
+
+      const mockFile = {
+        originalname: 'malicious.php',
+        mimetype: 'image/jpeg',
+        size: 1024,
+        buffer: Buffer.from('<?php echo "evil"; ?>'),
+      } as Express.Multer.File
+
+      await expect(FileService.uploadFile(mockReq, mockFile)).rejects.toThrow(
+        'Format berkas tidak valid atau bukan gambar yang didukung.'
+      )
     })
   })
 

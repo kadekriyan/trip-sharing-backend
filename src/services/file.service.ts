@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import axios from 'axios'
+import sharp from 'sharp'
 import { Request } from 'express'
 import { supabaseConfig } from '../config/supabase'
 import { ApiError } from '../utils/errors'
@@ -16,17 +17,57 @@ export interface UploadedFileResponse {
 }
 
 export class FileService {
+  /**
+   * Process raw image buffer through sharp:
+   * - Validates binary structure (magic bytes)
+   * - Strips EXIF metadata & auto-rotates
+   * - Compresses to WebP (quality 80)
+   */
+  static async processImage(buffer: Buffer): Promise<{ buffer: Buffer; mimetype: string; ext: string }> {
+    try {
+      const image = sharp(buffer)
+      const metadata = await image.metadata()
+
+      if (!metadata.format) {
+        throw new ApiError('Format berkas tidak valid atau bukan gambar yang didukung.', 400)
+      }
+
+      // Auto-orient based on EXIF before stripping, convert to webp (quality 80)
+      const processedBuffer = await image
+        .rotate()
+        .webp({ quality: 80 })
+        .toBuffer()
+
+      return {
+        buffer: processedBuffer,
+        mimetype: 'image/webp',
+        ext: '.webp',
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiError) throw err
+      logger.warn(`Sharp processing failed: ${err instanceof Error ? err.message : String(err)}`)
+      throw new ApiError('Berkas yang diunggah rusak atau bukan format gambar valid.', 400)
+    }
+  }
+
   static async uploadFile(req: Request, file: Express.Multer.File): Promise<UploadedFileResponse> {
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      throw new ApiError('Berkas gambar kosong atau tidak valid.', 400)
+    }
+
+    // Process image through Sharp security pipeline
+    const { buffer: processedBuffer, mimetype: finalMime, ext: finalExt } = await this.processImage(file.buffer)
+
     const rawFolder = (req.query.folder as string) || (req.body?.folder as string) || 'general'
     const safeFolder = rawFolder.replace(/[^a-zA-Z0-9_-]/g, '') || 'general'
 
-    const ext = (path.extname(file.originalname || '') || '.jpg').toLowerCase()
+    const originalExt = (path.extname(file.originalname || '') || '.jpg').toLowerCase()
     const cleanBaseName = path
-      .basename(file.originalname || 'image', ext)
+      .basename(file.originalname || 'image', originalExt)
       .replace(/[^a-zA-Z0-9_-]/g, '-')
       .toLowerCase() || 'image'
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`
-    const filename = `${cleanBaseName}-${uniqueSuffix}${ext}`
+    const filename = `${cleanBaseName}-${uniqueSuffix}${finalExt}`
     const storagePath = `${safeFolder}/${filename}`
 
     const apiKey = supabaseConfig.serviceRoleKey || supabaseConfig.anonKey
@@ -36,11 +77,11 @@ export class FileService {
     if (apiKey) {
       try {
         const uploadUrl = `${baseUrl}/storage/v1/object/${bucket}/${storagePath}`
-        await axios.post(uploadUrl, file.buffer, {
+        await axios.post(uploadUrl, processedBuffer, {
           headers: {
             Authorization: `Bearer ${apiKey}`,
             apikey: apiKey,
-            'Content-Type': file.mimetype || 'application/octet-stream',
+            'Content-Type': finalMime,
             'x-upsert': 'true',
           },
           maxBodyLength: Infinity,
@@ -54,8 +95,8 @@ export class FileService {
           path: `/${bucket}/${storagePath}`,
           filename,
           originalName: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size,
+          mimetype: finalMime,
+          size: processedBuffer.length,
         }
       } catch (err: unknown) {
         let errorMessage = 'Terjadi kesalahan saat upload'
@@ -70,7 +111,7 @@ export class FileService {
       }
     }
 
-    // Fallback if Supabase key is not provided (local dev / mock test)
+    // Fallback if Supabase key is not provided (local dev / VPS local disk)
     const forwardedProto = req.headers?.['x-forwarded-proto'] as string | undefined
     const protocol = forwardedProto ? forwardedProto.split(',')[0].trim() : req.protocol || 'http'
     const host = req.get ? req.get('host') || 'localhost:3001' : 'localhost:3001'
@@ -78,15 +119,14 @@ export class FileService {
     const fullUrl = `${protocol}://${host}${relativePath}`
 
     try {
-      if (file && file.buffer) {
-        const uploadDir = path.join(process.cwd(), 'uploads', safeFolder)
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true })
-        }
-        fs.writeFileSync(path.join(uploadDir, filename), file.buffer)
+      const uploadDir = path.join(process.cwd(), 'uploads', safeFolder)
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true })
       }
+      fs.writeFileSync(path.join(uploadDir, filename), processedBuffer)
     } catch (fsErr) {
       logger.warn(`Failed to write file to local disk: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`)
+      throw new ApiError('Gagal menyimpan berkas ke media penyimpanan lokal.', 500)
     }
 
     return {
@@ -94,8 +134,8 @@ export class FileService {
       path: relativePath,
       filename,
       originalName: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
+      mimetype: finalMime,
+      size: processedBuffer.length,
     }
   }
 
