@@ -14,6 +14,7 @@ import uploadRoutes from './upload.routes'
 import vehicleRoutes from './vehicles.routes'
 import settingsRoutes from './settings.routes'
 import financeRoutes from './finance.routes'
+import reviewRoutes from './review.routes'
 
 export const routes = Router()
 
@@ -35,3 +36,4 @@ routes.use('/vehicles', vehicleRoutes)
 routes.use('/armada', vehicleRoutes)
 routes.use('/upload', uploadRoutes)
 routes.use('/admin/upload', uploadRoutes)
+routes.use('/reviews', reviewRoutes)

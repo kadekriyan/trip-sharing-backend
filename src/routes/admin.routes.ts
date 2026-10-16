@@ -15,6 +15,8 @@ import { tripValidator } from '../validators/trip.validator'
 import { vehicleValidator } from '../validators/vehicle.validator'
 import { seoValidator } from '../validators/seo.validator'
 import { SeoController } from '../controllers/seo.controller'
+import { ReviewController } from '../controllers/review.controller'
+import { reviewValidator } from '../validators/review.validator'
 
 const router = Router()
 
@@ -122,6 +124,9 @@ router.patch(
   validateRequest(tripValidator.update),
   asyncHandler(AdminController.updateTrip)
 )
+router.patch('/trips/:id/complete', asyncHandler(ReviewController.completeTrip))
+router.post('/trips/:id/send-review-invites', asyncHandler(ReviewController.sendTripInvites))
+router.get('/trips/:id/review-links', asyncHandler(ReviewController.getTripReviewLinks))
 router.delete('/trips/:id', asyncHandler(AdminController.deleteTrip))
 
 // Articles & Blogs
@@ -276,6 +281,19 @@ router.patch(
   '/settings/seo',
   validateRequest(seoValidator.update),
   asyncHandler(SeoController.updateAdminSeoSettings)
+)
+
+// Review Moderation & Admin Replies
+router.get('/reviews', asyncHandler(ReviewController.listAdminReviews))
+router.patch(
+  '/reviews/:id/moderate',
+  validateRequest(reviewValidator.moderateReview),
+  asyncHandler(ReviewController.moderateReview)
+)
+router.post(
+  '/reviews/:id/reply',
+  validateRequest(reviewValidator.adminReply),
+  asyncHandler(ReviewController.replyReview)
 )
 
 export default router
