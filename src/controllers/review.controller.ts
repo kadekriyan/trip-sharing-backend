@@ -71,7 +71,7 @@ export class ReviewController {
    */
   static async replyReview(req: Request, res: Response) {
     const { id } = req.params
-    const replyText = req.body.admin_reply || req.body.adminReply
+    const replyText = req.body.admin_reply || req.body.adminReply || req.body.reply
     const user = (req as unknown as { user?: { id?: string } }).user
     const adminUserId = user?.id
 

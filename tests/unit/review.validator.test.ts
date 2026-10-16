@@ -113,6 +113,14 @@ describe('Review Validator Unit Tests', () => {
       expect(result.adminReply).toBe('Kami senang Anda menikmati perjalanan ke Bromo!')
     })
 
+    it('validates admin reply with generic reply field', () => {
+      const result = validateReviewSchema<{ reply?: string }>(
+        reviewValidator.adminReply,
+        { reply: 'Terima kasih atas kunjungannya!' }
+      )
+      expect(result.reply).toBe('Terima kasih atas kunjungannya!')
+    })
+
     it('throws ValidationError if reply text is empty or too short', () => {
       expect(() => {
         validateReviewSchema(reviewValidator.adminReply, { adminReply: 'a' })

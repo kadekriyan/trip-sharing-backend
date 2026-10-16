@@ -47,7 +47,8 @@ export const reviewValidator = {
   adminReply: Joi.object({
     admin_reply: Joi.string().trim().min(2).max(3000).optional(),
     adminReply: Joi.string().trim().min(2).max(3000).optional(),
-  }).or('admin_reply', 'adminReply').messages({
+    reply: Joi.string().trim().min(2).max(3000).optional(),
+  }).or('admin_reply', 'adminReply', 'reply').messages({
     'object.missing': 'Admin reply content is required',
   }),
 
