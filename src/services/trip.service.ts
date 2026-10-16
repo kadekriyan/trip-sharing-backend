@@ -184,6 +184,20 @@ export class TripService {
     })
   }
 
+  static async completeTrip(id: string) {
+    const cleanId = id.replace(/^trip-/, '')
+    const trip = await this.get(cleanId)
+    if (trip.status === 'completed') {
+      return trip
+    }
+
+    return prisma.trip.update({
+      where: { id: cleanId },
+      data: { status: 'completed' },
+      include: { destination: true, guide: true, booking_groups: true },
+    })
+  }
+
   static async delete(id: string) {
     const cleanId = id.replace(/^trip-/, '')
     const trip = await this.get(cleanId)
